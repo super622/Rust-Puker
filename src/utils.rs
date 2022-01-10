@@ -9,7 +9,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum Errors {
     UnknownRoomIndex(usize),
-    UnknownGridNum(usize),
+    UnknownGridCoords((usize, usize)),
 }
 
 impl fmt::Display for Errors {

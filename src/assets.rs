@@ -16,7 +16,7 @@ pub struct Assets {
 
     pub enemy_mask_base: Image,
 
-    pub door_base: Image,
+    pub door_closed: Image,
     pub door_open: Image,
 
     pub floor: Image,
@@ -35,7 +35,7 @@ impl Assets {
 
         let enemy_mask_base = Image::new(ctx, "/enemy_mask_base.png")?;
 
-        let door_base = Image::new(ctx, "/door_base.png")?;
+        let door_closed = Image::new(ctx, "/door_closed.png")?;
         let door_open = Image::new(ctx, "/door_open.png")?;
 
         let floor = Image::new(ctx, "/floor.png")?;
@@ -52,7 +52,7 @@ impl Assets {
 
             enemy_mask_base,
 
-            door_base,
+            door_closed,
             door_open,
 
             floor,

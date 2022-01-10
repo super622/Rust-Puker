@@ -30,7 +30,7 @@ struct MainState {
     assets: Assets,
     player: Player,
     dungeon: Dungeon,
-    cur_room: usize,
+    cur_room: (usize, usize),
 }
 
 impl MainState {
@@ -57,7 +57,7 @@ impl MainState {
             color: Color::WHITE,
         };
         let dungeon = Dungeon::generate_dungeon((screen_width, screen_height));
-        let cur_room = Dungeon::get_start_room_grid_num();
+        let cur_room = Dungeon::get_start_room_coords();
 
         let s = MainState {
             screen_width, 
@@ -129,10 +129,10 @@ impl MainState {
         let mut ct = 0.;
         self.player.color = Color::WHITE;
 
-        let obstacles = &self.dungeon.get_room(self.cur_room)?.obstacles;
+        let room = &self.dungeon.get_room(self.cur_room)?;
         let mut collisions = Vec::<(usize, f32)>::new();
 
-        for (i, obst) in obstacles.iter().enumerate() {
+        for (i, obst) in room.obstacles.iter().enumerate() {
             if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(seconds), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, seconds) {
                 collisions.push((i, ct));
             }
@@ -141,25 +141,30 @@ impl MainState {
         collisions.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
         for (i, mut ct) in collisions.iter_mut() {
-            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(seconds), &obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, seconds) {
-                self.player.props.translation += cn * self.player.get_velocity(seconds).abs() * (1. - ct);
+            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(seconds), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, seconds) {
+                let obst = room.obstacles[*i].as_any();
+
+                if let Some(door) = obst.downcast_ref::<Door>() {
+                    if door.is_open {
+                        self.cur_room = door.connects_to;
+                        self.player.props.pos.0 *= -1.;
+                    }
+                    else {
+                        self.player.props.translation += cn * self.player.get_velocity(seconds).abs() * (1. - ct);
+                    }
+                }
+                else {
+                    self.player.props.translation += cn * self.player.get_velocity(seconds).abs() * (1. - ct);
+                }
             }
         }
 
         Ok(())
     }
 
-    fn handle_shot_collisions(&mut self, seconds: f32) -> GameResult {
+    fn handle_shot_collisions(&mut self, _seconds: f32) -> GameResult {
         let (sw, sh) = (self.screen_width, self.screen_height);
         let mut enemies = &mut self.dungeon.get_room_mut(self.cur_room)?.enemies;
-
-        // for shot in self.player.shots.iter() {
-        //     for enemy in enemies {
-        //         if shot.get_bbox(sw, sh).overlaps(&enemy.get_bbox(sw, sh)) {
-        //             println!("boom");
-        //         }
-        //     }
-        // }
 
         self.player.shots = self.player.shots.clone().into_iter().filter(|s| {
             for enemy in enemies.into_iter() {
@@ -172,6 +177,10 @@ impl MainState {
         }).collect();
 
         Ok(())
+    }
+
+    fn handle_player_enemy_collisions(&mut self, seconds: f32) -> GameResult {
+        todo!();
     }
 }
 
@@ -220,18 +229,6 @@ impl EventHandler for MainState {
             _ => (),
         }
     }
-
-    // fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
-    //     match button {
-    //         _ => (),
-    //     }
-    // }
-
-    // fn mouse_button_up_event(&mut self, _ctx: &mut Context, button: MouseButton, _x: f32, _y: f32) {
-    //     match button {
-    //         _ => (),
-    //     }
-    // }
 
     fn mouse_motion_event(&mut self, _ctx: &mut Context, x: f32, y: f32, _dx: f32, _dy: f32) {
         if input::mouse::button_pressed(_ctx, MouseButton::Left) {

@@ -10,6 +10,7 @@ use crate::{
     consts::*,
 };
 use std::{
+    any::Any,
     collections::{VecDeque},
     fmt::{Formatter, Display},
     f32::consts::PI,
@@ -62,8 +63,8 @@ impl<T: Model + Actor> ModelActor for T {}
 pub struct Room {
     pub width: f32,
     pub height: f32,
-    pub grid_num: usize,
-    pub doors: [Option<Door>; 4],
+    pub grid_coords: (usize, usize),
+    pub doors: [Option<usize>; 4],
     pub obstacles: Vec<Box<dyn Stationary>>,
     pub enemies: Vec<Box<dyn ModelActor>>,
 }
@@ -84,7 +85,7 @@ impl Room {
         if self.enemies.is_empty() {
             for door in self.doors.iter_mut() {
                 match door {
-                    Some(d) => d.is_open = true,
+                    Some(i) => self.obstacles[*i].as_any_mut().downcast_mut::<Door>().unwrap().is_open = true,
                     _ => ()
                 }
             }
@@ -106,15 +107,6 @@ impl Room {
             obst.draw(ctx, assets, world_coords)?;
         }
 
-        // for (i, v) in self.doors.iter().enumerate() {
-        //     match i {
-        //         0 => { graphics::draw(ctx, &assets.door_base, draw_params)?; },
-        //         1 => { graphics::draw(ctx, &assets.door_east, draw_params)?; },
-        //         2 => { graphics::draw(ctx, &assets.door_south, draw_params)?; },
-        //         _ => { graphics::draw(ctx, &assets.door_west, draw_params)?; },
-        //     }
-        // }
-        //
         for enemy in self.enemies.iter() {
             enemy.draw(ctx, assets, world_coords)?;
         }
@@ -134,16 +126,23 @@ impl Room {
         screen_to_world_space(sw, sh, coords + dims / 2.)
     }
 
-    fn generate_room(grid_num: usize, screen: (f32, f32)) -> Room {
+    fn generate_room(screen: (f32, f32), grid_coords: (usize, usize), door_connects: [Option<(usize, usize)>; 4]) -> Room {
         let (sw, sh) = screen;
         
         let width = ROOM_WIDTH;
         let height = ROOM_HEIGHT;
-        let doors = [None; 4];
+        let mut doors = [None; 4];
         let mut obstacles: Vec<Box<dyn Stationary>> = Vec::new(); 
         let mut enemies: Vec<Box<dyn ModelActor>> = Vec::new();
 
-        let mut layout = ROOM_LAYOUTS_MOB[0].trim().split('\n').map(|l| l.trim()).collect::<String>();
+        let mut layout = ROOM_LAYOUT_EMPTY.trim().split('\n').map(|l| l.trim()).collect::<String>();
+        if grid_coords != Dungeon::get_start_room_coords() {
+            let layout_index = thread_rng().gen_range(0..ROOM_LAYOUTS_MOB.len()) as usize;
+            layout = ROOM_LAYOUTS_MOB[layout_index].trim().split('\n').map(|l| l.trim()).collect::<String>();
+        }
+
+        let door_indices = [0, 3, 1 ,2];
+        let mut door_index = 0_usize;
 
         for (i, c) in layout.chars().enumerate() {
             match c {
@@ -154,29 +153,41 @@ impl Room {
                     }));
                 },
                 'd' => {
-                    obstacles.push(Box::new(Wall {
-                        pos: Room::get_model_pos(sw, sh, width, height, i).into(),
-                        scale: Vec2::splat(WALL_SCALE),
-                    }));
+                    if let Some(coords) = door_connects[door_index] {
+                        doors[door_index] = Some(obstacles.len());
+                        obstacles.push(Box::new(Door {
+                            pos: Room::get_model_pos(sw, sh, width, height, i).into(),
+                            scale: Vec2::splat(WALL_SCALE),
+                            rotation: (door_indices[door_index] as f32) * PI / 2.,
+                            is_open: false,
+                            connects_to: coords,
+                        }));
+                    }
+                    else {
+                        obstacles.push(Box::new(Wall {
+                            pos: Room::get_model_pos(sw, sh, width, height, i).into(),
+                            scale: Vec2::splat(WALL_SCALE),
+                        }));
+                    }
+                    door_index += 1;
                 },
                 'e' => {
                     enemies.push(Box::new(EnemyMask {
-                            props: ActorProps {
-                                pos: Room::get_model_pos(sw, sh, width, height, i).into(),
-                                scale: Vec2::splat(ENEMY_SCALE),
-                                translation: Vec2::ZERO,
-                                forward: Vec2::ZERO,
-                            },
-                            speed: ENEMY_SPEED,
-                            health: ENEMY_HEALTH,
-                            state: ActorState::BASE,
-                            shoot_rate: ENEMY_SHOOT_RATE,
-                            shoot_range: ENEMY_SHOOT_RANGE,
-                            shoot_timeout: ENEMY_SHOOT_TIMEOUT,
-                            shots: Vec::new(),
-                            color: Color::WHITE,
-                        })
-                    );
+                        props: ActorProps {
+                            pos: Room::get_model_pos(sw, sh, width, height, i).into(),
+                            scale: Vec2::splat(ENEMY_SCALE),
+                            translation: Vec2::ZERO,
+                            forward: Vec2::ZERO,
+                        },
+                        speed: ENEMY_SPEED,
+                        health: ENEMY_HEALTH,
+                        state: ActorState::BASE,
+                        shoot_rate: ENEMY_SHOOT_RATE,
+                        shoot_range: ENEMY_SHOOT_RANGE,
+                        shoot_timeout: ENEMY_SHOOT_TIMEOUT,
+                        shots: Vec::new(),
+                        color: Color::WHITE,
+                    }));
                 },
                 _ => (),
             }
@@ -185,7 +196,7 @@ impl Room {
         Room {
             width,
             height,
-            grid_num,
+            grid_coords,
             doors,
             obstacles,
             enemies,
@@ -195,46 +206,54 @@ impl Room {
 
 #[derive(Debug)]
 pub struct Dungeon {
-    grid: [usize; DUNGEON_GRID_ROWS * DUNGEON_GRID_COLS],
+    grid: [[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS],
     rooms: Vec<Room>,
 }
 
 impl Dungeon {
     pub fn generate_dungeon(screen: (f32, f32)) -> Self {
         let level = 1;
-        let room_count = thread_rng().gen_range(0..2) + 5 + level * 2;
-        let mut grid = [0; DUNGEON_GRID_ROWS * DUNGEON_GRID_COLS];
+        let mut grid = [[0; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS];
         let mut rooms = Vec::new();
+        let mut room_grid_coordss = Vec::new();
 
-        let mut q = VecDeque::<usize>::new();
-        q.push_back(35);
+        loop {
+            let room_count = thread_rng().gen_range(0..2) + 5 + level * 2;
+            grid = [[0; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS];
 
-        while !q.is_empty() && room_count > rooms.len() {
-            let cur = q.pop_front().unwrap();
+            let mut q = VecDeque::<(usize, usize)>::new();
+            q.push_back(Dungeon::get_start_room_coords());
 
-            if cur < 1 || cur > 79 { continue; }
+            while !q.is_empty() {
+                let (i, j) = q.pop_front().unwrap();
 
-            if grid[cur] != 0 { continue; }
+                if room_grid_coordss.len() == room_count { break; }
 
-            rooms.push(Room::generate_room(cur, screen));
-            grid[cur] = rooms.len();
+                if thread_rng().gen_range(0..2) == 1 { continue; }
 
-            q.push_back(cur + 10);
-            q.push_back(cur - 10);
-            q.push_back(cur + 1);
-            q.push_back(cur - 1);
+                if grid[i][j] != 0 { continue; }
+
+                room_grid_coordss.push((i, j));
+                grid[i][j] = room_grid_coordss.len();
+
+                if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i + 1, j)) <= 1 { q.push_back((i + 1, j)); }
+                if i > 0                     && grid[i - 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i - 1, j)) <= 1 { q.push_back((i - 1, j)); }
+                if j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j + 1)) <= 1 { q.push_back((i, j + 1)); }
+                if j > 0                     && grid[i][j - 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j - 1)) <= 1 { q.push_back((i, j - 1)); }
+            }
+
+            if Dungeon::check_dungeon_consistency(&grid, room_grid_coordss.len()) { break; }
         }
 
-        for r in rooms.iter_mut() {
-            let n = r.grid_num - 10;
-            let s = r.grid_num + 10;
-            let w = r.grid_num - 1;
-            let e = r.grid_num + 1;
+        for (i, j) in room_grid_coordss.into_iter() {
+            let mut doors = [None; 4];
 
-            // if n > 0          && grid[n] != 0 { r.doors[0] = Some(Door { pos: is_open: false, connects_to: grid[n] }); }
-            // if s > grid.len() && grid[s] != 0 { r.doors[2] = Some(Door { is_open: false, connects_to: grid[s] }); }
-            // if w > 0          && grid[w] != 0 { r.doors[1] = Some(Door { is_open: false, connects_to: grid[w] }); }
-            // if e > grid.len() && grid[e] != 0 { r.doors[3] = Some(Door { is_open: false, connects_to: grid[e] }); }
+            if i > 0                     && grid[i - 1][j] != 0 { doors[0] = Some((i - 1, j)); }
+            if j > 0                     && grid[i][j - 1] != 0 { doors[1] = Some((i, j - 1)); }
+            if j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] != 0 { doors[2] = Some((i, j + 1)); }
+            if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] != 0 { doors[3] = Some((i + 1, j)); }
+
+            rooms.push(Room::generate_room(screen, (i, j), doors));
         }
 
         Dungeon {
@@ -243,32 +262,102 @@ impl Dungeon {
         }
     }
 
-    pub fn get_room(&self, grid_num: usize) -> GameResult<&Room> {
-        let index = self.get_room_index(grid_num)?;
-        if !(0..self.rooms.len()).contains(&index) { return Err(Errors::UnknownRoomIndex(index).into()); }
-        Ok(&self.rooms[index])
+    pub fn get_room(&self, grid_coords: (usize, usize)) -> GameResult<&Room> {
+        let index = self.get_room_index(grid_coords)?;
+        if !(1..=self.rooms.len()).contains(&index) { return Err(Errors::UnknownRoomIndex(index).into()); }
+        Ok(&self.rooms[index - 1])
     }
 
-    pub fn get_room_mut(&mut self, grid_num: usize) -> GameResult<&mut Room> {
-        let index = self.get_room_index(grid_num)?;
-        if !(0..self.rooms.len()).contains(&index) { return Err(Errors::UnknownRoomIndex(index).into()); }
-        Ok(&mut self.rooms[index])
+    pub fn get_room_mut(&mut self, grid_coords: (usize, usize)) -> GameResult<&mut Room> {
+        let index = self.get_room_index(grid_coords)?;
+        if !(1..=self.rooms.len()).contains(&index) { return Err(Errors::UnknownRoomIndex(index).into()); }
+        Ok(&mut self.rooms[index - 1])
     }
 
-    fn get_room_index(&self, grid_num: usize) -> GameResult<usize> {
-        if !(0..self.grid.len()).contains(&grid_num) { return Err(Errors::UnknownGridNum(grid_num).into()); }
-        Ok(self.grid[grid_num] - 1)
+    fn get_room_index(&self, grid_coords: (usize, usize)) -> GameResult<usize> {
+        if !(0..DUNGEON_GRID_ROWS).contains(&grid_coords.0) { return Err(Errors::UnknownGridCoords(grid_coords).into()); }
+        if !(0..DUNGEON_GRID_COLS).contains(&grid_coords.1) { return Err(Errors::UnknownGridCoords(grid_coords).into()); }
+        Ok(self.grid[grid_coords.0][grid_coords.1])
     }
 
-    pub fn get_start_room_grid_num() -> usize { DUNGEON_GRID_ROWS * DUNGEON_GRID_COLS / 2 }
+    pub fn get_start_room_coords() -> (usize, usize) { (3, 5) }
+
+    fn check_dungeon_consistency(grid: &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS], rooms_len: usize) -> bool {
+        if rooms_len == 0 { return false; }
+
+        let mut checked = vec![false; rooms_len];
+        let mut q = VecDeque::<(usize, usize)>::new();
+        q.push_back(Dungeon::get_start_room_coords());
+
+        while !q.is_empty() {
+            let (i, j) = q.pop_front().unwrap();
+
+            if checked[grid[i][j] - 1] { continue; }
+
+            checked[grid[i][j] - 1] = true;
+
+            if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] != 0 { q.push_back((i + 1, j)); }
+            if i > 0_usize               && grid[i - 1][j] != 0 { q.push_back((i - 1, j)); }
+            if j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] != 0 { q.push_back((i, j + 1)); }
+            if j > 0_usize               && grid[i][j - 1] != 0 { q.push_back((i, j - 1)); }
+        }
+
+        !checked.contains(&false)
+    }
+
+    fn check_room_cardinals(grid: &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS], room: (usize, usize)) -> usize {
+        let mut result = 0;
+        let (i, j) = room;
+
+        if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] != 0 { result += 1; }
+        if i > 0                     && grid[i - 1][j] != 0 { result += 1; }
+        if j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] != 0 { result += 1; }
+        if j > 0                     && grid[i][j - 1] != 0 { result += 1; }
+
+        result
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct Door {
     pub pos: Vec2Wrap,
     pub scale: Vec2,
+    pub rotation: f32,
     pub is_open: bool,
-    pub connects_to: usize,
+    pub connects_to: (usize, usize),
+}
+
+impl Stationary for Door {
+    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32)) -> GameResult {
+        let (sw, sh) = screen;
+        let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.pos.into()).into();
+        let draw_params = DrawParam::default()
+            .dest(pos)
+            .scale(self.scale_to_screen(sw, sh, assets.door_closed.dimensions()))
+            .rotation(self.rotation)
+            .offset([0.5, 0.5]);
+
+        match self.is_open {
+            true => graphics::draw(ctx, &assets.door_open, draw_params)?,
+            false => graphics::draw(ctx, &assets.door_closed, draw_params)?,
+        }
+
+        self.draw_bbox(ctx, screen)?;
+
+        Ok(())
+    }
+
+    fn get_pos(&self) -> Vec2 { self.pos.0 }
+
+    fn get_scale(&self) -> Vec2 { self.scale }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -296,4 +385,12 @@ impl Stationary for Wall {
     fn get_pos(&self) -> Vec2 { self.pos.0 }
 
     fn get_scale(&self) -> Vec2 { self.scale }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }

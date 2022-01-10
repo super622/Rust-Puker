@@ -10,6 +10,7 @@ use crate::{
 };
 use glam::f32::{Vec2};
 use std::{
+    any::Any,
     collections::{VecDeque},
 };
 
@@ -53,6 +54,10 @@ pub trait Model: std::fmt::Debug {
     fn get_velocity(&self, _delta_time: f32) -> Vec2;
 
     fn get_forward(&self) -> Vec2;
+
+    fn as_any(&self) -> &dyn Any;
+    
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 pub trait Stationary: std::fmt::Debug {
@@ -89,6 +94,10 @@ pub trait Stationary: std::fmt::Debug {
     fn get_pos(&self) -> Vec2;
 
     fn get_scale(&self) -> Vec2;
+
+    fn as_any(&self) -> &dyn Any;
+    
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 pub trait Actor {
@@ -201,6 +210,14 @@ impl Model for Player {
     fn get_velocity(&self, delta_time: f32) -> Vec2 { self.props.translation * self.speed * delta_time }
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 impl Actor for Player {
@@ -269,6 +286,14 @@ impl Model for Shot {
     fn get_velocity(&self, _delta_time: f32) -> Vec2 { self.props.translation * self.speed * _delta_time }
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -342,6 +367,14 @@ impl Model for EnemyMask {
     fn get_velocity(&self, _delta_time: f32) -> Vec2 { self.props.translation * self.speed * _delta_time }
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 impl Actor for EnemyMask {
