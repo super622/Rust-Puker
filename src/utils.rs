@@ -1,6 +1,6 @@
 use ggez::{
     mint::Point2,
-    graphics::{Vertex, Rect},
+    graphics::{Rect},
     GameError,
 };
 use glam::f32::*;
@@ -8,6 +8,8 @@ use std::fmt;
 
 #[derive(Debug)]
 pub struct Config {
+    pub screen_width: f32,
+    pub screen_height: f32,
     pub draw_bbox_model: bool,
     pub draw_bbox_stationary: bool,
 }
@@ -16,6 +18,7 @@ pub struct Config {
 pub enum Errors {
     UnknownRoomIndex(usize),
     UnknownGridCoords((usize, usize)),
+    SceneTypeParse(String),
 }
 
 impl fmt::Display for Errors {
@@ -63,32 +66,6 @@ impl From<[f32; 2]> for Vec2Wrap {
 impl From<Point2<f32>> for Vec2Wrap {
     fn from(p: Point2<f32>) -> Self {
         Vec2Wrap(Vec2::from_slice(&[p.x, p.y]))
-    }
-}
-
-#[derive(Clone, Debug, Copy)]
-pub struct MyVertex{
-    pub pos: Vec2Wrap,
-    pub uv: [f32; 2],
-    pub color: [f32; 4],
-}
-
-impl Into<Point2<f32>> for MyVertex {
-    fn into(self) -> Point2<f32> {
-        Point2 {
-            x: self.pos.0.x,
-            y: self.pos.0.y,
-        }
-    }
-}
-
-impl Into<Vertex> for MyVertex {
-    fn into(self) -> Vertex {
-        Vertex {
-            pos: self.pos.0.to_array(),
-            uv: self.uv,
-            color: self.color
-        }
     }
 }
 

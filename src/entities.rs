@@ -310,8 +310,7 @@ impl Model for EnemyMask {
             .offset([0.5, 0.5]);
 
         match self.state {
-            ActorState::BASE => graphics::draw(ctx, &assets.enemy_mask_base, draw_params)?,
-            _ => ()
+            _ => graphics::draw(ctx, &assets.enemy_mask_base, draw_params)?,
         }
 
         if config.draw_bbox_model {
@@ -351,14 +350,14 @@ impl Actor for EnemyMask {
 impl Shooter for EnemyMask {
     fn shoot(&mut self) -> GameResult {
         self.shoot_timeout = 1. / self.shoot_rate;
-        let shot_dir = (self.props.forward + 0.5 * (self.props.translation * Vec2::new(self.props.forward.y, self.props.forward.x).abs())).normalize();
+        let shot_dir = self.props.forward.normalize();
 
         let shot = Shot {
             props: ActorProps {
                 pos: self.props.pos,
                 forward: shot_dir,
                 translation: shot_dir,
-                scale: Vec2::ONE,
+                scale: Vec2::splat(SHOT_SCALE),
             },
             spawn_pos: self.props.pos,
             speed: SHOT_SPEED,
