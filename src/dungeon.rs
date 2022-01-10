@@ -1,5 +1,5 @@
 use ggez::{
-    graphics::{self, DrawParam, Rect, Color},
+    graphics::{self, Text, Mesh, DrawMode, PxScale, DrawParam, Rect, Color},
     GameResult,
     Context
 };
@@ -12,52 +12,50 @@ use crate::{
 use std::{
     any::Any,
     collections::{VecDeque},
-    fmt::{Formatter, Display},
     f32::consts::PI,
 };
 use rand::{thread_rng, Rng};
 use glam::f32::Vec2;
 
-#[derive(Clone, Copy, Hash, Debug)]
-pub enum Direction {
-    North,
-    South,
-    East,
-    West,
-}
+pub trait Stationary: std::fmt::Debug {
+    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), _config: &Config) -> GameResult;
 
-impl Direction {
-    pub fn opposite(&self) -> Direction {
-        match self {
-            Direction::North => Direction::South,
-            Direction::South => Direction::North,
-            Direction::East => Direction::West,
-            Direction::West => Direction::East,
-        }
+    fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
+        let (sw, sh) = screen;
+        let mut bbox = self.get_bbox(sw, sh);
+        let mut text = Text::new(format!("{:?}, {:?}", bbox.x, bbox.y));
+        let screen_coords = world_to_screen_space(sw, sh, Vec2::new(bbox.x, bbox.y));
+        bbox.x = screen_coords.x;
+        bbox.y = screen_coords.y;
+
+        let mesh = Mesh::new_rectangle(ctx, DrawMode::stroke(2.0), bbox, Color::BLUE)?;
+        graphics::draw(ctx, &mesh, DrawParam::default())?;
+
+        text.fragments_mut().iter_mut().map(|x| x.scale = Some(PxScale { x: 0.5, y: 0.5 })).count();
+        graphics::draw(ctx, &text, DrawParam::default().dest([bbox.x, bbox.y - text.height(ctx)]))?;
+
+        Ok(())
     }
-}
 
-impl Display for Direction {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        match self {
-            Direction::North => write!(f, "North"),
-            Direction::South => write!(f, "South"),
-            Direction::East => write!(f, "East"),
-            Direction::West => write!(f, "West"),
-        }
+    fn scale_to_screen(&self, sw: f32, sh: f32, image: Rect) -> Vec2 {
+        let bbox = self.get_bbox(sw, sh);
+        Vec2::new(bbox.w / image.w, bbox.h / image.h)
     }
-}
 
-impl PartialEq for Direction {
-    fn eq(&self, other: &Self) -> bool {
-        self.to_string() == other.to_string()
+    fn get_bbox(&self, sw: f32, sh: f32) -> graphics::Rect {
+        let width = sw / ROOM_WIDTH * self.get_scale().x;
+        let height = sh / ROOM_HEIGHT * self.get_scale().y;
+        Rect::new(self.get_pos().x - width / 2., self.get_pos().y + height / 2., width, height)
     }
+
+    fn get_pos(&self) -> Vec2;
+
+    fn get_scale(&self) -> Vec2;
+
+    fn as_any(&self) -> &dyn Any;
+    
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
-impl Eq for Direction {}
-
-pub trait ModelActor: Model + Actor {}
-
-impl<T: Model + Actor> ModelActor for T {}
 
 #[derive(Debug)]
 pub struct Room {
@@ -66,7 +64,7 @@ pub struct Room {
     pub grid_coords: (usize, usize),
     pub doors: [Option<usize>; 4],
     pub obstacles: Vec<Box<dyn Stationary>>,
-    pub enemies: Vec<Box<dyn ModelActor>>,
+    pub enemies: Vec<Box<dyn Actor>>,
 }
 
 impl Room {
@@ -94,7 +92,7 @@ impl Room {
         Ok(())
     }
     
-    pub fn draw(&self, ctx: &mut Context, assets: &Assets, world_coords: (f32, f32)) -> GameResult {
+    pub fn draw(&self, ctx: &mut Context, assets: &Assets, world_coords: (f32, f32), config: &Config) -> GameResult {
         let (sw, sh) = world_coords;
         let draw_params = DrawParam::default()
             .dest([sw / 2., sh / 2.])
@@ -104,11 +102,11 @@ impl Room {
         graphics::draw(ctx, &assets.floor, draw_params)?;
 
         for obst in self.obstacles.iter() {
-            obst.draw(ctx, assets, world_coords)?;
+            obst.draw(ctx, assets, world_coords, config)?;
         }
 
         for enemy in self.enemies.iter() {
-            enemy.draw(ctx, assets, world_coords)?;
+            enemy.draw(ctx, assets, world_coords, config)?;
         }
 
         Ok(())
@@ -133,7 +131,7 @@ impl Room {
         let height = ROOM_HEIGHT;
         let mut doors = [None; 4];
         let mut obstacles: Vec<Box<dyn Stationary>> = Vec::new(); 
-        let mut enemies: Vec<Box<dyn ModelActor>> = Vec::new();
+        let mut enemies: Vec<Box<dyn Actor>> = Vec::new();
 
         let mut layout = ROOM_LAYOUT_EMPTY.trim().split('\n').map(|l| l.trim()).collect::<String>();
         if grid_coords != Dungeon::get_start_room_coords() {
@@ -213,13 +211,14 @@ pub struct Dungeon {
 impl Dungeon {
     pub fn generate_dungeon(screen: (f32, f32)) -> Self {
         let level = 1;
-        let mut grid = [[0; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS];
+        let mut grid;
         let mut rooms = Vec::new();
-        let mut room_grid_coordss = Vec::new();
+        let mut room_grid_coords;
 
         loop {
             let room_count = thread_rng().gen_range(0..2) + 5 + level * 2;
             grid = [[0; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS];
+            room_grid_coords = Vec::new();
 
             let mut q = VecDeque::<(usize, usize)>::new();
             q.push_back(Dungeon::get_start_room_coords());
@@ -227,14 +226,14 @@ impl Dungeon {
             while !q.is_empty() {
                 let (i, j) = q.pop_front().unwrap();
 
-                if room_grid_coordss.len() == room_count { break; }
+                if room_grid_coords.len() == room_count { break; }
 
                 if thread_rng().gen_range(0..2) == 1 { continue; }
 
                 if grid[i][j] != 0 { continue; }
 
-                room_grid_coordss.push((i, j));
-                grid[i][j] = room_grid_coordss.len();
+                room_grid_coords.push((i, j));
+                grid[i][j] = room_grid_coords.len();
 
                 if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i + 1, j)) <= 1 { q.push_back((i + 1, j)); }
                 if i > 0                     && grid[i - 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i - 1, j)) <= 1 { q.push_back((i - 1, j)); }
@@ -242,10 +241,10 @@ impl Dungeon {
                 if j > 0                     && grid[i][j - 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j - 1)) <= 1 { q.push_back((i, j - 1)); }
             }
 
-            if Dungeon::check_dungeon_consistency(&grid, room_grid_coordss.len()) { break; }
+            if Dungeon::check_dungeon_consistency(&grid, room_grid_coords.len()) { break; }
         }
 
-        for (i, j) in room_grid_coordss.into_iter() {
+        for (i, j) in room_grid_coords.into_iter() {
             let mut doors = [None; 4];
 
             if i > 0                     && grid[i - 1][j] != 0 { doors[0] = Some((i - 1, j)); }
@@ -328,7 +327,7 @@ pub struct Door {
 }
 
 impl Stationary for Door {
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32)) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
         let (sw, sh) = screen;
         let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.pos.into()).into();
         let draw_params = DrawParam::default()
@@ -342,7 +341,9 @@ impl Stationary for Door {
             false => graphics::draw(ctx, &assets.door_closed, draw_params)?,
         }
 
-        self.draw_bbox(ctx, screen)?;
+        if config.draw_bbox_stationary {
+            self.draw_bbox(ctx, screen)?;
+        }
 
         Ok(())
     }
@@ -367,7 +368,7 @@ pub struct Wall {
 }
 
 impl Stationary for Wall {
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32)) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
         let (sw, sh) = screen;
         let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.pos.into()).into();
         let draw_params = DrawParam::default()
@@ -377,7 +378,9 @@ impl Stationary for Wall {
 
         graphics::draw(ctx, &assets.wall, draw_params)?;
 
-        self.draw_bbox(ctx, screen)?;
+        if config.draw_bbox_stationary {
+            self.draw_bbox(ctx, screen)?;
+        }
 
         Ok(())
     }

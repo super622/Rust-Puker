@@ -17,7 +17,7 @@ use std::{
 pub trait Model: std::fmt::Debug {
     fn update(&mut self, _delta_time: f32) -> GameResult;
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32)) -> GameResult;
+    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), _config: &Config) -> GameResult;
 
     fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
         let (sw, sh) = screen;
@@ -30,7 +30,7 @@ pub trait Model: std::fmt::Debug {
         let mesh = Mesh::new_rectangle(ctx, DrawMode::stroke(2.0), bbox, Color::BLUE)?;
         graphics::draw(ctx, &mesh, DrawParam::default())?;
 
-        text.fragments_mut().iter_mut().map(|x| x.scale = Some(PxScale { x: 0.5, y: 0.5 }));
+        text.fragments_mut().iter_mut().map(|x| x.scale = Some(PxScale { x: 0.5, y: 0.5 })).count();
         graphics::draw(ctx, &text, DrawParam::default().dest([bbox.x, bbox.y - text.height(ctx)]))?;
 
         Ok(())
@@ -60,66 +60,24 @@ pub trait Model: std::fmt::Debug {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-pub trait Stationary: std::fmt::Debug {
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32)) -> GameResult;
-
-    fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
-        let (sw, sh) = screen;
-        let mut bbox = self.get_bbox(sw, sh);
-        let mut text = Text::new(format!("{:?}, {:?}", bbox.x, bbox.y));
-        let screen_coords = world_to_screen_space(sw, sh, Vec2::new(bbox.x, bbox.y));
-        bbox.x = screen_coords.x;
-        bbox.y = screen_coords.y;
-
-        let mesh = Mesh::new_rectangle(ctx, DrawMode::stroke(2.0), bbox, Color::BLUE)?;
-        graphics::draw(ctx, &mesh, DrawParam::default())?;
-
-        text.fragments_mut().iter_mut().map(|x| x.scale = Some(PxScale { x: 0.5, y: 0.5 }));
-        graphics::draw(ctx, &text, DrawParam::default().dest([bbox.x, bbox.y - text.height(ctx)]))?;
-
-        Ok(())
-    }
-
-    fn scale_to_screen(&self, sw: f32, sh: f32, image: Rect) -> Vec2 {
-        let bbox = self.get_bbox(sw, sh);
-        Vec2::new(bbox.w / image.w, bbox.h / image.h)
-    }
-
-    fn get_bbox(&self, sw: f32, sh: f32) -> graphics::Rect {
-        let width = sw / ROOM_WIDTH * self.get_scale().x;
-        let height = sh / ROOM_HEIGHT * self.get_scale().y;
-        Rect::new(self.get_pos().x - width / 2., self.get_pos().y + height / 2., width, height)
-    }
-
-    fn get_pos(&self) -> Vec2;
-
-    fn get_scale(&self) -> Vec2;
-
-    fn as_any(&self) -> &dyn Any;
-    
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
-pub trait Actor {
+pub trait Actor: Model {
     fn get_health(&self) -> f32; 
 
     fn damage(&mut self, dmg: f32);
 }
 
-pub trait Shooter {
+pub trait Shooter: Model {
     fn shoot(&mut self) -> GameResult;
+
+    fn get_shots(&self) -> &Vec<Shot>;
+
+    fn get_shots_mut(&mut self) -> &mut Vec<Shot>;
 }
 
 #[derive(Clone, Debug)]
 pub enum ActorState {
     BASE,
     SHOOT,
-}
-
-#[derive(Clone, Debug)]
-pub enum ActorTag {
-    PLAYER,
-    ENEMY,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -171,7 +129,7 @@ impl Model for Player {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32)) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
         let (sw, sh) = screen;
         let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.props.pos.into()).into();
         let draw_params = DrawParam::default()
@@ -181,24 +139,23 @@ impl Model for Player {
             .color(self.color);
 
         for shot in self.shots.iter() {
-            shot.draw(ctx, assets, screen)?;
+            shot.draw(ctx, assets, screen, config)?;
         }
 
         match self.state {
             ActorState::BASE => graphics::draw(ctx, &assets.player_base, draw_params)?,
             ActorState::SHOOT => {
-                match self.props.forward.to_array() {
-                    [ 1., 0.] => graphics::draw(ctx, &assets.player_shoot_east, draw_params)?,
-                    [-1., 0.] => graphics::draw(ctx, &assets.player_shoot_west, draw_params)?,
-                    [0.,  1.] => graphics::draw(ctx, &assets.player_shoot_north, draw_params)?,
-                    [0., -1.] => graphics::draw(ctx, &assets.player_shoot_south, draw_params)?,
-                    _ => graphics::draw(ctx, &assets.player_base, draw_params)?,
-                }
+                if self.props.forward == Vec2::X { graphics::draw(ctx, &assets.player_shoot_east, draw_params)?; }
+                else if self.props.forward == -Vec2::X { graphics::draw(ctx, &assets.player_shoot_west, draw_params)?; }
+                else if self.props.forward == Vec2::Y { graphics::draw(ctx, &assets.player_shoot_north, draw_params)?; }
+                else if self.props.forward == -Vec2::Y { graphics::draw(ctx, &assets.player_shoot_south, draw_params)?; }
+                else { graphics::draw(ctx, &assets.player_base, draw_params)?; }
             },
-            _ => ()
         }
 
-        self.draw_bbox(ctx, screen)?;
+        if config.draw_bbox_model {
+            self.draw_bbox(ctx, screen)?;
+        }
 
         Ok(())
     }
@@ -247,6 +204,10 @@ impl Shooter for Player {
 
         Ok(())
     }
+
+    fn get_shots(&self) -> &Vec<Shot> { &self.shots }
+
+    fn get_shots_mut(&mut self) -> &mut Vec<Shot> { &mut self.shots }
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -264,7 +225,7 @@ impl Model for Shot {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32)) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
         let (sw, sh) = screen;
         let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.props.pos.into()).into();
         let draw_params = DrawParam::default()
@@ -274,7 +235,9 @@ impl Model for Shot {
 
         graphics::draw(ctx, &assets.shot_base, draw_params)?;
 
-        self.draw_bbox(ctx, screen)?;
+        if config.draw_bbox_model {
+            self.draw_bbox(ctx, screen)?;
+        }
 
         Ok(())
     }
@@ -337,7 +300,7 @@ impl Model for EnemyMask {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32)) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
         let (sw, sh) = screen;
         let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.props.pos.into()).into();
         let draw_params = DrawParam::default()
@@ -351,10 +314,12 @@ impl Model for EnemyMask {
             _ => ()
         }
 
-        self.draw_bbox(ctx, screen)?;
+        if config.draw_bbox_model {
+            self.draw_bbox(ctx, screen)?;
+        }
 
         for shot in self.shots.iter() {
-            shot.draw(ctx, assets, screen)?;
+            shot.draw(ctx, assets, screen, config)?;
         }
 
         Ok(())
@@ -404,4 +369,8 @@ impl Shooter for EnemyMask {
 
         Ok(())
     }
+
+    fn get_shots(&self) -> &Vec<Shot> { &self.shots }
+
+    fn get_shots_mut(&mut self) -> &mut Vec<Shot> { &mut self.shots }
 }

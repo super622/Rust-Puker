@@ -7,6 +7,12 @@ use glam::f32::*;
 use std::fmt;
 
 #[derive(Debug)]
+pub struct Config {
+    pub draw_bbox_model: bool,
+    pub draw_bbox_stationary: bool,
+}
+
+#[derive(Debug)]
 pub enum Errors {
     UnknownRoomIndex(usize),
     UnknownGridCoords((usize, usize)),
@@ -154,7 +160,7 @@ pub fn ray_vs_rect(ray_origin: &Vec2, ray_dir: &Vec2, target: &Rect, contact_poi
 /// Detects intersection between moving rectangle and stationary rectangle.
 /// Long live OneLoneCoder and his tutorials.
 ///
-pub fn dynamic_rect_vs_rect(source: &Rect, source_vel: &Vec2, target: &Rect, contact_point: &mut Vec2, contact_normal: &mut Vec2, contact_time: &mut f32, elapsed_time: f32) -> bool { 
+pub fn dynamic_rect_vs_rect(source: &Rect, source_vel: &Vec2, target: &Rect, contact_point: &mut Vec2, contact_normal: &mut Vec2, contact_time: &mut f32, _elapsed_time: f32) -> bool { 
     let source_pos = Vec2::new(source.x, source.y);
     let source_size = Vec2::new(source.w, source.h);
 

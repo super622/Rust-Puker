@@ -12,7 +12,6 @@ use ggez::{
 use std::{
     env,
     path,
-    f32::consts::PI,
 };
 use glam::f32::{Vec2};
 
@@ -28,6 +27,7 @@ struct MainState {
     screen_width: f32,
     screen_height: f32,
     assets: Assets,
+    config: Config,
     player: Player,
     dungeon: Dungeon,
     cur_room: (usize, usize),
@@ -38,6 +38,10 @@ impl MainState {
         input::mouse::set_cursor_grabbed(ctx, true)?;
 
         let assets = Assets::new(ctx)?;
+        let config = Config {
+            draw_bbox_model: true,            
+            draw_bbox_stationary: false,            
+        };
         let screen_width = conf.window_mode.width;
         let screen_height = conf.window_mode.height;
         let player = Player {
@@ -63,6 +67,7 @@ impl MainState {
             screen_width, 
             screen_height,           
             assets,
+            config,
             player,
             dungeon,
             cur_room,
@@ -123,7 +128,7 @@ impl MainState {
         }
     }
 
-    fn handle_wall_collisions(&mut self, seconds: f32) -> GameResult {
+    fn handle_wall_collisions(&mut self, delta_time: f32) -> GameResult {
         let (sw, sh) = (self.screen_width, self.screen_height);
         let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
         let mut ct = 0.;
@@ -133,7 +138,7 @@ impl MainState {
         let mut collisions = Vec::<(usize, f32)>::new();
 
         for (i, obst) in room.obstacles.iter().enumerate() {
-            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(seconds), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, seconds) {
+            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(delta_time), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 collisions.push((i, ct));
             }
         }
@@ -141,20 +146,21 @@ impl MainState {
         collisions.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
         for (i, mut ct) in collisions.iter_mut() {
-            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(seconds), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, seconds) {
+            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(delta_time), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 let obst = room.obstacles[*i].as_any();
 
                 if let Some(door) = obst.downcast_ref::<Door>() {
                     if door.is_open {
                         self.cur_room = door.connects_to;
                         self.player.props.pos.0 *= -1.;
+                        self.player.shots = Vec::new();
                     }
                     else {
-                        self.player.props.translation += cn * self.player.get_velocity(seconds).abs() * (1. - ct);
+                        self.player.props.translation += cn * self.player.get_velocity(delta_time).abs() * (1. - ct);
                     }
                 }
                 else {
-                    self.player.props.translation += cn * self.player.get_velocity(seconds).abs() * (1. - ct);
+                    self.player.props.translation += cn * self.player.get_velocity(delta_time).abs() * (1. - ct);
                 }
             }
         }
@@ -162,24 +168,41 @@ impl MainState {
         Ok(())
     }
 
-    fn handle_shot_collisions(&mut self, _seconds: f32) -> GameResult {
+    fn handle_shot_collisions(&mut self, _delta_time: f32) -> GameResult {
         let (sw, sh) = (self.screen_width, self.screen_height);
-        let mut enemies = &mut self.dungeon.get_room_mut(self.cur_room)?.enemies;
+        let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
 
         self.player.shots = self.player.shots.clone().into_iter().filter(|s| {
-            for enemy in enemies.into_iter() {
+            for enemy in room.enemies.iter_mut() {
                 if rect_vs_rect(&s.get_bbox(sw, sh), &enemy.get_bbox(sw, sh)) {
                     enemy.damage(s.damage);
+                    return false;
+                }
+            }
+            for obst in room.obstacles.iter() {
+                if rect_vs_rect(&s.get_bbox(sw, sh), &obst.get_bbox(sw, sh)) {
                     return false;
                 }
             }
             true
         }).collect();
 
+        room.enemies.iter_mut().map(|e| { 
+            if let Some(enemy) = e.as_any_mut().downcast_mut::<EnemyMask>() {
+                enemy.get_shots_mut().into_iter().filter(|s| {
+                    if rect_vs_rect(&s.get_bbox(sw, sh), &self.player.get_bbox(sw, sh)) {
+                        self.player.damage(s.damage);
+                        return false;
+                    }
+                    true
+                }).count();
+            }
+        }).count();
+
         Ok(())
     }
 
-    fn handle_player_enemy_collisions(&mut self, seconds: f32) -> GameResult {
+    fn handle_player_enemy_collisions(&mut self, _delta_time: f32) -> GameResult {
         todo!();
     }
 }
@@ -189,17 +212,17 @@ impl EventHandler for MainState {
         const DESIRED_FPS: u32 = 60;
 
         while timer::check_update_time(ctx, DESIRED_FPS) {
-            let seconds = 1.0 / (DESIRED_FPS as f32);
+            let delta_time = 1.0 / (DESIRED_FPS as f32);
 
             self.handle_input(ctx);
 
-            self.handle_wall_collisions(seconds)?;
+            self.handle_wall_collisions(delta_time)?;
 
-            self.handle_shot_collisions(seconds)?;
+            self.handle_shot_collisions(delta_time)?;
 
-            self.dungeon.get_room_mut(self.cur_room)?.update(seconds)?;
+            self.dungeon.get_room_mut(self.cur_room)?.update(delta_time)?;
 
-            self.player.update(seconds)?;
+            self.player.update(delta_time)?;
         }
 
         Ok(())
@@ -210,9 +233,9 @@ impl EventHandler for MainState {
 
         let screen_coords = (self.screen_width, self.screen_height);
 
-        self.dungeon.get_room(self.cur_room)?.draw(ctx, &self.assets, screen_coords)?;
+        self.dungeon.get_room(self.cur_room)?.draw(ctx, &self.assets, screen_coords, &self.config)?;
 
-        self.player.draw(ctx, &self.assets, screen_coords)?;
+        self.player.draw(ctx, &self.assets, screen_coords, &self.config)?;
 
         graphics::present(ctx)?;
         Ok(())
