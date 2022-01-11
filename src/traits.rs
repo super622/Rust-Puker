@@ -2,6 +2,8 @@ use ggez::{
     graphics::{self, Rect, DrawParam, PxScale, DrawMode, Mesh, Text, Color},
     GameResult,
     Context,
+    event::{self, KeyCode, MouseButton, EventHandler},
+    input,
 };
 use std::{
     any::Any,
@@ -110,15 +112,17 @@ pub trait Actor: Model {
 }
 
 pub trait Shooter: Model {
-    fn shoot(&mut self) -> GameResult;
-
-    fn get_shots(&self) -> &Vec<Shot>;
-
-    fn get_shots_mut(&mut self) -> &mut Vec<Shot>;
+    fn shoot(&mut self, shots: &mut Vec<Shot>) -> GameResult;
 }
 
 pub trait Scene {
     fn update(&mut self, ctx: &mut Context, delta_time: f32) -> GameResult;
 
     fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult;
+
+    fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool);
+
+    fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods);
+
+    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32);
 }

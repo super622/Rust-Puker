@@ -12,13 +12,12 @@ use crate::{
 use glam::f32::{Vec2};
 use std::{
     any::Any,
-    collections::{VecDeque},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub enum ActorState {
-    BASE,
-    SHOOT,
+    Base,
+    Shoot,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -30,7 +29,7 @@ pub struct ActorProps {
     pub velocity: Vec2,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct Player {
     pub props: ActorProps,
     pub speed: f32,
@@ -39,7 +38,6 @@ pub struct Player {
     pub shoot_rate: f32,
     pub shoot_range: f32,
     pub shoot_timeout: f32,
-    pub shots: Vec<Shot>,
     pub color: Color,
 }
 
@@ -48,26 +46,6 @@ impl Model for Player {
         self.props.velocity = self.props.translation * PLAYER_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
-
-        let mut shots_gone = VecDeque::<usize>::new();
-
-        for (i, shot) in self.shots.iter_mut().enumerate() {
-            shot.update(_delta_time)?;
-            if shot.props.pos.0.distance(shot.spawn_pos.0) > self.shoot_range { shots_gone.push_back(i); } 
-        }
-
-        for shot in shots_gone {
-            self.shots.remove(shot);
-        }
-
-        match self.state {
-            ActorState::SHOOT => {
-                if self.shoot_timeout == 0. {
-                    self.shoot()?;
-                }
-            },
-            _ => (),
-        }
 
         Ok(())
     }
@@ -81,13 +59,9 @@ impl Model for Player {
             .offset([0.5, 0.5])
             .color(self.color);
 
-        for shot in self.shots.iter() {
-            shot.draw(ctx, assets, screen, config)?;
-        }
-
         match self.state {
-            ActorState::BASE => graphics::draw(ctx, &assets.player_base, draw_params)?,
-            ActorState::SHOOT => {
+            ActorState::Base => graphics::draw(ctx, &assets.player_base, draw_params)?,
+            ActorState::Shoot => {
                 if self.props.forward == Vec2::X { graphics::draw(ctx, &assets.player_shoot_east, draw_params)?; }
                 else if self.props.forward == -Vec2::X { graphics::draw(ctx, &assets.player_shoot_west, draw_params)?; }
                 else if self.props.forward == Vec2::Y { graphics::draw(ctx, &assets.player_shoot_north, draw_params)?; }
@@ -129,7 +103,11 @@ impl Actor for Player {
 }
 
 impl Shooter for Player {
-    fn shoot(&mut self) -> GameResult {
+    fn shoot(&mut self, shots: &mut Vec<Shot>) -> GameResult {
+        if self.shoot_timeout != 0. {
+            return Ok(());
+        }
+
         self.shoot_timeout = 1. / self.shoot_rate;
         let shot_dir = (self.props.forward + 0.5 * (self.props.translation * Vec2::new(self.props.forward.y, self.props.forward.x).abs())).normalize();
 
@@ -143,25 +121,31 @@ impl Shooter for Player {
             },
             spawn_pos: self.props.pos,
             speed: SHOT_SPEED,
+            range: self.shoot_range,
             damage: PLAYER_DAMAGE,
+            tag: ShotTag::Player,
         };
 
-        self.shots.push(shot);
+        shots.push(shot);
 
         Ok(())
     }
+}
 
-    fn get_shots(&self) -> &Vec<Shot> { &self.shots }
-
-    fn get_shots_mut(&mut self) -> &mut Vec<Shot> { &mut self.shots }
+#[derive(Clone, Debug, Copy)]
+pub enum ShotTag {
+    Player,
+    Enemy,
 }
 
 #[derive(Clone, Debug, Copy)]
 pub struct Shot {
     pub props: ActorProps,
     pub speed: f32,
+    pub range: f32,
     pub spawn_pos: Vec2Wrap,
     pub damage: f32,
+    pub tag: ShotTag,
 }
 
 impl Model for Shot {
@@ -217,7 +201,6 @@ pub struct EnemyMask {
     pub shoot_rate: f32,
     pub shoot_range: f32,
     pub shoot_timeout: f32,
-    pub shots: Vec<Shot>,
     pub color: Color,
 }
 
@@ -226,26 +209,6 @@ impl Model for EnemyMask {
         self.props.velocity = self.props.translation * ENEMY_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
-
-        let mut shots_gone = VecDeque::<usize>::new();
-
-        for (i, shot) in self.shots.iter_mut().enumerate() {
-            shot.update(_delta_time)?;
-            if shot.props.pos.0.distance(shot.spawn_pos.0) > self.shoot_range { shots_gone.push_back(i); } 
-        }
-
-        for shot in shots_gone {
-            self.shots.remove(shot);
-        }
-
-        match self.state {
-            ActorState::SHOOT => {
-                if self.shoot_timeout == 0. {
-                    self.shoot()?;
-                }
-            },
-            _ => (),
-        }
 
         Ok(())
     }
@@ -265,10 +228,6 @@ impl Model for EnemyMask {
 
         if config.draw_bbox_model {
             self.draw_bbox(ctx, screen)?;
-        }
-
-        for shot in self.shots.iter() {
-            shot.draw(ctx, assets, screen, config)?;
         }
 
         Ok(())
@@ -300,7 +259,11 @@ impl Actor for EnemyMask {
 }
 
 impl Shooter for EnemyMask {
-    fn shoot(&mut self) -> GameResult {
+    fn shoot(&mut self, shots: &mut Vec<Shot>) -> GameResult {
+        if self.shoot_timeout != 0. {
+            return Ok(());
+        }
+
         self.shoot_timeout = 1. / self.shoot_rate;
         let shot_dir = self.props.forward.normalize();
 
@@ -314,15 +277,13 @@ impl Shooter for EnemyMask {
             },
             spawn_pos: self.props.pos,
             speed: SHOT_SPEED,
+            range: self.shoot_range,
             damage: ENEMY_DAMAGE,
+            tag: ShotTag::Enemy,
         };
 
-        self.shots.push(shot);
+        shots.push(shot);
 
         Ok(())
     }
-
-    fn get_shots(&self) -> &Vec<Shot> { &self.shots }
-
-    fn get_shots_mut(&mut self) -> &mut Vec<Shot> { &mut self.shots }
 }

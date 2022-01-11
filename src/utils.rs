@@ -4,10 +4,14 @@ use ggez::{
     GameError,
 };
 use glam::f32::*;
-use std::fmt;
-use crate::scenes::SceneType;
+use std::{
+    fmt,
+};
+use crate::{
+    scenes::{SceneType},
+    traits::*,
+};
 
-#[derive(Debug)]
 pub struct Config {
     pub screen_width: f32,
     pub screen_height: f32,
@@ -158,10 +162,22 @@ pub fn dynamic_rect_vs_rect(source: &Rect, source_vel: &Vec2, target: &Rect, con
 
     if ray_vs_rect(&source_ray_origin, &(*source_vel + _elapsed_time), &expanded_target, contact_point, contact_normal, contact_time) {
         if *contact_time <= 1. { 
-            println!("{:?}", source_ray_origin);
             return true;
         }
     }
 
     false
 }
+
+pub fn mouse_relative_forward(sw: f32, sh: f32, target: Vec2, mouse: Vec2) -> Vec2 {
+    let m = screen_to_world_space(sw, sh, mouse);
+
+    let dx = m.x - target.x;
+    let dy = m.y - target.y;
+
+    if f32::abs(dx) > f32::abs(dy) {
+        return Vec2::new(f32::signum(dx), 0.);
+    }
+    Vec2::new(0., f32::signum(dy))
+}
+

@@ -26,21 +26,31 @@ pub struct Room {
     pub doors: [Option<usize>; 4],
     pub obstacles: Vec<Box<dyn Stationary>>,
     pub enemies: Vec<Box<dyn Actor>>,
+    pub shots: Vec<Shot>,
 }
 
 impl Room {
     pub fn update(&mut self, _delta_time: f32) -> GameResult {
-        let mut dead_enemies = Vec::<usize>::new();
+
+        let count_dead = 0;
+        let dead_enemies = self.enemies.iter()
+            .enumerate()
+            .filter(|e| e.1.get_health() <= 0.)
+            .map(|e| e.0).collect::<Vec<_>>();
+        for (i,d) in dead_enemies.iter().enumerate() { self.enemies.remove(d - i); }
+
+        self.shots = self.shots.clone().into_iter().filter(|s| {
+            s.get_pos().distance(s.spawn_pos.0) < s.range
+        }).collect();
 
         for (i, enemy) in self.enemies.iter_mut().enumerate() {
             enemy.update(_delta_time)?;
-            if enemy.get_health() <= 0. { dead_enemies.push(i); }
-        }
-        
-        for dead in dead_enemies {
-            self.enemies.remove(dead);
         }
 
+        for shot in self.shots.iter_mut() {
+            shot.update(_delta_time)?;
+        }
+        
         if self.enemies.is_empty() {
             for door in self.doors.iter_mut() {
                 match door {
@@ -70,6 +80,10 @@ impl Room {
             enemy.draw(ctx, assets, world_coords, config)?;
         }
 
+        for shot in self.shots.iter() {
+            shot.draw(ctx, assets, world_coords, config)?;
+        }
+
         Ok(())
     }
 
@@ -93,6 +107,7 @@ impl Room {
         let mut doors = [None; 4];
         let mut obstacles: Vec<Box<dyn Stationary>> = Vec::new(); 
         let mut enemies: Vec<Box<dyn Actor>> = Vec::new();
+        let shots = Vec::new();
 
         let mut layout = ROOM_LAYOUT_EMPTY.trim().split('\n').map(|l| l.trim()).collect::<String>();
         if grid_coords != Dungeon::get_start_room_coords() {
@@ -107,6 +122,12 @@ impl Room {
             match c {
                 '#' => {
                     obstacles.push(Box::new(Wall {
+                        pos: Room::get_model_pos(sw, sh, width, height, i).into(),
+                        scale: Vec2::splat(WALL_SCALE),
+                    }));
+                },
+                's' => {
+                    obstacles.push(Box::new(Stone {
                         pos: Room::get_model_pos(sw, sh, width, height, i).into(),
                         scale: Vec2::splat(WALL_SCALE),
                     }));
@@ -141,11 +162,10 @@ impl Room {
                         },
                         speed: ENEMY_SPEED,
                         health: ENEMY_HEALTH,
-                        state: ActorState::BASE,
+                        state: ActorState::Base,
                         shoot_rate: ENEMY_SHOOT_RATE,
                         shoot_range: ENEMY_SHOOT_RANGE,
                         shoot_timeout: ENEMY_SHOOT_TIMEOUT,
-                        shots: Vec::new(),
                         color: Color::WHITE,
                     }));
                 },
@@ -160,6 +180,7 @@ impl Room {
             doors,
             obstacles,
             enemies,
+            shots,
         }
     }
 }
@@ -215,6 +236,10 @@ impl Dungeon {
             if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] != 0 { doors[3] = Some((i + 1, j)); }
 
             rooms.push(Room::generate_room(screen, (i, j), doors));
+        }
+
+        for r in grid.iter() {
+            println!("{:?}", r);
         }
 
         Dungeon {
@@ -294,7 +319,7 @@ impl Stationary for Door {
         let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.pos.into()).into();
         let draw_params = DrawParam::default()
             .dest(pos)
-            .scale(self.scale_to_screen(sw, sh, assets.door_closed.dimensions()))
+            .scale(self.scale_to_screen(sw, sh, assets.door_closed.dimensions()) * 1.1)
             .rotation(self.rotation)
             .offset([0.5, 0.5]);
 
@@ -339,6 +364,43 @@ impl Stationary for Wall {
             .offset([0.5, 0.5]);
 
         graphics::draw(ctx, &assets.wall, draw_params)?;
+
+        if config.draw_bbox_stationary {
+            self.draw_bbox(ctx, screen)?;
+        }
+
+        Ok(())
+    }
+
+    fn get_pos(&self) -> Vec2 { self.pos.0 }
+
+    fn get_scale(&self) -> Vec2 { self.scale }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Stone {
+    pub pos: Vec2Wrap,
+    pub scale: Vec2,
+}
+
+impl Stationary for Stone {
+    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
+        let (sw, sh) = screen;
+        let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.pos.into()).into();
+        let draw_params = DrawParam::default()
+            .dest(pos)
+            .scale(self.scale_to_screen(sw, sh, assets.wall.dimensions()) * 1.1)
+            .offset([0.5, 0.5]);
+
+        graphics::draw(ctx, &assets.stone, draw_params)?;
 
         if config.draw_bbox_stationary {
             self.draw_bbox(ctx, screen)?;
