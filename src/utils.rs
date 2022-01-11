@@ -5,6 +5,7 @@ use ggez::{
 };
 use glam::f32::*;
 use std::fmt;
+use crate::scenes::SceneType;
 
 #[derive(Debug)]
 pub struct Config {
@@ -12,6 +13,7 @@ pub struct Config {
     pub screen_height: f32,
     pub draw_bbox_model: bool,
     pub draw_bbox_stationary: bool,
+    pub current_scene: SceneType,
 }
 
 #[derive(Debug)]
@@ -115,6 +117,8 @@ pub fn ray_vs_rect(ray_origin: &Vec2, ray_dir: &Vec2, target: &Rect, contact_poi
     if t_near.x > t_far.x { std::mem::swap(&mut t_near.x, &mut t_far.x)}
     if t_near.y > t_far.y { std::mem::swap(&mut t_near.y, &mut t_far.y)}
 
+    if t_near.x > t_far.y || t_near.y > t_far.x { return false; }
+
     *t_hit_near = f32::max(t_near.x, t_near.y);
     let t_hit_far = f32::min(t_far.x, t_far.y);
 
@@ -152,8 +156,11 @@ pub fn dynamic_rect_vs_rect(source: &Rect, source_vel: &Vec2, target: &Rect, con
 
     let source_ray_origin = Vec2::new(source_pos.x + source_size.x / 2., source_pos.y - source_size.y / 2.);
 
-    if ray_vs_rect(&source_ray_origin, source_vel, &expanded_target, contact_point, contact_normal, contact_time) {
-        if *contact_time <= 1. { return true; }
+    if ray_vs_rect(&source_ray_origin, &(*source_vel + _elapsed_time), &expanded_target, contact_point, contact_normal, contact_time) {
+        if *contact_time <= 1. { 
+            println!("{:?}", source_ray_origin);
+            return true;
+        }
     }
 
     false

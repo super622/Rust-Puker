@@ -1,5 +1,5 @@
 use ggez::{
-    graphics::{self, Text, Mesh, DrawMode, PxScale, DrawParam, Rect, Color},
+    graphics::{self, DrawParam, Rect, Color},
     GameResult,
     Context
 };
@@ -8,6 +8,7 @@ use crate::{
     entities::*,
     utils::*,
     consts::*,
+    traits::*,
 };
 use std::{
     any::Any,
@@ -16,46 +17,6 @@ use std::{
 };
 use rand::{thread_rng, Rng};
 use glam::f32::Vec2;
-
-pub trait Stationary: std::fmt::Debug {
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), _config: &Config) -> GameResult;
-
-    fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
-        let (sw, sh) = screen;
-        let mut bbox = self.get_bbox(sw, sh);
-        let mut text = Text::new(format!("{:?}, {:?}", bbox.x, bbox.y));
-        let screen_coords = world_to_screen_space(sw, sh, Vec2::new(bbox.x, bbox.y));
-        bbox.x = screen_coords.x;
-        bbox.y = screen_coords.y;
-
-        let mesh = Mesh::new_rectangle(ctx, DrawMode::stroke(2.0), bbox, Color::BLUE)?;
-        graphics::draw(ctx, &mesh, DrawParam::default())?;
-
-        text.fragments_mut().iter_mut().map(|x| x.scale = Some(PxScale { x: 0.5, y: 0.5 })).count();
-        graphics::draw(ctx, &text, DrawParam::default().dest([bbox.x, bbox.y - text.height(ctx)]))?;
-
-        Ok(())
-    }
-
-    fn scale_to_screen(&self, sw: f32, sh: f32, image: Rect) -> Vec2 {
-        let bbox = self.get_bbox(sw, sh);
-        Vec2::new(bbox.w / image.w, bbox.h / image.h)
-    }
-
-    fn get_bbox(&self, sw: f32, sh: f32) -> graphics::Rect {
-        let width = sw / ROOM_WIDTH * self.get_scale().x;
-        let height = sh / ROOM_HEIGHT * self.get_scale().y;
-        Rect::new(self.get_pos().x - width / 2., self.get_pos().y + height / 2., width, height)
-    }
-
-    fn get_pos(&self) -> Vec2;
-
-    fn get_scale(&self) -> Vec2;
-
-    fn as_any(&self) -> &dyn Any;
-    
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-}
 
 #[derive(Debug)]
 pub struct Room {
@@ -176,6 +137,7 @@ impl Room {
                             scale: Vec2::splat(ENEMY_SCALE),
                             translation: Vec2::ZERO,
                             forward: Vec2::ZERO,
+                            velocity: Vec2::ZERO,
                         },
                         speed: ENEMY_SPEED,
                         health: ENEMY_HEALTH,
@@ -373,7 +335,7 @@ impl Stationary for Wall {
         let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.pos.into()).into();
         let draw_params = DrawParam::default()
             .dest(pos)
-            .scale(self.scale_to_screen(sw, sh, assets.wall.dimensions()))
+            .scale(self.scale_to_screen(sw, sh, assets.wall.dimensions()) * 1.1)
             .offset([0.5, 0.5]);
 
         graphics::draw(ctx, &assets.wall, draw_params)?;

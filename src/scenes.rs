@@ -1,19 +1,15 @@
 use ggez::{
-    graphics::{self, Color},
+    graphics::{Color},
     Context,
     GameResult,
-    event::{self, KeyCode, MouseButton, EventHandler},
-    conf::{Conf,WindowMode},
-    ContextBuilder,
-    filesystem,
+    event::{KeyCode, MouseButton},
     input::{self, keyboard, mouse},
-    timer,
 };
 use glam::f32::{Vec2};
 use std::{
     fmt::{Display, Formatter},
     str::FromStr,
-    collections::{HashMap},
+    rc::Rc,
 };
 
 use crate::{
@@ -22,21 +18,22 @@ use crate::{
     utils::*,
     dungeon::*,
     consts::*,
+    traits::*,
 };
 
 #[derive(Clone, Copy, Hash, Debug)]
 pub enum SceneType {
-    PLAY,
-    MENU,
-    DEAD,
+    Play,
+    Menu,
+    Dead,
 }
 
 impl Display for SceneType {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            SceneType::PLAY => write!(f, "PLAY"),
-            SceneType::MENU => write!(f, "MENU"),
-            SceneType::DEAD => write!(f, "DEAD"),
+            SceneType::Play => write!(f, "Play"),
+            SceneType::Menu => write!(f, "Menu"),
+            SceneType::Dead => write!(f, "Dead"),
         }
     }
 }
@@ -46,9 +43,9 @@ impl FromStr for SceneType {
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {
-            "PLAY" => Ok(SceneType::PLAY),
-            "MENU" => Ok(SceneType::MENU),
-            "DEAD" => Ok(SceneType::DEAD),
+            "Play" => Ok(SceneType::Play),
+            "Menu" => Ok(SceneType::Menu),
+            "Dead" => Ok(SceneType::Dead),
             _ => Err(Errors::SceneTypeParse(input.to_string())),
         }
     }
@@ -61,36 +58,25 @@ impl PartialEq for SceneType {
 }
 impl Eq for SceneType {}
 
-pub trait Scene {
-    fn update(&mut self, ctx: &mut Context, delta_time: f32) -> GameResult;
-
-    fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult;
-}
-
 #[derive(Debug)]
 pub struct PlayScene {
-    config: Config,
+    config: Rc<Config>,
     player: Player,
     dungeon: Dungeon,
     cur_room: (usize, usize),
 }
 
 impl PlayScene {
-    pub fn new(ctx: &mut Context, conf: &Conf) -> GameResult<Self> {
+    pub fn new(ctx: &mut Context, config: &Rc<Config>) -> GameResult<Self> {
         input::mouse::set_cursor_grabbed(ctx, true)?;
 
-        let config = Config {
-            screen_width: conf.window_mode.width,
-            screen_height: conf.window_mode.height,
-            draw_bbox_model: true,            
-            draw_bbox_stationary: false,            
-        };
         let player = Player {
             props: ActorProps {
                 pos: Vec2::ZERO.into(),
                 scale: Vec2::splat(PLAYER_SCALE),
                 translation: Vec2::ZERO,
                 forward: Vec2::ZERO,
+                velocity: Vec2::ZERO,
             },
             speed: PLAYER_SPEED,
             health: PLAYER_HEALTH,
@@ -105,7 +91,7 @@ impl PlayScene {
         let cur_room = Dungeon::get_start_room_coords();
 
         let s = Self {
-            config,
+            config: Rc::clone(config),
             player,
             dungeon,
             cur_room,
@@ -170,13 +156,12 @@ impl PlayScene {
         let (sw, sh) = (self.config.screen_width, self.config.screen_height);
         let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
         let mut ct = 0.;
-        self.player.color = Color::WHITE;
 
         let room = &self.dungeon.get_room(self.cur_room)?;
         let mut collisions = Vec::<(usize, f32)>::new();
 
         for (i, obst) in room.obstacles.iter().enumerate() {
-            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(delta_time), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 collisions.push((i, ct));
             }
         }
@@ -184,7 +169,7 @@ impl PlayScene {
         collisions.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
         for (i, mut ct) in collisions.iter_mut() {
-            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(delta_time), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 let obst = room.obstacles[*i].as_any();
 
                 if let Some(door) = obst.downcast_ref::<Door>() {
@@ -194,11 +179,11 @@ impl PlayScene {
                         self.player.shots = Vec::new();
                     }
                     else {
-                        self.player.props.translation += cn * self.player.get_velocity(delta_time).abs() * (1. - ct);
+                        self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
                     }
                 }
                 else {
-                    self.player.props.translation += cn * self.player.get_velocity(delta_time).abs() * (1. - ct);
+                    self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
                 }
             }
         }
@@ -249,7 +234,7 @@ impl PlayScene {
         let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
 
         for e in room.enemies.iter_mut() {
-            if e.get_pos().distance(self.player.get_pos()) <= ENEMY_SHOOT_RANGE {
+            if e.get_pos().distance(self.player.get_pos()) <= ENEMY_SHOOT_RANGE * 0.6 {
                 if let Some(enemy) = e.as_any_mut().downcast_mut::<EnemyMask>() {
                     enemy.state = ActorState::BASE;
                     enemy.props.forward = self.player.get_pos() - enemy.get_pos();
@@ -299,4 +284,8 @@ impl Scene for PlayScene {
 
         Ok(())
     }
+}
+
+pub struct MenuScene {
+
 }

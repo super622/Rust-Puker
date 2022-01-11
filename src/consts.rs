@@ -6,7 +6,7 @@ pub const PLAYER_SHOOT_RATE: f32 = 2.5;
 pub const PLAYER_SHOOT_RANGE: f32 = 400.;
 pub const PLAYER_SHOOT_TIMEOUT: f32 = 0.;
 pub const PLAYER_HEALTH: f32 = 5.;
-pub const PLAYER_SPEED: f32 = 150.;
+pub const PLAYER_SPEED: f32 = 200.;
 pub const PLAYER_DAMAGE: f32 = 1.;
 
 pub const ENEMY_SCALE: f32 = 0.8;
