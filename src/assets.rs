@@ -7,6 +7,7 @@ use ggez::{
 
 pub struct Assets {
     pub player_base: graphics::Image,
+    pub player_damaged: graphics::Image, 
     pub player_shoot_north: graphics::Image, 
     pub player_shoot_south: graphics::Image, 
     pub player_shoot_west: graphics::Image, 
@@ -27,6 +28,7 @@ pub struct Assets {
 impl Assets {
     pub fn new(ctx: &mut Context) -> GameResult<Self> {
         let player_base = graphics::Image::new(ctx, "/player_base.png")?;
+        let player_damaged = graphics::Image::new(ctx, "/player_damaged.png")?; 
         let player_shoot_north = graphics::Image::new(ctx, "/player_shoot_north.png")?;
         let player_shoot_south = graphics::Image::new(ctx, "/player_shoot_south.png")?;
         let player_shoot_west = graphics::Image::new(ctx, "/player_shoot_west.png")?;
@@ -45,6 +47,7 @@ impl Assets {
 
         Ok(Self {
             player_base,
+            player_damaged,
             player_shoot_north,
             player_shoot_south,
             player_shoot_west, 

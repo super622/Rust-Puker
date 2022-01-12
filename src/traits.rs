@@ -2,7 +2,8 @@ use ggez::{
     graphics::{self, Rect, DrawParam, PxScale, DrawMode, Mesh, Text, Color},
     GameResult,
     Context,
-    event::{self, KeyCode, MouseButton, EventHandler},
+    mint::{Point2},
+    event::{KeyCode, MouseButton},
     input,
 };
 use std::{
@@ -116,7 +117,7 @@ pub trait Shooter: Model {
 }
 
 pub trait Scene {
-    fn update(&mut self, ctx: &mut Context, delta_time: f32) -> GameResult;
+    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult;
 
     fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult;
 
@@ -125,4 +126,32 @@ pub trait Scene {
     fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods);
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32);
+}
+
+pub trait UIElement {
+    fn update(&mut self, ctx: &mut Context) -> GameResult;
+
+    fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult;
+
+    fn pos(&self) -> Point2<f32>;
+
+    fn width(&self) -> f32;
+
+    fn height(&self) -> f32;
+
+    fn top_left(&self) -> Point2<f32> {
+        let pos = self.pos();
+        let (w, h) = (self.width(), self.height());
+        Point2 { x: pos.x - w / 2., y: pos.y - h / 2. }
+    }
+        
+    fn mouse_overlap(&self, ctx: &mut Context) -> bool {
+        let tl = self.top_left();
+        let (w, h) = (self.width(), self.height());
+        Rect::new(tl.x, tl.y, w, h).contains(input::mouse::position(ctx))
+    }
+
+    fn as_any(&self) -> &dyn Any;
+    
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }

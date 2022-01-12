@@ -6,7 +6,7 @@ use ggez::{
     conf::{Conf,WindowMode},
     ContextBuilder,
     filesystem,
-    input::{self, keyboard, mouse},
+    input,
     timer,
 };
 use std::{
@@ -45,7 +45,7 @@ impl MainState {
         let mut scenes = HashMap::<State, Box<dyn Scene>>::new();
         scenes.insert(State::Menu, Box::new(MenuScene::new(&config)));
         scenes.insert(State::Start, Box::new(StartScene::new(&config)));
-        // scenes.insert(State::Dead, Box::new(DeadScene::new(&config)));
+        scenes.insert(State::Dead, Box::new(DeadScene::new(&config)));
 
         let s = MainState {
             config,
@@ -64,14 +64,14 @@ impl EventHandler for MainState {
         while timer::check_update_time(ctx, DESIRED_FPS) {
             let delta_time = 1.0 / (DESIRED_FPS as f32);
 
-            let mut scene;
+            let scene;
 
             {
                scene = self.config.borrow().current_state;
             }
 
             match scene {
-                State::New | State::Continue => input::mouse::set_cursor_grabbed(ctx, true)?,
+                State::Play => input::mouse::set_cursor_grabbed(ctx, true)?,
                 _ => input::mouse::set_cursor_grabbed(ctx, false)?,
             }
 
@@ -88,6 +88,11 @@ impl EventHandler for MainState {
 
         {
            scene = self.config.borrow().current_state;
+        }
+
+        match scene {
+            State::Menu | State::Dead => self.scenes.get_mut(&State::Play).unwrap().draw(ctx, &self.assets)?,
+            _ => (),
         }
 
         self.scenes.get_mut(&scene).unwrap().draw(ctx, &self.assets)?;
@@ -132,9 +137,6 @@ impl EventHandler for MainState {
         match scene {
             State::New => { 
                 self.scenes.insert(State::Play, Box::new(PlayScene::new(&self.config)));
-                self.config.borrow_mut().current_state = State::Play;
-            },
-            State::Continue => { 
                 self.config.borrow_mut().current_state = State::Play;
             },
             State::Quit => { 

@@ -19,6 +19,7 @@ pub enum ActorState {
     Base,
     Shoot,
     Dead,
+    Damaged,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -39,7 +40,8 @@ pub struct Player {
     pub shoot_rate: f32,
     pub shoot_range: f32,
     pub shoot_timeout: f32,
-    pub color: Color,
+    pub damaged_cooldown: f32,
+    pub animation_cooldown: f32,
 }
 
 impl Model for Player {
@@ -47,7 +49,10 @@ impl Model for Player {
         self.props.velocity = self.props.translation * PLAYER_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
+        self.damaged_cooldown = f32::max(0., self.damaged_cooldown - _delta_time);
+        self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
 
+        if self.animation_cooldown == 0. { self.state = ActorState::Base; }
         if self.health <= 0. { self.state = ActorState::Dead; }
 
         Ok(())
@@ -59,8 +64,7 @@ impl Model for Player {
         let draw_params = DrawParam::default()
             .dest(pos)
             .scale(self.scale_to_screen(sw, sh, assets.player_base.dimensions()))
-            .offset([0.5, 0.5])
-            .color(self.color);
+            .offset([0.5, 0.5]);
 
         match self.state {
             ActorState::Shoot => {
@@ -70,6 +74,7 @@ impl Model for Player {
                 else if self.props.forward == -Vec2::Y { graphics::draw(ctx, &assets.player_shoot_south, draw_params)?; }
                 else { graphics::draw(ctx, &assets.player_base, draw_params)?; }
             },
+            ActorState::Damaged => graphics::draw(ctx, &assets.player_damaged, draw_params.color(Color::RED))?,
             _ => graphics::draw(ctx, &assets.player_base, draw_params)?,
         }
 
@@ -90,25 +95,33 @@ impl Model for Player {
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+    fn as_any(&self) -> &dyn Any { self }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 impl Actor for Player {
     fn get_health(&self) -> f32 { self.health }
 
-    fn damage(&mut self, dmg: f32) { self.health -= dmg; }
+    fn damage(&mut self, dmg: f32) { 
+        if self.damaged_cooldown <= 0. {
+            self.health -= dmg; 
+            self.state = ActorState::Damaged;
+            self.damaged_cooldown = PLAYER_DAMAGED_COOLDOWN;
+            self.animation_cooldown = ANIMATION_COOLDOWN / self.damaged_cooldown;
+        }
+    }
 }
 
 impl Shooter for Player {
     fn shoot(&mut self, shots: &mut Vec<Shot>) -> GameResult {
         if self.shoot_timeout != 0. {
             return Ok(());
+        }
+
+        if self.state != ActorState::Shoot {
+            self.state = ActorState::Shoot;
+            self.animation_cooldown = ANIMATION_COOLDOWN / self.shoot_rate;
         }
 
         self.shoot_timeout = 1. / self.shoot_rate;
@@ -186,13 +199,9 @@ impl Model for Shot {
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+    fn as_any(&self) -> &dyn Any { self }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 #[derive(Clone, Debug)]
@@ -204,7 +213,7 @@ pub struct EnemyMask {
     pub shoot_rate: f32,
     pub shoot_range: f32,
     pub shoot_timeout: f32,
-    pub color: Color,
+    pub animation_cooldown: f32,
 }
 
 impl Model for EnemyMask {
@@ -212,7 +221,9 @@ impl Model for EnemyMask {
         self.props.velocity = self.props.translation * ENEMY_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
+        self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
 
+        if self.animation_cooldown == 0. { self.state = ActorState::Base; }
         if self.health <= 0. { self.state = ActorState::Dead; }
 
         Ok(())
@@ -224,10 +235,10 @@ impl Model for EnemyMask {
         let draw_params = DrawParam::default()
             .dest(pos)
             .scale(self.scale_to_screen(sw, sh, assets.enemy_mask_base.dimensions()))
-            .color(self.color)
             .offset([0.5, 0.5]);
 
         match self.state {
+            ActorState::Damaged => graphics::draw(ctx, &assets.enemy_mask_base, draw_params.color(Color::RED))?,
             _ => graphics::draw(ctx, &assets.enemy_mask_base, draw_params)?,
         }
 
@@ -248,19 +259,19 @@ impl Model for EnemyMask {
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+    fn as_any(&self) -> &dyn Any { self }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 impl Actor for EnemyMask {
     fn get_health(&self) -> f32 { self.health }
 
-    fn damage(&mut self, dmg: f32) { self.health -= dmg; }
+    fn damage(&mut self, dmg: f32) { 
+        self.health -= dmg; 
+        self.state = ActorState::Damaged;
+        self.animation_cooldown = ANIMATION_COOLDOWN;
+    }
 }
 
 impl Shooter for EnemyMask {
@@ -268,6 +279,8 @@ impl Shooter for EnemyMask {
         if self.shoot_timeout != 0. {
             return Ok(());
         }
+
+        self.state = ActorState::Shoot;
 
         self.shoot_timeout = 1. / self.shoot_rate;
         let shot_dir = self.props.forward.normalize();

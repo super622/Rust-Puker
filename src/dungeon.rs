@@ -32,7 +32,14 @@ pub struct Room {
 impl Room {
     pub fn update(&mut self, _delta_time: f32) -> GameResult {
 
-        let count_dead = 0;
+        for shot in self.shots.iter_mut() {
+            shot.update(_delta_time)?;
+        }
+
+        for enemy in self.enemies.iter_mut() {
+            enemy.update(_delta_time)?;
+        }
+
         let dead_enemies = self.enemies.iter()
             .enumerate()
             .filter(|e| e.1.get_health() <= 0.)
@@ -42,14 +49,6 @@ impl Room {
         self.shots = self.shots.clone().into_iter().filter(|s| {
             s.get_pos().distance(s.spawn_pos.0) < s.range
         }).collect();
-
-        for (i, enemy) in self.enemies.iter_mut().enumerate() {
-            enemy.update(_delta_time)?;
-        }
-
-        for shot in self.shots.iter_mut() {
-            shot.update(_delta_time)?;
-        }
         
         if self.enemies.is_empty() {
             for door in self.doors.iter_mut() {
@@ -166,7 +165,7 @@ impl Room {
                         shoot_rate: ENEMY_SHOOT_RATE,
                         shoot_range: ENEMY_SHOOT_RANGE,
                         shoot_timeout: ENEMY_SHOOT_TIMEOUT,
-                        color: Color::WHITE,
+                        animation_cooldown: 0.,
                     }));
                 },
                 _ => (),

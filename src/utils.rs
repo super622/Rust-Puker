@@ -8,9 +8,6 @@ use std::{
     fmt::{self, Display, Formatter},
     str::FromStr,
 };
-use crate::{
-    traits::*,
-};
 
 pub struct Config {
     pub screen_width: f32,
@@ -24,7 +21,6 @@ pub struct Config {
 pub enum State {
     Play,
     Start,
-    Continue,
     New,
     Menu,
     Quit,
@@ -44,7 +40,6 @@ impl FromStr for State {
         match input {
             "Play" => Ok(State::Play),
             "Start" => Ok(State::Start),
-            "Continue" => Ok(State::Continue),
             "New" => Ok(State::New),
             "Menu" => Ok(State::Menu),
             "Quit" => Ok(State::Quit),
