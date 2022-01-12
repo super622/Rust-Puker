@@ -5,13 +5,13 @@ use ggez::{
     mint::{Point2},
     event::{KeyCode, MouseButton},
     input::{self, keyboard, mouse},
+    audio::Source,
 };
 use glam::f32::{Vec2};
 use std::{
-    fmt::{Display, Formatter},
-    str::FromStr,
     rc::Rc,
     cell::RefCell,
+    str::FromStr,
 };
 
 use crate::{
@@ -22,39 +22,6 @@ use crate::{
     consts::*,
     traits::*,
 };
-
-#[derive(Clone, Copy, Hash, Debug)]
-pub enum SceneType {
-    Play,
-    Menu,
-    Dead,
-}
-
-impl Display for SceneType {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl FromStr for SceneType {
-    type Err = Errors;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input {
-            "Play" => Ok(SceneType::Play),
-            "Menu" => Ok(SceneType::Menu),
-            "Dead" => Ok(SceneType::Dead),
-            _ => Err(Errors::SceneTypeParse(input.to_string())),
-        }
-    }
-}
-
-impl PartialEq for SceneType {
-    fn eq(&self, other: &Self) -> bool {
-        self.to_string() == other.to_string()
-    }
-}
-impl Eq for SceneType {}
 
 pub struct PlayScene {
     config: Rc<RefCell<Config>>,
@@ -259,7 +226,8 @@ impl Scene for PlayScene {
 
         self.player.update(delta_time)?;
 
-        if self.player.get_health() <= 0. {
+        if self.player.state == ActorState::Dead {
+            self.config.borrow_mut().current_state = State::Dead;
         }
 
         Ok(())
@@ -277,7 +245,7 @@ impl Scene for PlayScene {
 
     fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
         match keycode {
-            KeyCode::Escape => self.config.borrow_mut().current_scene = SceneType::Menu,
+            KeyCode::Escape => self.config.borrow_mut().current_state = State::Menu,
             _ => (),
         }
     }
@@ -336,6 +304,80 @@ impl Button {
     }
 }
 
+pub struct StartScene {
+    config: Rc<RefCell<Config>>,
+    buttons: Vec<Button>,
+}
+
+impl StartScene {
+    pub fn new(config: &Rc<RefCell<Config>>) -> Self {
+        let (sw, sh) = (config.borrow().screen_width, config.borrow().screen_height); 
+
+        let config = Rc::clone(config);
+        let buttons = vec![
+            Button {
+                pos: Point2 { x: sw * 0.5, y: sh * 0.4},
+                text: String::from("New"),
+                color: Color::WHITE,
+                width: sw * 0.2,
+                height: sh * 0.1,
+            },
+            Button {
+                pos: Point2 { x: sw * 0.5, y: sh * 0.6},
+                text: String::from("Quit"),
+                color: Color::WHITE,
+                width: sw * 0.2,
+                height: sh * 0.1,
+            }
+        ];
+
+        StartScene {
+            config,
+            buttons,
+        }
+    }
+
+    fn check_for_button_click(&self, ctx: &mut Context) -> Option<&Button> {
+        for b in self.buttons.iter() {
+            if b.mouse_overlap(ctx) {
+                return Some(b);
+            }
+        }
+        None
+    }
+}
+
+impl Scene for StartScene {
+    fn update(&mut self, ctx: &mut Context, delta_time: f32) -> GameResult {
+        for b in self.buttons.iter_mut() {
+            b.update(ctx)?;
+        }
+
+        Ok(())
+    }
+
+    fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult {
+        for b in self.buttons.iter_mut() {
+            b.draw(ctx, assets)?;
+        }
+
+        Ok(())
+    }
+
+    fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {}
+
+    fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
+
+    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        if _button == MouseButton::Left {
+            match self.check_for_button_click(_ctx) {
+                Some(b) => self.config.borrow_mut().current_state = State::from_str(b.text.as_str()).unwrap(),
+                None => (),
+            }
+        }
+    }
+}
+
 pub struct MenuScene {
     config: Rc<RefCell<Config>>,
     buttons: Vec<Button>,
@@ -348,14 +390,21 @@ impl MenuScene {
         let config = Rc::clone(config);
         let buttons = vec![
             Button {
-                pos: Point2 { x: sw * 0.5, y: sh * 0.4},
-                text: String::from("Play"),
+                pos: Point2 { x: sw * 0.5, y: sh * 0.3},
+                text: String::from("Continue"),
+                color: Color::WHITE,
+                width: sw * 0.4,
+                height: sh * 0.1,
+            },
+            Button {
+                pos: Point2 { x: sw * 0.5, y: sh * 0.5},
+                text: String::from("New"),
                 color: Color::WHITE,
                 width: sw * 0.2,
                 height: sh * 0.1,
             },
             Button {
-                pos: Point2 { x: sw * 0.5, y: sh * 0.6},
+                pos: Point2 { x: sw * 0.5, y: sh * 0.7},
                 text: String::from("Quit"),
                 color: Color::WHITE,
                 width: sw * 0.2,
@@ -409,7 +458,7 @@ impl Scene for MenuScene {
 
     fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
         match keycode {
-            KeyCode::Escape => self.config.borrow_mut().current_scene = SceneType::Play,
+            KeyCode::Escape => self.config.borrow_mut().current_state = State::Continue,
             _ => (),
         }
     }
@@ -419,15 +468,14 @@ impl Scene for MenuScene {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
         if _button == MouseButton::Left {
             match self.check_for_button_click(_ctx) {
-                Some(b) => {
-                    match b.text.as_str() {
-                        "Play" => self.config.borrow_mut().current_scene = SceneType::Play,
-                        "Quit" => ggez::event::quit(_ctx),
-                        _ => (),
-                    }
-                },
+                Some(b) => self.config.borrow_mut().current_state = State::from_str(b.text.as_str()).unwrap(),
                 None => (),
             }
         }
     }
+}
+
+pub struct DeadScene {
+    config: Rc<RefCell<Config>>,
+    buttons: Vec<Button>,
 }

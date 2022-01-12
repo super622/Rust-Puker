@@ -25,9 +25,10 @@ use puker::{
     traits::*,
 };
 
+
 struct MainState {
     config: Rc<RefCell<Config>>,
-    scenes: HashMap<SceneType, Box<dyn Scene>>,
+    scenes: HashMap<State, Box<dyn Scene>>,
     assets: Assets,
 }
 
@@ -39,10 +40,12 @@ impl MainState {
             screen_height: conf.window_mode.height,
             draw_bbox_model: true,            
             draw_bbox_stationary: false,            
-            current_scene: SceneType::Menu,
+            current_state: State::Start,
         }));
-        let mut scenes = HashMap::<SceneType, Box<dyn Scene>>::new();
-        scenes.insert(SceneType::Menu, Box::new(MenuScene::new(&config)));
+        let mut scenes = HashMap::<State, Box<dyn Scene>>::new();
+        scenes.insert(State::Menu, Box::new(MenuScene::new(&config)));
+        scenes.insert(State::Start, Box::new(StartScene::new(&config)));
+        // scenes.insert(State::Dead, Box::new(DeadScene::new(&config)));
 
         let s = MainState {
             config,
@@ -64,11 +67,11 @@ impl EventHandler for MainState {
             let mut scene;
 
             {
-               scene = self.config.borrow().current_scene;
+               scene = self.config.borrow().current_state;
             }
 
             match scene {
-                SceneType::Play => input::mouse::set_cursor_grabbed(ctx, true)?,
+                State::New | State::Continue => input::mouse::set_cursor_grabbed(ctx, true)?,
                 _ => input::mouse::set_cursor_grabbed(ctx, false)?,
             }
 
@@ -84,11 +87,7 @@ impl EventHandler for MainState {
         let scene;
 
         {
-           scene = self.config.borrow().current_scene;
-        }
-
-        if scene == SceneType::Menu && self.scenes.contains_key(&SceneType::Play) {
-            self.scenes.get_mut(&SceneType::Play).unwrap().draw(ctx, &self.assets)?;
+           scene = self.config.borrow().current_state;
         }
 
         self.scenes.get_mut(&scene).unwrap().draw(ctx, &self.assets)?;
@@ -101,37 +100,47 @@ impl EventHandler for MainState {
         let scene;
 
         {
-           scene = self.config.borrow().current_scene;
+           scene = self.config.borrow().current_state;
         }
 
         self.scenes.get_mut(&scene).unwrap().key_down_event(_ctx, keycode, _keymod, _repeat);
-
-        if self.config.borrow().current_scene == SceneType::Play && !self.scenes.contains_key(&SceneType::Play) { 
-            self.config.borrow_mut().current_scene = SceneType::Menu;
-        }
     }
 
     fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods) {
         let scene;
 
         {
-           scene = self.config.borrow().current_scene;
+           scene = self.config.borrow().current_state;
         }
 
         self.scenes.get_mut(&scene).unwrap().key_up_event(_ctx, keycode, _keymod);
     }
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        let scene;
+        let mut scene;
 
         {
-           scene = self.config.borrow().current_scene;
+           scene = self.config.borrow().current_state;
         }
 
         self.scenes.get_mut(&scene).unwrap().mouse_button_down_event(_ctx, _button, _x, _y);
+
+        {
+           scene = self.config.borrow().current_state;
+        }
         
-        if self.config.borrow().current_scene == SceneType::Play && !self.scenes.contains_key(&SceneType::Play) { 
-            self.scenes.insert(SceneType::Play, Box::new(PlayScene::new(&self.config)));
+        match scene {
+            State::New => { 
+                self.scenes.insert(State::Play, Box::new(PlayScene::new(&self.config)));
+                self.config.borrow_mut().current_state = State::Play;
+            },
+            State::Continue => { 
+                self.config.borrow_mut().current_state = State::Play;
+            },
+            State::Quit => { 
+                ggez::event::quit(_ctx);
+            },
+            _ => (),
         }
     }
 }

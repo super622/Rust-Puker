@@ -14,10 +14,11 @@ use std::{
     any::Any,
 };
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq)]
 pub enum ActorState {
     Base,
     Shoot,
+    Dead,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -47,6 +48,8 @@ impl Model for Player {
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
 
+        if self.health <= 0. { self.state = ActorState::Dead; }
+
         Ok(())
     }
 
@@ -60,7 +63,6 @@ impl Model for Player {
             .color(self.color);
 
         match self.state {
-            ActorState::Base => graphics::draw(ctx, &assets.player_base, draw_params)?,
             ActorState::Shoot => {
                 if self.props.forward == Vec2::X { graphics::draw(ctx, &assets.player_shoot_east, draw_params)?; }
                 else if self.props.forward == -Vec2::X { graphics::draw(ctx, &assets.player_shoot_west, draw_params)?; }
@@ -68,6 +70,7 @@ impl Model for Player {
                 else if self.props.forward == -Vec2::Y { graphics::draw(ctx, &assets.player_shoot_south, draw_params)?; }
                 else { graphics::draw(ctx, &assets.player_base, draw_params)?; }
             },
+            _ => graphics::draw(ctx, &assets.player_base, draw_params)?,
         }
 
         if config.draw_bbox_model {
@@ -209,6 +212,8 @@ impl Model for EnemyMask {
         self.props.velocity = self.props.translation * ENEMY_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
+
+        if self.health <= 0. { self.state = ActorState::Dead; }
 
         Ok(())
     }

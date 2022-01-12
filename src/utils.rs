@@ -5,10 +5,10 @@ use ggez::{
 };
 use glam::f32::*;
 use std::{
-    fmt,
+    fmt::{self, Display, Formatter},
+    str::FromStr,
 };
 use crate::{
-    scenes::{SceneType},
     traits::*,
 };
 
@@ -17,18 +17,59 @@ pub struct Config {
     pub screen_height: f32,
     pub draw_bbox_model: bool,
     pub draw_bbox_stationary: bool,
-    pub current_scene: SceneType,
+    pub current_state: State,
 }
+
+#[derive(Clone, Copy, Hash, Debug)]
+pub enum State {
+    Play,
+    Start,
+    Continue,
+    New,
+    Menu,
+    Quit,
+    Dead,
+}
+
+impl Display for State {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl FromStr for State {
+    type Err = Errors;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "Play" => Ok(State::Play),
+            "Start" => Ok(State::Start),
+            "Continue" => Ok(State::Continue),
+            "New" => Ok(State::New),
+            "Menu" => Ok(State::Menu),
+            "Quit" => Ok(State::Quit),
+            "Dead" => Ok(State::Dead),
+            _ => Err(Errors::StateParse(input.to_string())),
+        }
+    }
+}
+
+impl PartialEq for State {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+impl Eq for State {}
 
 #[derive(Debug)]
 pub enum Errors {
     UnknownRoomIndex(usize),
     UnknownGridCoords((usize, usize)),
-    SceneTypeParse(String),
+    StateParse(String),
 }
 
-impl fmt::Display for Errors {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Errors {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }

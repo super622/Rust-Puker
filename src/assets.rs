@@ -5,7 +5,6 @@ use ggez::{
     GameResult,
 };
 
-#[derive(Clone,Debug)]
 pub struct Assets {
     pub player_base: graphics::Image,
     pub player_shoot_north: graphics::Image, 
@@ -20,7 +19,9 @@ pub struct Assets {
     pub wall: graphics::Image,
     pub stone: graphics::Image,
 
-    pub freedom_font: graphics::Font
+    pub freedom_font: graphics::Font,
+
+    pub death_sound: audio::Source,
 }
 
 impl Assets {
@@ -40,6 +41,8 @@ impl Assets {
 
         let freedom_font = graphics::Font::new(ctx, "/freedom.ttf")?;
 
+        let death_sound = audio::Source::new(ctx, "/death_sound.mp3")?;
+
         Ok(Self {
             player_base,
             player_shoot_north,
@@ -55,6 +58,8 @@ impl Assets {
             stone,
 
             freedom_font,
+
+            death_sound,
         })
     }
 }
