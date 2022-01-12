@@ -1,5 +1,5 @@
 use ggez::{
-    graphics::{self, DrawParam, Rect, Color},
+    graphics::{self, DrawParam, Rect},
     GameResult,
     Context
 };
@@ -208,11 +208,11 @@ impl Dungeon {
             while !q.is_empty() {
                 let (i, j) = q.pop_front().unwrap();
 
-                if room_grid_coords.len() == room_count { break; }
+                if room_grid_coords.len() == room_count { break }
 
-                if thread_rng().gen_range(0..2) == 1 { continue; }
+                if thread_rng().gen_range(0..2) == 1 { continue }
 
-                if grid[i][j] != 0 { continue; }
+                if grid[i][j] != 0 { continue }
 
                 room_grid_coords.push((i, j));
                 grid[i][j] = room_grid_coords.len();
@@ -223,7 +223,9 @@ impl Dungeon {
                 if j > 0                     && grid[i][j - 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j - 1)) <= 1 { q.push_back((i, j - 1)); }
             }
 
-            if Dungeon::check_dungeon_consistency(&grid, room_grid_coords.len()) { break; }
+            if room_grid_coords.len() < room_count { continue }
+
+            if Dungeon::check_dungeon_consistency(&grid, room_count) { break }
         }
 
         for (i, j) in room_grid_coords.into_iter() {
@@ -235,10 +237,6 @@ impl Dungeon {
             if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] != 0 { doors[3] = Some((i + 1, j)); }
 
             rooms.push(Room::generate_room(screen, (i, j), doors));
-        }
-
-        for r in grid.iter() {
-            println!("{:?}", r);
         }
 
         Dungeon {
@@ -268,8 +266,6 @@ impl Dungeon {
     pub fn get_start_room_coords() -> (usize, usize) { (3, 5) }
 
     fn check_dungeon_consistency(grid: &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS], rooms_len: usize) -> bool {
-        if rooms_len == 0 { return false; }
-
         let mut checked = vec![false; rooms_len];
         let mut q = VecDeque::<(usize, usize)>::new();
         q.push_back(Dungeon::get_start_room_coords());
@@ -418,5 +414,34 @@ impl Stationary for Stone {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod unit_test_dungeon {
+    use super::*;
+
+    #[test]
+    fn test_dungeon_consistency_checker() {
+        let grid_bad = [[0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 3, 1, 2, 0, 0],
+                        [0, 0, 0, 0, 4, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0],];
+
+        let grid_good = [[0, 0, 0, 0, 0, 0, 0, 0, 0],
+                         [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                         [0, 0, 0, 0, 0, 5, 0, 0, 0],
+                         [0, 0, 0, 0, 3, 1, 2, 0, 0],
+                         [0, 0, 0, 0, 4, 0, 6, 7, 0],
+                         [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                         [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                         [0, 0, 0, 0, 0, 0, 0, 0, 0],];
+
+        assert!(!Dungeon::check_dungeon_consistency(&grid_bad, 7));
+        assert!(Dungeon::check_dungeon_consistency(&grid_good, 7));
     }
 }

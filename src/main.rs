@@ -43,9 +43,9 @@ impl MainState {
             current_state: State::Start,
         }));
         let mut scenes = HashMap::<State, Box<dyn Scene>>::new();
-        scenes.insert(State::Menu, Box::new(MenuScene::new(&config)));
-        scenes.insert(State::Start, Box::new(StartScene::new(&config)));
-        scenes.insert(State::Dead, Box::new(DeadScene::new(&config)));
+        scenes.insert(State::Menu, Box::new(MenuScene::new(&config, &assets)));
+        scenes.insert(State::Start, Box::new(StartScene::new(&config, &assets)));
+        scenes.insert(State::Dead, Box::new(DeadScene::new(&config, &assets)));
 
         let s = MainState {
             config,
@@ -91,11 +91,11 @@ impl EventHandler for MainState {
         }
 
         match scene {
-            State::Menu | State::Dead => self.scenes.get_mut(&State::Play).unwrap().draw(ctx, &self.assets)?,
+            State::Menu | State::Dead => self.scenes.get_mut(&State::Play).unwrap().draw(ctx, &mut self.assets)?,
             _ => (),
         }
 
-        self.scenes.get_mut(&scene).unwrap().draw(ctx, &self.assets)?;
+        self.scenes.get_mut(&scene).unwrap().draw(ctx, &mut self.assets)?;
 
         graphics::present(ctx)?;
         Ok(())

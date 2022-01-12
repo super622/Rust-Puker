@@ -119,7 +119,7 @@ pub trait Shooter: Model {
 pub trait Scene {
     fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult;
 
-    fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult;
+    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult;
 
     fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool);
 
@@ -135,19 +135,19 @@ pub trait UIElement {
 
     fn pos(&self) -> Point2<f32>;
 
-    fn width(&self) -> f32;
+    fn width(&self, ctx: &mut Context) -> f32;
 
-    fn height(&self) -> f32;
+    fn height(&self, ctx: &mut Context) -> f32;
 
-    fn top_left(&self) -> Point2<f32> {
+    fn top_left(&self, ctx: &mut Context) -> Point2<f32> {
         let pos = self.pos();
-        let (w, h) = (self.width(), self.height());
+        let (w, h) = (self.width(ctx), self.height(ctx));
         Point2 { x: pos.x - w / 2., y: pos.y - h / 2. }
     }
         
     fn mouse_overlap(&self, ctx: &mut Context) -> bool {
-        let tl = self.top_left();
-        let (w, h) = (self.width(), self.height());
+        let tl = self.top_left(ctx);
+        let (w, h) = (self.width(ctx), self.height(ctx));
         Rect::new(tl.x, tl.y, w, h).contains(input::mouse::position(ctx))
     }
 

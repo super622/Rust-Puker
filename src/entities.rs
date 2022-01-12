@@ -177,14 +177,15 @@ impl Model for Shot {
         let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.props.pos.into()).into();
         let draw_params = DrawParam::default()
             .dest(pos)
-            .scale(self.scale_to_screen(sw, sh, assets.shot_base.dimensions()))
+            .scale(self.scale_to_screen(sw, sh, assets.shot_puke_base.dimensions()))
             .offset([0.5, 0.5]);
 
-        graphics::draw(ctx, &assets.shot_base, draw_params)?;
-
-        if config.draw_bbox_model {
-            self.draw_bbox(ctx, screen)?;
+        match self.tag {
+            ShotTag::Player => graphics::draw(ctx, &assets.shot_puke_base, draw_params)?,
+            ShotTag::Enemy => graphics::draw(ctx, &assets.shot_blood_base, draw_params)?,
         }
+
+        if config.draw_bbox_model { self.draw_bbox(ctx, screen)?; }
 
         Ok(())
     }

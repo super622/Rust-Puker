@@ -1,17 +1,16 @@
 use ggez::{
-    graphics::{self, Color, DrawMode, DrawParam, Rect, Mesh, Text, PxScale},
+    graphics::{self, Font, DrawMode, Color, DrawParam, Rect, Mesh},
     Context,
     GameResult,
     mint::{Point2},
     event::{KeyCode, MouseButton},
     input::{self, keyboard, mouse},
-    audio::Source,
+    audio::{SoundSource},
 };
 use glam::f32::{Vec2};
 use std::{
     rc::Rc,
     cell::RefCell,
-    any::Any,
 };
 
 use crate::{
@@ -21,6 +20,7 @@ use crate::{
     dungeon::*,
     consts::*,
     traits::*,
+    ui_elements::*,
 };
 
 pub struct PlayScene {
@@ -129,10 +129,12 @@ impl PlayScene {
                     }
                     else {
                         self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
+                        // self.player.props.velocity += cn * self.player.get_velocity().abs() * (1. - ct);
                     }
                 }
                 else {
                     self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
+                    // self.player.props.velocity += cn * self.player.get_velocity().abs() * (1. - ct);
                 }
             }
         }
@@ -227,7 +229,7 @@ impl Scene for PlayScene {
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
         let screen_coords = (self.config.borrow().screen_width, self.config.borrow().screen_height);
 
         self.dungeon.get_room(self.cur_room)?.draw(ctx, assets, screen_coords, &self.config.borrow())?;
@@ -249,65 +251,13 @@ impl Scene for PlayScene {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
 }
 
-pub struct Button {
-    pub pos: Point2<f32>,
-    pub tag: State,
-    pub text: String,
-    pub font_size: f32,
-    pub color: Color,
-}
-
-impl UIElement for Button {
-    fn update(&mut self, ctx: &mut Context) -> GameResult {
-        self.color = Color::WHITE;
-        if self.mouse_overlap(ctx) {
-            self.color = Color::RED;
-        }
-
-        Ok(())
-    }
-
-    fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult {
-        let tl = self.top_left();
-        let mut text = Text::new(self.text.as_str());
-        text.fragments_mut().iter_mut().map(|f| {
-            f.font = Some(assets.freedom_font);
-            f.scale = Some(PxScale::from(self.height()));
-            f.color = Some(Color::BLACK);
-        }).count();
-
-        let btn = Mesh::new_rounded_rectangle(
-            ctx,
-            DrawMode::fill(),
-            Rect::new(tl.x, tl.y, self.width(), self.height()),
-            5.,
-            self.color,
-        )?;
-
-        graphics::draw(ctx, &btn, DrawParam::default())?;
-        graphics::draw(ctx, &text, DrawParam::default().dest([tl.x, tl.y]))?;
-
-        Ok(())
-    }
-
-    fn pos(&self) -> Point2<f32> { self.pos }
-
-    fn width(&self) -> f32 { self.text.chars().count() as f32 * self.height() }
-
-    fn height(&self) -> f32 { self.font_size }
-
-    fn as_any(&self) -> &dyn Any { self }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any { self }
-}
-
 pub struct StartScene {
     config: Rc<RefCell<Config>>,
     ui_elements: Vec<Box<dyn UIElement>>,
 }
 
 impl StartScene {
-    pub fn new(config: &Rc<RefCell<Config>>) -> Self {
+    pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
         let (sw, sh) = (config.borrow().screen_width, config.borrow().screen_height); 
 
         let config = Rc::clone(config);
@@ -315,15 +265,25 @@ impl StartScene {
             Box::new(Button {
                 pos: Point2 { x: sw * 0.5, y: sh * 0.4},
                 tag: State::New,
-                text: String::from("New"),
-                font_size: BUTTON_TEXT_FONT_SIZE,
+                text: TextSprite {
+                    pos: Point2 { x: sw * 0.5, y: sh * 0.4},
+                    text: String::from("New"),
+                    font: assets.button_font,
+                    font_size: BUTTON_TEXT_FONT_SIZE,
+                    color: Color::BLACK,
+                },
                 color: Color::WHITE,
             }),
             Box::new(Button {
                 pos: Point2 { x: sw * 0.5, y: sh * 0.6},
                 tag: State::Quit,
-                text: String::from("Quit"),
-                font_size: BUTTON_TEXT_FONT_SIZE,
+                text: TextSprite {
+                    pos: Point2 { x: sw * 0.5, y: sh * 0.6},
+                    text: String::from("Quit"),
+                    font: assets.button_font,
+                    font_size: BUTTON_TEXT_FONT_SIZE,
+                    color: Color::BLACK,
+                },
                 color: Color::WHITE,
             }),
         ];
@@ -353,7 +313,7 @@ impl Scene for StartScene {
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
         for e in self.ui_elements.iter_mut() {
             e.draw(ctx, assets)?;
         }
@@ -385,7 +345,7 @@ pub struct MenuScene {
 }
 
 impl MenuScene {
-    pub fn new(config: &Rc<RefCell<Config>>) -> Self {
+    pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
         let (sw, sh) = (config.borrow().screen_width, config.borrow().screen_height); 
 
         let config = Rc::clone(config);
@@ -393,22 +353,37 @@ impl MenuScene {
             Box::new(Button {
                 pos: Point2 { x: sw * 0.5, y: sh * 0.3},
                 tag: State::Play,
-                text: String::from("Continue"),
-                font_size: BUTTON_TEXT_FONT_SIZE,
+                text: TextSprite {
+                    pos: Point2 { x: sw * 0.5, y: sh * 0.3},
+                    text: String::from("Continue"),
+                    font: assets.button_font,
+                    font_size: BUTTON_TEXT_FONT_SIZE,
+                    color: Color::BLACK,
+                },
                 color: Color::WHITE,
             }),
             Box::new(Button {
                 pos: Point2 { x: sw * 0.5, y: sh * 0.5},
                 tag: State::New,
-                text: String::from("New"),
-                font_size: BUTTON_TEXT_FONT_SIZE,
+                text: TextSprite {
+                    pos: Point2 { x: sw * 0.5, y: sh * 0.5},
+                    text: String::from("New"),
+                    font: assets.button_font,
+                    font_size: BUTTON_TEXT_FONT_SIZE,
+                    color: Color::BLACK,
+                },
                 color: Color::WHITE,
             }),
             Box::new(Button {
                 pos: Point2 { x: sw * 0.5, y: sh * 0.7},
                 tag: State::Quit,
-                text: String::from("Quit"),
-                font_size: BUTTON_TEXT_FONT_SIZE,
+                text: TextSprite {
+                    pos: Point2 { x: sw * 0.5, y: sh * 0.7},
+                    text: String::from("Quit"),
+                    font: assets.button_font,
+                    font_size: BUTTON_TEXT_FONT_SIZE,
+                    color: Color::BLACK,
+                },
                 color: Color::WHITE,
             }),
         ];
@@ -438,7 +413,7 @@ impl Scene for MenuScene {
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
 
         let curtain = Mesh::new_rectangle(
@@ -486,7 +461,7 @@ pub struct DeadScene {
 }
 
 impl DeadScene {
-    pub fn new(config: &Rc<RefCell<Config>>) -> Self {
+    pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
         let (sw, sh) = (config.borrow().screen_width, config.borrow().screen_height); 
 
         let config = Rc::clone(config);
@@ -494,17 +469,34 @@ impl DeadScene {
             Box::new(Button {
                 pos: Point2 { x: sw * 0.5, y: sh * 0.5},
                 tag: State::New,
-                text: String::from("Try Again"),
-                font_size: BUTTON_TEXT_FONT_SIZE,
+                text: TextSprite {
+                    pos: Point2 { x: sw * 0.5, y: sh * 0.5},
+                    text: String::from("Try Again"),
+                    font: assets.button_font,
+                    font_size: BUTTON_TEXT_FONT_SIZE,
+                    color: Color::BLACK,
+                },
                 color: Color::WHITE,
             }),
             Box::new(Button {
                 pos: Point2 { x: sw * 0.5, y: sh * 0.7},
                 tag: State::Quit,
-                text: String::from("Quit"),
-                font_size: BUTTON_TEXT_FONT_SIZE,
+                text: TextSprite {
+                    pos: Point2 { x: sw * 0.5, y: sh * 0.7},
+                    text: String::from("Quit"),
+                    font: assets.button_font,
+                    font_size: BUTTON_TEXT_FONT_SIZE,
+                    color: Color::BLACK,
+                },
                 color: Color::WHITE,
-            })
+            }),
+            Box::new(TextSprite {
+                pos: Point2 { x: sw * 0.5, y: sh * 0.3},
+                text: String::from("YOU DIED"),
+                font: Font::default(),
+                font_size: BUTTON_TEXT_FONT_SIZE * 2.,
+                color: Color::RED,
+            }),
         ];
 
         Self {
@@ -532,8 +524,12 @@ impl Scene for DeadScene {
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context, assets: &Assets) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+
+        if assets.death_sound.elapsed().as_nanos() == 0 {
+            assets.death_sound.play(ctx)?;
+        }
 
         let curtain = Mesh::new_rectangle(
             ctx,
