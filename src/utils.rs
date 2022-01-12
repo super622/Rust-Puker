@@ -111,23 +111,23 @@ impl From<Point2<f32>> for Vec2Wrap {
     }
 }
 
-/// Project Cartesian world coordinates to screen coordinates.
-///
-pub fn world_to_screen_space(sw: f32, sh: f32, point: Vec2) -> Vec2 {
-    Vec2::new(
-        point.x + sw / 2.,
-        -point.y + sh / 2.,
-    )
-}
+///// Project Cartesian world coordinates to screen coordinates.
+/////
+//pub fn world_to_screen_space(sw: f32, sh: f32, point: Vec2) -> Vec2 {
+//    Vec2::new(
+//        point.x + sw / 2.,
+//        -point.y + sh / 2.,
+//    )
+//}
 
-/// Transform screen coordinates to Cartesian world coordinates.
-///
-pub fn screen_to_world_space(sw: f32, sh: f32, point: Vec2) -> Vec2 {
-    Vec2::new(
-        point.x - sw / 2.,
-        -point.y + sh / 2.,
-    )
-}
+///// Transform screen coordinates to Cartesian world coordinates.
+/////
+//pub fn screen_to_world_space(sw: f32, sh: f32, point: Vec2) -> Vec2 {
+//    Vec2::new(
+//        point.x - sw / 2.,
+//        -point.y + sh / 2.,
+//    )
+//}
 
 /// Checks if two rectangles overlap
 ///
@@ -135,7 +135,7 @@ pub fn rect_vs_rect(r1: &Rect, r2: &Rect) -> bool {
     if r1.x == r1.x + r1.w || r1.y == r1.y + r1.h || r2.x == r2.x + r2.w || r2.y == r2.y + r2.h { return false; }
     
     if r1.x > r2.x + r2.w || r2.x > r1.x + r1.w { return false; }
-    if r1.y - r1.h > r2.y || r2.y - r2.h > r1.y { return false; }
+    if r1.y + r1.h > r2.y || r2.y + r2.h > r1.y { return false; }
 
     true
 }
@@ -146,10 +146,9 @@ pub fn rect_vs_rect(r1: &Rect, r2: &Rect) -> bool {
 pub fn ray_vs_rect(ray_origin: &Vec2, ray_dir: &Vec2, target: &Rect, contact_point: &mut Vec2, contact_normal: &mut Vec2, t_hit_near: &mut f32) -> bool {
     let target_pos = Vec2::new(target.x, target.y);
     let target_size = Vec2::new(target.w, target.h);
-    let target_pos2 = Vec2::new(target_pos.x + target_size.x, target_pos.y - target_size.y);
 
     let mut t_near = (target_pos - *ray_origin) / *ray_dir;
-    let mut t_far = (target_pos2 - *ray_origin) / *ray_dir;
+    let mut t_far = (target_pos + target_size - *ray_origin) / *ray_dir;
 
     if t_far.x.is_nan() || t_far.y.is_nan() { return false; }
     if t_near.x.is_nan() || t_near.y.is_nan() { return false; }
@@ -189,14 +188,12 @@ pub fn dynamic_rect_vs_rect(source: &Rect, source_vel: &Vec2, target: &Rect, con
 
     let expanded_target = Rect {
         x: target.x - source_size.x / 2.,
-        y: target.y + source_size.y / 2.,
+        y: target.y - source_size.y / 2.,
         w: target.w + source_size.x,
         h: target.h + source_size.y,
     };
 
-    let source_ray_origin = Vec2::new(source_pos.x + source_size.x / 2., source_pos.y - source_size.y / 2.);
-
-    if ray_vs_rect(&source_ray_origin, &(*source_vel + _elapsed_time), &expanded_target, contact_point, contact_normal, contact_time) {
+    if ray_vs_rect(&(source_pos + source_size / 2.), &(*source_vel + _elapsed_time), &expanded_target, contact_point, contact_normal, contact_time) {
         if *contact_time <= 1. { 
             return true;
         }
@@ -205,9 +202,7 @@ pub fn dynamic_rect_vs_rect(source: &Rect, source_vel: &Vec2, target: &Rect, con
     false
 }
 
-pub fn mouse_relative_forward(sw: f32, sh: f32, target: Vec2, mouse: Vec2) -> Vec2 {
-    let m = screen_to_world_space(sw, sh, mouse);
-
+pub fn mouse_relative_forward(target: Vec2, m: Vec2) -> Vec2 {
     let dx = m.x - target.x;
     let dy = m.y - target.y;
 

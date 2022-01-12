@@ -8,6 +8,7 @@ use ggez::{
 pub struct Assets {
     pub player_base: graphics::Image,
     pub player_damaged: graphics::Image, 
+    pub player_dead: graphics::Image,
     pub player_shoot_north: graphics::Image, 
     pub player_shoot_south: graphics::Image, 
     pub player_shoot_west: graphics::Image, 
@@ -20,6 +21,9 @@ pub struct Assets {
     pub floor: graphics::Image,
     pub wall: graphics::Image,
     pub stone: graphics::Image,
+    pub heart_full: graphics::Image,
+    pub heart_half: graphics::Image,
+    pub heart_empty: graphics::Image,
 
     pub button_font: graphics::Font,
 
@@ -30,6 +34,7 @@ impl Assets {
     pub fn new(ctx: &mut Context) -> GameResult<Self> {
         let player_base = graphics::Image::new(ctx, "/player_base.png")?;
         let player_damaged = graphics::Image::new(ctx, "/player_damaged.png")?; 
+        let player_dead = graphics::Image::new(ctx, "/player_dead.png")?; 
         let player_shoot_north = graphics::Image::new(ctx, "/player_shoot_north.png")?;
         let player_shoot_south = graphics::Image::new(ctx, "/player_shoot_south.png")?;
         let player_shoot_west = graphics::Image::new(ctx, "/player_shoot_west.png")?;
@@ -42,6 +47,9 @@ impl Assets {
         let floor = graphics::Image::new(ctx, "/floor.png")?;
         let wall = graphics::Image::new(ctx, "/wall.png")?;
         let stone = graphics::Image::new(ctx, "/stone.png")?;
+        let heart_full = graphics::Image::new(ctx, "/heart_full.png")?;
+        let heart_half = graphics::Image::new(ctx, "/heart_half.png")?;
+        let heart_empty = graphics::Image::new(ctx, "/heart_empty.png")?;
 
         let button_font = graphics::Font::new(ctx, "/enigma.ttf")?;
 
@@ -50,6 +58,7 @@ impl Assets {
         Ok(Self {
             player_base,
             player_damaged,
+            player_dead,
             player_shoot_north,
             player_shoot_south,
             player_shoot_west, 
@@ -62,6 +71,9 @@ impl Assets {
             floor,
             wall,
             stone,
+            heart_full,
+            heart_half,
+            heart_empty,           
 
             button_font,
 

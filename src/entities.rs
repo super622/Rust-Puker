@@ -37,6 +37,7 @@ pub struct Player {
     pub speed: f32,
     pub state: ActorState,
     pub health: f32,
+    pub max_health: f32,
     pub shoot_rate: f32,
     pub shoot_range: f32,
     pub shoot_timeout: f32,
@@ -58,11 +59,10 @@ impl Model for Player {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
-        let (sw, sh) = screen;
-        let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.props.pos.into()).into();
+    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
-            .dest(pos)
+            .dest(self.props.pos)
             .scale(self.scale_to_screen(sw, sh, assets.player_base.dimensions()))
             .offset([0.5, 0.5]);
 
@@ -70,17 +70,16 @@ impl Model for Player {
             ActorState::Shoot => {
                 if self.props.forward == Vec2::X { graphics::draw(ctx, &assets.player_shoot_east, draw_params)?; }
                 else if self.props.forward == -Vec2::X { graphics::draw(ctx, &assets.player_shoot_west, draw_params)?; }
-                else if self.props.forward == Vec2::Y { graphics::draw(ctx, &assets.player_shoot_north, draw_params)?; }
-                else if self.props.forward == -Vec2::Y { graphics::draw(ctx, &assets.player_shoot_south, draw_params)?; }
+                else if self.props.forward == -Vec2::Y { graphics::draw(ctx, &assets.player_shoot_north, draw_params)?; }
+                else if self.props.forward == Vec2::Y { graphics::draw(ctx, &assets.player_shoot_south, draw_params)?; }
                 else { graphics::draw(ctx, &assets.player_base, draw_params)?; }
             },
             ActorState::Damaged => graphics::draw(ctx, &assets.player_damaged, draw_params.color(Color::RED))?,
+            ActorState::Dead => graphics::draw(ctx, &assets.player_dead, draw_params)?,
             _ => graphics::draw(ctx, &assets.player_base, draw_params)?,
         }
 
-        if config.draw_bbox_model {
-            self.draw_bbox(ctx, screen)?;
-        }
+        if conf.draw_bbox_model { self.draw_bbox(ctx, (sw, sh))?; }
 
         Ok(())
     }
@@ -172,11 +171,10 @@ impl Model for Shot {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
-        let (sw, sh) = screen;
-        let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.props.pos.into()).into();
+    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
-            .dest(pos)
+            .dest(self.props.pos)
             .scale(self.scale_to_screen(sw, sh, assets.shot_puke_base.dimensions()))
             .offset([0.5, 0.5]);
 
@@ -185,7 +183,7 @@ impl Model for Shot {
             ShotTag::Enemy => graphics::draw(ctx, &assets.shot_blood_base, draw_params)?,
         }
 
-        if config.draw_bbox_model { self.draw_bbox(ctx, screen)?; }
+        if conf.draw_bbox_model { self.draw_bbox(ctx, (sw, sh))?; }
 
         Ok(())
     }
@@ -230,11 +228,10 @@ impl Model for EnemyMask {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
-        let (sw, sh) = screen;
-        let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.props.pos.into()).into();
+    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
-            .dest(pos)
+            .dest(self.props.pos)
             .scale(self.scale_to_screen(sw, sh, assets.enemy_mask_base.dimensions()))
             .offset([0.5, 0.5]);
 
@@ -243,9 +240,7 @@ impl Model for EnemyMask {
             _ => graphics::draw(ctx, &assets.enemy_mask_base, draw_params)?,
         }
 
-        if config.draw_bbox_model {
-            self.draw_bbox(ctx, screen)?;
-        }
+        if conf.draw_bbox_model { self.draw_bbox(ctx, (sw, sh))?; }
 
         Ok(())
     }

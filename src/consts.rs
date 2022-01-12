@@ -1,7 +1,12 @@
 pub const DEFAULT_SCREEN_WIDTH: f32 = 800.;
 pub const DEFAULT_SCREEN_HEIGHT: f32 = 600.;
 
-pub const BUTTON_TEXT_FONT_SIZE: f32 = DEFAULT_SCREEN_HEIGHT * 0.1;
+pub const BUTTON_TEXT_FONT_SIZE: f32 = 0.1;
+
+pub const HEALTH_BAR_SCALE: (f32, f32) = (0.15, 0.05);
+pub const HEALTH_BAR_POS: (f32, f32) = (0.02, 0.05);
+
+pub const MINIMAP_SCALE: f32 = 0.4;
 
 pub const PLAYER_SCALE: f32 = 0.8;
 pub const PLAYER_SHOOT_RATE: f32 = 2.5;

@@ -28,14 +28,17 @@ pub struct PlayScene {
     player: Player,
     dungeon: Dungeon,
     cur_room: (usize, usize),
+    overlay: Overlay,
 }
 
 impl PlayScene {
     pub fn new(config: &Rc<RefCell<Config>>) -> Self {
+        let (sw, sh) = (config.borrow().screen_width, config.borrow().screen_height);
+
         let config = Rc::clone(config);
         let player = Player {
             props: ActorProps {
-                pos: Vec2::ZERO.into(),
+                pos: Vec2::new(sw / 2., sh / 2.).into(),
                 scale: Vec2::splat(PLAYER_SCALE),
                 translation: Vec2::ZERO,
                 forward: Vec2::ZERO,
@@ -43,6 +46,7 @@ impl PlayScene {
             },
             speed: PLAYER_SPEED,
             health: PLAYER_HEALTH,
+            max_health: PLAYER_HEALTH,
             state: ActorState::Base,
             shoot_rate: PLAYER_SHOOT_RATE,
             shoot_range: PLAYER_SHOOT_RANGE,
@@ -50,14 +54,16 @@ impl PlayScene {
             damaged_cooldown: 0.,
             animation_cooldown: 0.,
         };
-        let dungeon = Dungeon::generate_dungeon((config.borrow().screen_width, config.borrow().screen_height));
+        let dungeon = Dungeon::generate_dungeon((sw, sh));
         let cur_room = Dungeon::get_start_room_coords();
+        let overlay = Overlay::new(&player, &dungeon);
 
         Self {
             config,
             player,
             dungeon,
             cur_room,
+            overlay,
         }
     }
 
@@ -67,10 +73,10 @@ impl PlayScene {
         self.player.props.translation = Vec2::ZERO;
 
         if keyboard::is_key_pressed(ctx, KeyCode::W) {
-            self.player.props.translation.y += 1.;
+            self.player.props.translation.y -= 1.;
         }
         if keyboard::is_key_pressed(ctx, KeyCode::S) {
-            self.player.props.translation.y -= 1.;
+            self.player.props.translation.y += 1.;
         }
         if keyboard::is_key_pressed(ctx, KeyCode::A) {
             self.player.props.translation.x -= 1.;
@@ -79,11 +85,11 @@ impl PlayScene {
             self.player.props.translation.x += 1.;
         }
         if keyboard::is_key_pressed(ctx, KeyCode::Up) {
-            self.player.props.forward = Vec2::new(0., 1.);
+            self.player.props.forward = Vec2::new(0., -1.);
             self.player.shoot(&mut room.shots)?;
         }
         if keyboard::is_key_pressed(ctx, KeyCode::Down) {
-            self.player.props.forward = Vec2::new(0., -1.);
+            self.player.props.forward = Vec2::new(0., 1.);
             self.player.shoot(&mut room.shots)?;
         }
         if keyboard::is_key_pressed(ctx, KeyCode::Left) {
@@ -95,7 +101,8 @@ impl PlayScene {
             self.player.shoot(&mut room.shots)?;
         }
         if mouse::button_pressed(ctx, MouseButton::Left) {
-            self.player.props.forward = mouse_relative_forward(self.config.borrow().screen_width, self.config.borrow().screen_height, self.player.props.pos.0, Vec2::new(mouse::position(ctx).x, mouse::position(ctx).y));
+            let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+            self.player.props.forward = mouse_relative_forward(self.player.props.pos.0, Vec2::new(mouse::position(ctx).x, mouse::position(ctx).y));
             self.player.shoot(&mut room.shots)?;
         }
 
@@ -125,7 +132,7 @@ impl PlayScene {
                 if let Some(door) = obst.downcast_ref::<Door>() {
                     if door.is_open {
                         self.cur_room = door.connects_to;
-                        self.player.props.pos.0 *= -1.;
+                        self.player.props.pos.0 = Vec2::new(sw, sh) - self.player.props.pos.0;
                     }
                     else {
                         self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
@@ -150,14 +157,14 @@ impl PlayScene {
             match s.tag {
                 ShotTag::Player => {
                     for enemy in room.enemies.iter_mut() {
-                        if rect_vs_rect(&s.get_bbox(sw, sh), &enemy.get_bbox(sw, sh)) {
+                        if s.get_bbox(sw, sh).overlaps(&enemy.get_bbox(sw, sh)) {
                             enemy.damage(s.damage);
                             return false;
                         }
                     }
                 },
                 ShotTag::Enemy => {
-                    if rect_vs_rect(&s.get_bbox(sw, sh), &self.player.get_bbox(sw, sh)) {
+                    if s.get_bbox(sw, sh).overlaps(&self.player.get_bbox(sw, sh)) {
                         self.player.damage(s.damage);
                         return false;
                     }
@@ -165,7 +172,7 @@ impl PlayScene {
             };
 
             for obst in room.obstacles.iter() {
-                if rect_vs_rect(&s.get_bbox(sw, sh), &obst.get_bbox(sw, sh)) {
+                if s.get_bbox(sw, sh).overlaps(&obst.get_bbox(sw, sh)) {
                     return false;
                 }
             }
@@ -176,7 +183,16 @@ impl PlayScene {
     }
 
     fn handle_player_enemy_collisions(&mut self, _delta_time: f32) -> GameResult {
-        todo!();
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+        let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
+
+        for e in room.enemies.iter_mut() {
+            if e.get_bbox(sw, sh).overlaps(&self.player.get_bbox(sw, sh)) {
+                self.player.damage(ENEMY_DAMAGE);
+            }
+        }
+
+        Ok(())
     }
 
     fn handle_player_detection(&mut self, _delta_time: f32) -> GameResult {
@@ -192,9 +208,7 @@ impl PlayScene {
                     let mut ct = 0.;
 
                     if room.obstacles.iter()
-                        .filter(|o| {
-                            ray_vs_rect(&enemy.get_pos(), &enemy.get_forward(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1.
-                        })
+                        .filter(|o| { ray_vs_rect(&enemy.get_pos(), &enemy.get_forward(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
                         .count() == 0 {
                         enemy.shoot(&mut room.shots)?;
                     }
@@ -208,7 +222,6 @@ impl PlayScene {
 
 impl Scene for PlayScene {
     fn update(&mut self, ctx: &mut Context, delta_time: f32) -> GameResult {
-
         self.handle_input(ctx)?;
 
         self.handle_wall_collisions(delta_time)?;
@@ -221,6 +234,9 @@ impl Scene for PlayScene {
 
         self.player.update(delta_time)?;
 
+        self.overlay.update_vars(&self.player, &self.dungeon);
+        self.overlay.update(ctx, &self.config.borrow())?;
+
         match self.player.state {
             ActorState::Dead => self.config.borrow_mut().current_state = State::Dead,
             _ => (),
@@ -230,11 +246,11 @@ impl Scene for PlayScene {
     }
 
     fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
-        let screen_coords = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+        self.dungeon.get_room(self.cur_room)?.draw(ctx, assets, &self.config.borrow())?;
 
-        self.dungeon.get_room(self.cur_room)?.draw(ctx, assets, screen_coords, &self.config.borrow())?;
+        self.player.draw(ctx, assets, &self.config.borrow())?;
 
-        self.player.draw(ctx, assets, screen_coords, &self.config.borrow())?;
+        self.overlay.draw(ctx, assets, &self.config.borrow())?;
 
         Ok(())
     }
@@ -258,15 +274,13 @@ pub struct StartScene {
 
 impl StartScene {
     pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
-        let (sw, sh) = (config.borrow().screen_width, config.borrow().screen_height); 
-
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(Button {
-                pos: Point2 { x: sw * 0.5, y: sh * 0.4},
+                pos: Point2 { x: 0.5, y: 0.4},
                 tag: State::New,
                 text: TextSprite {
-                    pos: Point2 { x: sw * 0.5, y: sh * 0.4},
+                    pos: Point2 { x: 0.5, y: 0.4},
                     text: String::from("New"),
                     font: assets.button_font,
                     font_size: BUTTON_TEXT_FONT_SIZE,
@@ -275,10 +289,10 @@ impl StartScene {
                 color: Color::WHITE,
             }),
             Box::new(Button {
-                pos: Point2 { x: sw * 0.5, y: sh * 0.6},
+                pos: Point2 { x: 0.5, y: 0.6},
                 tag: State::Quit,
                 text: TextSprite {
-                    pos: Point2 { x: sw * 0.5, y: sh * 0.6},
+                    pos: Point2 { x: 0.5, y: 0.6},
                     text: String::from("Quit"),
                     font: assets.button_font,
                     font_size: BUTTON_TEXT_FONT_SIZE,
@@ -293,21 +307,12 @@ impl StartScene {
             ui_elements,
         }
     }
-
-    fn check_for_element_click(&self, ctx: &mut Context) -> Option<&dyn UIElement> {
-        for e in self.ui_elements.iter() {
-            if e.mouse_overlap(ctx) {
-                return Some(&**e);
-            }
-        }
-        None
-    }
 }
 
 impl Scene for StartScene {
     fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
-            e.update(ctx)?;
+            e.update(ctx, &self.config.borrow())?;
         }
 
         Ok(())
@@ -315,7 +320,7 @@ impl Scene for StartScene {
 
     fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
         for e in self.ui_elements.iter_mut() {
-            e.draw(ctx, assets)?;
+            e.draw(ctx, assets, &self.config.borrow())?;
         }
 
         Ok(())
@@ -326,8 +331,10 @@ impl Scene for StartScene {
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+
         if _button == MouseButton::Left {
-            match self.check_for_element_click(_ctx) {
+            match self.check_for_element_click(_ctx, sw, sh) {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
                         self.config.borrow_mut().current_state = b.tag;
@@ -337,6 +344,10 @@ impl Scene for StartScene {
             }
         }
     }
+
+    fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
+
+    fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
 }
 
 pub struct MenuScene {
@@ -346,15 +357,13 @@ pub struct MenuScene {
 
 impl MenuScene {
     pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
-        let (sw, sh) = (config.borrow().screen_width, config.borrow().screen_height); 
-
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(Button {
-                pos: Point2 { x: sw * 0.5, y: sh * 0.3},
+                pos: Point2 { x: 0.5, y: 0.3},
                 tag: State::Play,
                 text: TextSprite {
-                    pos: Point2 { x: sw * 0.5, y: sh * 0.3},
+                    pos: Point2 { x: 0.5, y: 0.3},
                     text: String::from("Continue"),
                     font: assets.button_font,
                     font_size: BUTTON_TEXT_FONT_SIZE,
@@ -363,10 +372,10 @@ impl MenuScene {
                 color: Color::WHITE,
             }),
             Box::new(Button {
-                pos: Point2 { x: sw * 0.5, y: sh * 0.5},
+                pos: Point2 { x: 0.5, y: 0.5},
                 tag: State::New,
                 text: TextSprite {
-                    pos: Point2 { x: sw * 0.5, y: sh * 0.5},
+                    pos: Point2 { x: 0.5, y: 0.5},
                     text: String::from("New"),
                     font: assets.button_font,
                     font_size: BUTTON_TEXT_FONT_SIZE,
@@ -375,10 +384,10 @@ impl MenuScene {
                 color: Color::WHITE,
             }),
             Box::new(Button {
-                pos: Point2 { x: sw * 0.5, y: sh * 0.7},
+                pos: Point2 { x: 0.5, y: 0.7},
                 tag: State::Quit,
                 text: TextSprite {
-                    pos: Point2 { x: sw * 0.5, y: sh * 0.7},
+                    pos: Point2 { x: 0.5, y: 0.7},
                     text: String::from("Quit"),
                     font: assets.button_font,
                     font_size: BUTTON_TEXT_FONT_SIZE,
@@ -393,21 +402,12 @@ impl MenuScene {
             ui_elements,
         }
     }
-
-    fn check_for_element_click(&self, ctx: &mut Context) -> Option<&dyn UIElement> {
-        for e in self.ui_elements.iter() {
-            if e.mouse_overlap(ctx) {
-                return Some(&**e);
-            }
-        }
-        None
-    }
 }
 
 impl Scene for MenuScene {
     fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
-            e.update(ctx)?;
+            e.update(ctx, &self.config.borrow())?;
         }
 
         Ok(())
@@ -426,7 +426,7 @@ impl Scene for MenuScene {
         graphics::draw(ctx, &curtain, DrawParam::default())?;
 
         for e in self.ui_elements.iter_mut() {
-            e.draw(ctx, assets)?;
+            e.draw(ctx, assets, &self.config.borrow())?;
         }
 
         Ok(())
@@ -442,8 +442,10 @@ impl Scene for MenuScene {
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+
         if _button == MouseButton::Left {
-            match self.check_for_element_click(_ctx) {
+            match self.check_for_element_click(_ctx, sw, sh) {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
                         self.config.borrow_mut().current_state = b.tag;
@@ -453,24 +455,27 @@ impl Scene for MenuScene {
             }
         }
     }
+
+    fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
+
+    fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
 }
 
 pub struct DeadScene {
     config: Rc<RefCell<Config>>,
     ui_elements: Vec<Box<dyn UIElement>>,
+    played_death_sound: bool,
 }
 
 impl DeadScene {
     pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
-        let (sw, sh) = (config.borrow().screen_width, config.borrow().screen_height); 
-
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(Button {
-                pos: Point2 { x: sw * 0.5, y: sh * 0.5},
+                pos: Point2 { x: 0.5, y: 0.5},
                 tag: State::New,
                 text: TextSprite {
-                    pos: Point2 { x: sw * 0.5, y: sh * 0.5},
+                    pos: Point2 { x: 0.5, y: 0.5},
                     text: String::from("Try Again"),
                     font: assets.button_font,
                     font_size: BUTTON_TEXT_FONT_SIZE,
@@ -479,10 +484,10 @@ impl DeadScene {
                 color: Color::WHITE,
             }),
             Box::new(Button {
-                pos: Point2 { x: sw * 0.5, y: sh * 0.7},
+                pos: Point2 { x: 0.5, y: 0.7},
                 tag: State::Quit,
                 text: TextSprite {
-                    pos: Point2 { x: sw * 0.5, y: sh * 0.7},
+                    pos: Point2 { x: 0.5, y: 0.7},
                     text: String::from("Quit"),
                     font: assets.button_font,
                     font_size: BUTTON_TEXT_FONT_SIZE,
@@ -491,7 +496,7 @@ impl DeadScene {
                 color: Color::WHITE,
             }),
             Box::new(TextSprite {
-                pos: Point2 { x: sw * 0.5, y: sh * 0.3},
+                pos: Point2 { x: 0.5, y: 0.3},
                 text: String::from("YOU DIED"),
                 font: Font::default(),
                 font_size: BUTTON_TEXT_FONT_SIZE * 2.,
@@ -502,23 +507,15 @@ impl DeadScene {
         Self {
             config,
             ui_elements,
+            played_death_sound: false,
         }
-    }
-
-    fn check_for_element_click(&self, ctx: &mut Context) -> Option<&dyn UIElement> {
-        for e in self.ui_elements.iter() {
-            if e.mouse_overlap(ctx) {
-                return Some(&**e);
-            }
-        }
-        None
     }
 }
 
 impl Scene for DeadScene {
     fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
-            e.update(ctx)?;
+            e.update(ctx, &self.config.borrow())?;
         }
 
         Ok(())
@@ -527,8 +524,9 @@ impl Scene for DeadScene {
     fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
 
-        if assets.death_sound.elapsed().as_nanos() == 0 {
+        if !self.played_death_sound {
             assets.death_sound.play(ctx)?;
+            self.played_death_sound = true;
         }
 
         let curtain = Mesh::new_rectangle(
@@ -541,7 +539,7 @@ impl Scene for DeadScene {
         graphics::draw(ctx, &curtain, DrawParam::default())?;
 
         for e in self.ui_elements.iter_mut() {
-            e.draw(ctx, assets)?;
+            e.draw(ctx, assets, &self.config.borrow())?;
         }
 
         Ok(())
@@ -552,15 +550,22 @@ impl Scene for DeadScene {
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+
         if _button == MouseButton::Left {
-            match self.check_for_element_click(_ctx) {
+            match self.check_for_element_click(_ctx, sw, sh) {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
                         self.config.borrow_mut().current_state = b.tag;
+                        self.played_death_sound = false;
                     }
                 },
                 None => (),
             }
         }
     }
+
+    fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
+
+    fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
 }

@@ -1,13 +1,14 @@
 use ggez::{
-    graphics::{self},
+    graphics::{self, Rect},
     Context,
     GameResult,
     event::{self, KeyCode, MouseButton, EventHandler},
-    conf::{Conf,WindowMode},
+    conf::{Conf, WindowMode, WindowSetup, ModuleConf},
     ContextBuilder,
     filesystem,
     input,
     timer,
+    winit::{self, dpi::{Position, LogicalPosition}},
 };
 use std::{
     env,
@@ -145,17 +146,36 @@ impl EventHandler for MainState {
             _ => (),
         }
     }
+
+    fn resize_event(&mut self, _ctx: &mut Context, width: f32, height: f32) {
+        let mut conf = self.config.borrow_mut();
+        conf.screen_width = width;
+        conf.screen_height = height;
+        graphics::set_screen_coordinates(_ctx, Rect::new(0., 0., width, height)).unwrap();
+    }
 }
 
 fn main() -> GameResult {
-    let conf = Conf::new()
-        .window_mode(WindowMode {
+    let conf = Conf {
+        window_mode: WindowMode {
             width: DEFAULT_SCREEN_WIDTH,
             height: DEFAULT_SCREEN_HEIGHT,
+            resizable: true,
+            resize_on_scale_factor_change: true,
             ..Default::default()
-        });
+        },
+        window_setup: WindowSetup {
+            title: "puker".to_owned(),
+            ..Default::default()
+        },
+        modules: ModuleConf {
+            gamepad: false,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
 
-    let (mut ctx, event_loop) = ContextBuilder::new("PrimitiveIsaac", "Window")
+    let (mut ctx, event_loop) = ContextBuilder::new("puker", "Window")
         .default_conf(conf.clone())
         .build()
         .unwrap();

@@ -62,26 +62,18 @@ impl Room {
         Ok(())
     }
     
-    pub fn draw(&self, ctx: &mut Context, assets: &Assets, world_coords: (f32, f32), config: &Config) -> GameResult {
-        let (sw, sh) = world_coords;
+    pub fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
-            .dest([sw / 2., sh / 2.])
-            .scale(Room::get_room_scale(sw, sh, assets.floor.dimensions()))
-            .offset([0.5, 0.5]);
+            .scale(Room::get_room_scale(sw, sh, assets.floor.dimensions()));
         
         graphics::draw(ctx, &assets.floor, draw_params)?;
 
-        for obst in self.obstacles.iter() {
-            obst.draw(ctx, assets, world_coords, config)?;
-        }
+        for obst in self.obstacles.iter() { obst.draw(ctx, assets, conf)?; }
 
-        for enemy in self.enemies.iter() {
-            enemy.draw(ctx, assets, world_coords, config)?;
-        }
+        for enemy in self.enemies.iter() { enemy.draw(ctx, assets, conf)?; }
 
-        for shot in self.shots.iter() {
-            shot.draw(ctx, assets, world_coords, config)?;
-        }
+        for shot in self.shots.iter() { shot.draw(ctx, assets, conf)?; }
 
         Ok(())
     }
@@ -95,7 +87,7 @@ impl Room {
     fn get_model_pos(sw: f32, sh: f32, rw: f32, rh: f32, index: usize) -> Vec2 {
         let dims = Vec2::new(sw / rw, sh / rh);
         let coords = Vec2::new((index % (rw as usize)) as f32, (index / (rw as usize)) as f32) * dims;
-        screen_to_world_space(sw, sh, coords + dims / 2.)
+        coords + dims / 2.
     }
 
     fn generate_room(screen: (f32, f32), grid_coords: (usize, usize), door_connects: [Option<(usize, usize)>; 4]) -> Room {
@@ -309,11 +301,10 @@ pub struct Door {
 }
 
 impl Stationary for Door {
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
-        let (sw, sh) = screen;
-        let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.pos.into()).into();
+    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
-            .dest(pos)
+            .dest(self.pos)
             .scale(self.scale_to_screen(sw, sh, assets.door_closed.dimensions()) * 1.1)
             .rotation(self.rotation)
             .offset([0.5, 0.5]);
@@ -323,9 +314,7 @@ impl Stationary for Door {
             false => graphics::draw(ctx, &assets.door_closed, draw_params)?,
         }
 
-        if config.draw_bbox_stationary {
-            self.draw_bbox(ctx, screen)?;
-        }
+        if conf.draw_bbox_stationary { self.draw_bbox(ctx, (sw, sh))?; }
 
         Ok(())
     }
@@ -350,19 +339,16 @@ pub struct Wall {
 }
 
 impl Stationary for Wall {
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
-        let (sw, sh) = screen;
-        let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.pos.into()).into();
+    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
-            .dest(pos)
+            .dest(self.pos)
             .scale(self.scale_to_screen(sw, sh, assets.wall.dimensions()) * 1.1)
             .offset([0.5, 0.5]);
 
         graphics::draw(ctx, &assets.wall, draw_params)?;
 
-        if config.draw_bbox_stationary {
-            self.draw_bbox(ctx, screen)?;
-        }
+        if conf.draw_bbox_stationary { self.draw_bbox(ctx, (sw, sh))?; }
 
         Ok(())
     }
@@ -387,19 +373,16 @@ pub struct Stone {
 }
 
 impl Stationary for Stone {
-    fn draw(&self, ctx: &mut Context, assets: &Assets, screen: (f32, f32), config: &Config) -> GameResult {
-        let (sw, sh) = screen;
-        let pos: Vec2Wrap = world_to_screen_space(sw, sh, self.pos.into()).into();
+    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
-            .dest(pos)
+            .dest(self.pos)
             .scale(self.scale_to_screen(sw, sh, assets.wall.dimensions()) * 1.1)
             .offset([0.5, 0.5]);
 
         graphics::draw(ctx, &assets.stone, draw_params)?;
 
-        if config.draw_bbox_stationary {
-            self.draw_bbox(ctx, screen)?;
-        }
+        if conf.draw_bbox_stationary { self.draw_bbox(ctx, (sw, sh))?; }
 
         Ok(())
     }
