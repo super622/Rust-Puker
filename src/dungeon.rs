@@ -1,7 +1,8 @@
 use ggez::{
     graphics::{self, DrawParam, Rect},
     GameResult,
-    Context
+    Context,
+    audio::SoundSource,
 };
 use crate::{
     assets::*,
@@ -30,7 +31,7 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn update(&mut self, conf: &Config, _delta_time: f32) -> GameResult {
+    pub fn update(&mut self, ctx: &Context, assets: &mut Assets, conf: &Config, _delta_time: f32) -> GameResult {
 
         for shot in self.shots.iter_mut() {
             shot.update(conf, _delta_time)?;
@@ -47,7 +48,11 @@ impl Room {
         for (i,d) in dead_enemies.iter().enumerate() { self.enemies.remove(d - i); }
 
         self.shots = self.shots.clone().into_iter().filter(|s| {
-            s.get_pos().distance(s.spawn_pos.0) < s.range
+            if s.get_pos().distance(s.spawn_pos.0) < s.range {
+                let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
+                return true;
+            }
+            false
         }).collect();
         
         if self.enemies.is_empty() {

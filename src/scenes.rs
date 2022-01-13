@@ -234,7 +234,7 @@ impl Scene for PlayScene {
 
         self.handle_shot_collisions(ctx, assets, delta_time)?;
 
-        self.dungeon.get_room_mut(self.cur_room)?.update(&self.config.borrow(), delta_time)?;
+        self.dungeon.get_room_mut(self.cur_room)?.update(ctx, assets, &self.config.borrow(), delta_time)?;
 
         self.player.update(&self.config.borrow(), delta_time)?;
 
@@ -319,7 +319,7 @@ impl StartScene {
 }
 
 impl Scene for StartScene {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, _assets: &mut Assets, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
             e.update(ctx, &self.config.borrow())?;
         }
@@ -421,7 +421,7 @@ impl MenuScene {
 }
 
 impl Scene for MenuScene {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, _assets: &mut Assets, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
             e.update(ctx, &self.config.borrow())?;
         }
@@ -529,7 +529,7 @@ impl DeadScene {
 }
 
 impl Scene for DeadScene {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, _assets: &mut Assets, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
             e.update(ctx, &self.config.borrow())?;
         }
