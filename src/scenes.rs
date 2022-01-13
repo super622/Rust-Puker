@@ -230,9 +230,9 @@ impl Scene for PlayScene {
 
         self.handle_shot_collisions(delta_time)?;
 
-        self.dungeon.get_room_mut(self.cur_room)?.update(delta_time)?;
+        self.dungeon.get_room_mut(self.cur_room)?.update(&self.config.borrow(), delta_time)?;
 
-        self.player.update(delta_time)?;
+        self.player.update(&self.config.borrow(), delta_time)?;
 
         self.overlay.update_vars(&self.player, &self.dungeon);
         self.overlay.update(ctx, &self.config.borrow())?;
@@ -265,6 +265,11 @@ impl Scene for PlayScene {
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
+
+    fn resize_event(&mut self, conf: &Config) {
+        self.player.resize_event(&conf);
+        self.dungeon.resize_event(&conf);
+    }
 }
 
 pub struct StartScene {

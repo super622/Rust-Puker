@@ -46,7 +46,9 @@ pub struct Player {
 }
 
 impl Model for Player {
-    fn update(&mut self, _delta_time: f32) -> GameResult {
+    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
+        
+
         self.props.velocity = self.props.translation * PLAYER_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
@@ -93,6 +95,12 @@ impl Model for Player {
     fn get_translation(&self) -> Vec2 { self.props.translation }
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
+
+    fn resize_event(&mut self, conf: &Config) {
+        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
+        let new = Vec2::new(conf.screen_width, conf.screen_height);
+        self.props.pos.0 *= new / old;
+    }
 
     fn as_any(&self) -> &dyn Any { self }
 
@@ -164,7 +172,9 @@ pub struct Shot {
 }
 
 impl Model for Shot {
-    fn update(&mut self, _delta_time: f32) -> GameResult {
+    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
+        
+
         self.props.velocity = self.props.translation * SHOT_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
 
@@ -198,6 +208,12 @@ impl Model for Shot {
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
 
+    fn resize_event(&mut self, conf: &Config) {
+        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
+        let new = Vec2::new(conf.screen_width, conf.screen_height);
+        self.props.pos.0 *= new / old;
+    }
+
     fn as_any(&self) -> &dyn Any { self }
 
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
@@ -216,7 +232,9 @@ pub struct EnemyMask {
 }
 
 impl Model for EnemyMask {
-    fn update(&mut self, _delta_time: f32) -> GameResult {
+    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
+        
+
         self.props.velocity = self.props.translation * ENEMY_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
@@ -254,6 +272,12 @@ impl Model for EnemyMask {
     fn get_translation(&self) -> Vec2 { self.props.translation }
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
+
+    fn resize_event(&mut self, conf: &Config) {
+        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
+        let new = Vec2::new(conf.screen_width, conf.screen_height);
+        self.props.pos.0 *= new / old;
+    }
 
     fn as_any(&self) -> &dyn Any { self }
 

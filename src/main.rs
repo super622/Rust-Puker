@@ -1,31 +1,18 @@
 use ggez::{
-    graphics::{self, Rect},
-    Context,
-    GameResult,
-    event::{self, KeyCode, MouseButton, EventHandler},
-    conf::{Conf, WindowMode, WindowSetup, ModuleConf},
-    ContextBuilder,
+    conf::{Conf, ModuleConf, WindowMode, WindowSetup},
+    event::{self, EventHandler, KeyCode, MouseButton},
     filesystem,
-    input,
-    timer,
-    winit::{self, dpi::{Position, LogicalPosition}},
+    graphics::{self, Rect},
+    input, timer,
+    winit::{
+        self,
+        dpi::{LogicalPosition, Position},
+    },
+    Context, ContextBuilder, GameResult,
 };
-use std::{
-    env,
-    path,
-    collections::{HashMap},
-    rc::Rc,
-    cell::RefCell,
-};
+use std::{cell::RefCell, collections::HashMap, env, path, rc::Rc};
 
-use puker::{
-    assets::*,
-    utils::*,
-    consts::*,
-    scenes::*,
-    traits::*,
-};
-
+use puker::{assets::*, consts::*, scenes::*, traits::*, utils::*};
 
 struct MainState {
     config: Rc<RefCell<Config>>,
@@ -39,8 +26,10 @@ impl MainState {
         let config = Rc::new(RefCell::new(Config {
             screen_width: conf.window_mode.width,
             screen_height: conf.window_mode.height,
-            draw_bbox_model: true,            
-            draw_bbox_stationary: false,            
+            old_screen_width: conf.window_mode.width,
+            old_screen_height: conf.window_mode.height,
+            draw_bbox_model: true,
+            draw_bbox_stationary: false,
             current_state: State::Start,
         }));
         let mut scenes = HashMap::<State, Box<dyn Scene>>::new();
@@ -68,7 +57,7 @@ impl EventHandler for MainState {
             let scene;
 
             {
-               scene = self.config.borrow().current_state;
+                scene = self.config.borrow().current_state;
             }
 
             match scene {
@@ -76,9 +65,12 @@ impl EventHandler for MainState {
                 _ => input::mouse::set_cursor_grabbed(ctx, false)?,
             }
 
-            self.scenes.get_mut(&scene).unwrap().update(ctx, delta_time)?;
+            self.scenes
+                .get_mut(&scene)
+                .unwrap()
+                .update(ctx, delta_time)?;
         }
-        
+
         Ok(())
     }
 
@@ -88,70 +80,111 @@ impl EventHandler for MainState {
         let scene;
 
         {
-           scene = self.config.borrow().current_state;
+            scene = self.config.borrow().current_state;
         }
 
         match scene {
-            State::Menu | State::Dead => self.scenes.get_mut(&State::Play).unwrap().draw(ctx, &mut self.assets)?,
+            State::Menu | State::Dead => self
+                .scenes
+                .get_mut(&State::Play)
+                .unwrap()
+                .draw(ctx, &mut self.assets)?,
             _ => (),
         }
 
-        self.scenes.get_mut(&scene).unwrap().draw(ctx, &mut self.assets)?;
+        self.scenes
+            .get_mut(&scene)
+            .unwrap()
+            .draw(ctx, &mut self.assets)?;
 
         graphics::present(ctx)?;
         Ok(())
     }
 
-    fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
+    fn key_down_event(
+        &mut self,
+        _ctx: &mut Context,
+        keycode: KeyCode,
+        _keymod: input::keyboard::KeyMods,
+        _repeat: bool,
+    ) {
         let scene;
 
         {
-           scene = self.config.borrow().current_state;
+            scene = self.config.borrow().current_state;
         }
 
-        self.scenes.get_mut(&scene).unwrap().key_down_event(_ctx, keycode, _keymod, _repeat);
+        self.scenes
+            .get_mut(&scene)
+            .unwrap()
+            .key_down_event(_ctx, keycode, _keymod, _repeat);
     }
 
-    fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods) {
+    fn key_up_event(
+        &mut self,
+        _ctx: &mut Context,
+        keycode: KeyCode,
+        _keymod: input::keyboard::KeyMods,
+    ) {
         let scene;
 
         {
-           scene = self.config.borrow().current_state;
+            scene = self.config.borrow().current_state;
         }
 
-        self.scenes.get_mut(&scene).unwrap().key_up_event(_ctx, keycode, _keymod);
+        self.scenes
+            .get_mut(&scene)
+            .unwrap()
+            .key_up_event(_ctx, keycode, _keymod);
     }
 
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+    fn mouse_button_down_event(
+        &mut self,
+        _ctx: &mut Context,
+        _button: MouseButton,
+        _x: f32,
+        _y: f32,
+    ) {
         let mut scene;
 
         {
-           scene = self.config.borrow().current_state;
+            scene = self.config.borrow().current_state;
         }
 
-        self.scenes.get_mut(&scene).unwrap().mouse_button_down_event(_ctx, _button, _x, _y);
+        self.scenes
+            .get_mut(&scene)
+            .unwrap()
+            .mouse_button_down_event(_ctx, _button, _x, _y);
 
         {
-           scene = self.config.borrow().current_state;
+            scene = self.config.borrow().current_state;
         }
-        
+
         match scene {
-            State::New => { 
-                self.scenes.insert(State::Play, Box::new(PlayScene::new(&self.config)));
+            State::New => {
+                self.scenes
+                    .insert(State::Play, Box::new(PlayScene::new(&self.config)));
                 self.config.borrow_mut().current_state = State::Play;
-            },
-            State::Quit => { 
+            }
+            State::Quit => {
                 ggez::event::quit(_ctx);
-            },
+            }
             _ => (),
         }
     }
 
     fn resize_event(&mut self, _ctx: &mut Context, width: f32, height: f32) {
-        let mut conf = self.config.borrow_mut();
-        conf.screen_width = width;
-        conf.screen_height = height;
+        {
+            let mut conf = self.config.borrow_mut();
+            conf.old_screen_width = conf.screen_width;
+            conf.old_screen_height = conf.screen_height;
+            conf.screen_width = width;
+            conf.screen_height = height;
+        }
+
         graphics::set_screen_coordinates(_ctx, Rect::new(0., 0., width, height)).unwrap();
+
+        for (_,s) in self.scenes.iter_mut() { s.resize_event(&self.config.borrow()); }
     }
 }
 

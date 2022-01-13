@@ -30,14 +30,14 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn update(&mut self, _delta_time: f32) -> GameResult {
+    pub fn update(&mut self, conf: &Config, _delta_time: f32) -> GameResult {
 
         for shot in self.shots.iter_mut() {
-            shot.update(_delta_time)?;
+            shot.update(conf, _delta_time)?;
         }
 
         for enemy in self.enemies.iter_mut() {
-            enemy.update(_delta_time)?;
+            enemy.update(conf, _delta_time)?;
         }
 
         let dead_enemies = self.enemies.iter()
@@ -174,6 +174,12 @@ impl Room {
             shots,
         }
     }
+
+    pub fn resize_event(&mut self, conf: &Config) {
+        for e in self.enemies.iter_mut() { e.resize_event(conf); }
+        for s in self.shots.iter_mut() { s.resize_event(conf); }
+        for o in self.obstacles.iter_mut() { o.resize_event(conf); }
+    }
 }
 
 #[derive(Debug)]
@@ -289,6 +295,10 @@ impl Dungeon {
 
         result
     }
+
+    pub fn resize_event(&mut self, conf: &Config) {
+        for r in self.rooms.iter_mut() { r.resize_event(conf); }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -301,6 +311,11 @@ pub struct Door {
 }
 
 impl Stationary for Door {
+    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
+        
+        Ok(())
+    }
+
     fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
@@ -323,6 +338,12 @@ impl Stationary for Door {
 
     fn get_scale(&self) -> Vec2 { self.scale }
 
+    fn resize_event(&mut self, conf: &Config) {
+        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
+        let new = Vec2::new(conf.screen_width, conf.screen_height);
+        self.pos.0 *= new / old;
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -339,6 +360,10 @@ pub struct Wall {
 }
 
 impl Stationary for Wall {
+    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
+        Ok(())
+    }
+
     fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
@@ -357,6 +382,12 @@ impl Stationary for Wall {
 
     fn get_scale(&self) -> Vec2 { self.scale }
 
+    fn resize_event(&mut self, conf: &Config) {
+        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
+        let new = Vec2::new(conf.screen_width, conf.screen_height);
+        self.pos.0 *= new / old;
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -373,6 +404,11 @@ pub struct Stone {
 }
 
 impl Stationary for Stone {
+    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
+        
+        Ok(())
+    }
+
     fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
@@ -390,6 +426,12 @@ impl Stationary for Stone {
     fn get_pos(&self) -> Vec2 { self.pos.0 }
 
     fn get_scale(&self) -> Vec2 { self.scale }
+
+    fn resize_event(&mut self, conf: &Config) {
+        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
+        let new = Vec2::new(conf.screen_width, conf.screen_height);
+        self.pos.0 *= new / old;
+    }
 
     fn as_any(&self) -> &dyn Any {
         self

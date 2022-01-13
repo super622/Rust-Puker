@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub trait Model: std::fmt::Debug {
-    fn update(&mut self, _delta_time: f32) -> GameResult;
+    fn update(&mut self, _config: &Config, _delta_time: f32) -> GameResult;
 
     fn draw(&self, ctx: &mut Context, assets: &Assets, _config: &Config) -> GameResult;
 
@@ -57,12 +57,16 @@ pub trait Model: std::fmt::Debug {
 
     fn get_forward(&self) -> Vec2;
 
+    fn resize_event(&mut self, _config: &Config);
+
     fn as_any(&self) -> &dyn Any;
     
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 pub trait Stationary: std::fmt::Debug {
+    fn update(&mut self, _config: &Config, _delta_time: f32) -> GameResult;
+
     fn draw(&self, ctx: &mut Context, assets: &Assets, _config: &Config) -> GameResult;
 
     fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
@@ -93,6 +97,8 @@ pub trait Stationary: std::fmt::Debug {
     fn get_pos(&self) -> Vec2;
 
     fn get_scale(&self) -> Vec2;
+
+    fn resize_event(&mut self, conf: &Config);
 
     fn as_any(&self) -> &dyn Any;
     
@@ -138,6 +144,8 @@ pub trait Scene {
             None => None
         }
     }
+
+    fn resize_event(&mut self, conf: &Config) {}
 }
 
 pub trait UIElement {
