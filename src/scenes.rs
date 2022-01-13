@@ -56,7 +56,7 @@ impl PlayScene {
         };
         let dungeon = Dungeon::generate_dungeon((sw, sh));
         let cur_room = Dungeon::get_start_room_coords();
-        let overlay = Overlay::new(&player, &dungeon);
+        let overlay = Overlay::new(&player, &dungeon, cur_room);
 
         Self {
             config,
@@ -101,7 +101,6 @@ impl PlayScene {
             self.player.shoot(&mut room.shots)?;
         }
         if mouse::button_pressed(ctx, MouseButton::Left) {
-            let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
             self.player.props.forward = mouse_relative_forward(self.player.props.pos.0, Vec2::new(mouse::position(ctx).x, mouse::position(ctx).y));
             self.player.shoot(&mut room.shots)?;
         }
@@ -149,7 +148,7 @@ impl PlayScene {
         Ok(())
     }
 
-    fn handle_shot_collisions(&mut self, _delta_time: f32) -> GameResult {
+    fn handle_shot_collisions(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
         let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
 
@@ -158,6 +157,7 @@ impl PlayScene {
                 ShotTag::Player => {
                     for enemy in room.enemies.iter_mut() {
                         if s.get_bbox(sw, sh).overlaps(&enemy.get_bbox(sw, sh)) {
+                            let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                             enemy.damage(s.damage);
                             return false;
                         }
@@ -165,6 +165,7 @@ impl PlayScene {
                 },
                 ShotTag::Enemy => {
                     if s.get_bbox(sw, sh).overlaps(&self.player.get_bbox(sw, sh)) {
+                        let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                         self.player.damage(s.damage);
                         return false;
                     }
@@ -173,6 +174,7 @@ impl PlayScene {
 
             for obst in room.obstacles.iter() {
                 if s.get_bbox(sw, sh).overlaps(&obst.get_bbox(sw, sh)) {
+                    let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                     return false;
                 }
             }
@@ -221,20 +223,22 @@ impl PlayScene {
 }
 
 impl Scene for PlayScene {
-    fn update(&mut self, ctx: &mut Context, delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, delta_time: f32) -> GameResult {
         self.handle_input(ctx)?;
 
         self.handle_wall_collisions(delta_time)?;
 
+        self.handle_player_enemy_collisions(delta_time)?;
+
         self.handle_player_detection(delta_time)?;
 
-        self.handle_shot_collisions(delta_time)?;
+        self.handle_shot_collisions(ctx, assets, delta_time)?;
 
         self.dungeon.get_room_mut(self.cur_room)?.update(&self.config.borrow(), delta_time)?;
 
         self.player.update(&self.config.borrow(), delta_time)?;
 
-        self.overlay.update_vars(&self.player, &self.dungeon);
+        self.overlay.update_vars(&self.player, &self.dungeon, self.cur_room);
         self.overlay.update(ctx, &self.config.borrow())?;
 
         match self.player.state {
@@ -286,8 +290,8 @@ impl StartScene {
                 tag: State::New,
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.4},
-                    text: String::from("New"),
-                    font: assets.button_font,
+                    text: String::from("Play"),
+                    font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
                 },
@@ -299,7 +303,7 @@ impl StartScene {
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.6},
                     text: String::from("Quit"),
-                    font: assets.button_font,
+                    font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
                 },
@@ -315,7 +319,7 @@ impl StartScene {
 }
 
 impl Scene for StartScene {
-    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
             e.update(ctx, &self.config.borrow())?;
         }
@@ -324,6 +328,13 @@ impl Scene for StartScene {
     }
 
     fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+        let logo_rect = assets.sprites.get("puker_logo").unwrap().dimensions();
+        let draw_param = DrawParam::default()
+            .scale([sw / logo_rect.w, sh / logo_rect.h]);
+
+        graphics::draw(ctx, assets.sprites.get("puker_logo").unwrap(), draw_param)?;
+
         for e in self.ui_elements.iter_mut() {
             e.draw(ctx, assets, &self.config.borrow())?;
         }
@@ -370,7 +381,7 @@ impl MenuScene {
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.3},
                     text: String::from("Continue"),
-                    font: assets.button_font,
+                    font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
                 },
@@ -382,7 +393,7 @@ impl MenuScene {
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.5},
                     text: String::from("New"),
-                    font: assets.button_font,
+                    font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
                 },
@@ -394,7 +405,7 @@ impl MenuScene {
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.7},
                     text: String::from("Quit"),
-                    font: assets.button_font,
+                    font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
                 },
@@ -410,7 +421,7 @@ impl MenuScene {
 }
 
 impl Scene for MenuScene {
-    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
             e.update(ctx, &self.config.borrow())?;
         }
@@ -482,7 +493,7 @@ impl DeadScene {
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.5},
                     text: String::from("Try Again"),
-                    font: assets.button_font,
+                    font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
                 },
@@ -494,7 +505,7 @@ impl DeadScene {
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.7},
                     text: String::from("Quit"),
-                    font: assets.button_font,
+                    font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
                 },
@@ -518,7 +529,7 @@ impl DeadScene {
 }
 
 impl Scene for DeadScene {
-    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
             e.update(ctx, &self.config.borrow())?;
         }
@@ -530,7 +541,7 @@ impl Scene for DeadScene {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
 
         if !self.played_death_sound {
-            assets.death_sound.play(ctx)?;
+            assets.audio.get_mut("death_sound").unwrap().play(ctx)?;
             self.played_death_sound = true;
         }
 

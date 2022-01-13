@@ -4,10 +4,6 @@ use ggez::{
     filesystem,
     graphics::{self, Rect},
     input, timer,
-    winit::{
-        self,
-        dpi::{LogicalPosition, Position},
-    },
     Context, ContextBuilder, GameResult,
 };
 use std::{cell::RefCell, collections::HashMap, env, path, rc::Rc};
@@ -28,6 +24,7 @@ impl MainState {
             screen_height: conf.window_mode.height,
             old_screen_width: conf.window_mode.width,
             old_screen_height: conf.window_mode.height,
+            volume: 0.5,
             draw_bbox_model: true,
             draw_bbox_stationary: false,
             current_state: State::Start,
@@ -68,7 +65,7 @@ impl EventHandler for MainState {
             self.scenes
                 .get_mut(&scene)
                 .unwrap()
-                .update(ctx, delta_time)?;
+                .update(ctx, &mut self.assets, delta_time)?;
         }
 
         Ok(())

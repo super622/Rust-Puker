@@ -62,12 +62,12 @@ impl Room {
         Ok(())
     }
     
-    pub fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+    pub fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
-            .scale(Room::get_room_scale(sw, sh, assets.floor.dimensions()));
+            .scale(Room::get_room_scale(sw, sh, assets.sprites.get("floor").unwrap().dimensions()));
         
-        graphics::draw(ctx, &assets.floor, draw_params)?;
+        graphics::draw(ctx, assets.sprites.get("floor").unwrap(), draw_params)?;
 
         for obst in self.obstacles.iter() { obst.draw(ctx, assets, conf)?; }
 
@@ -261,6 +261,8 @@ impl Dungeon {
         Ok(self.grid[grid_coords.0][grid_coords.1])
     }
 
+    pub fn get_grid(&self) -> &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS] { &self.grid }
+
     pub fn get_start_room_coords() -> (usize, usize) { (3, 5) }
 
     fn check_dungeon_consistency(grid: &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS], rooms_len: usize) -> bool {
@@ -316,17 +318,17 @@ impl Stationary for Door {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
             .dest(self.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.door_closed.dimensions()) * 1.1)
+            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("door_closed").unwrap().dimensions()) * 1.1)
             .rotation(self.rotation)
             .offset([0.5, 0.5]);
 
         match self.is_open {
-            true => graphics::draw(ctx, &assets.door_open, draw_params)?,
-            false => graphics::draw(ctx, &assets.door_closed, draw_params)?,
+            true => graphics::draw(ctx, assets.sprites.get("door_open").unwrap(), draw_params)?,
+            false => graphics::draw(ctx, assets.sprites.get("door_closed").unwrap(), draw_params)?,
         }
 
         if conf.draw_bbox_stationary { self.draw_bbox(ctx, (sw, sh))?; }
@@ -364,14 +366,14 @@ impl Stationary for Wall {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
             .dest(self.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.wall.dimensions()) * 1.1)
+            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("wall").unwrap().dimensions()) * 1.1)
             .offset([0.5, 0.5]);
 
-        graphics::draw(ctx, &assets.wall, draw_params)?;
+        graphics::draw(ctx, assets.sprites.get("wall").unwrap(), draw_params)?;
 
         if conf.draw_bbox_stationary { self.draw_bbox(ctx, (sw, sh))?; }
 
@@ -409,14 +411,14 @@ impl Stationary for Stone {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
             .dest(self.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.wall.dimensions()) * 1.1)
+            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("wall").unwrap().dimensions()) * 1.1)
             .offset([0.5, 0.5]);
 
-        graphics::draw(ctx, &assets.stone, draw_params)?;
+        graphics::draw(ctx, assets.sprites.get("stone").unwrap(), draw_params)?;
 
         if conf.draw_bbox_stationary { self.draw_bbox(ctx, (sw, sh))?; }
 

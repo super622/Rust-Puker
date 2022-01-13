@@ -20,7 +20,7 @@ use crate::{
 pub trait Model: std::fmt::Debug {
     fn update(&mut self, _config: &Config, _delta_time: f32) -> GameResult;
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, _config: &Config) -> GameResult;
+    fn draw(&self, ctx: &mut Context, assets: &mut Assets, _config: &Config) -> GameResult;
 
     fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
         let (sw, sh) = screen;
@@ -67,7 +67,7 @@ pub trait Model: std::fmt::Debug {
 pub trait Stationary: std::fmt::Debug {
     fn update(&mut self, _config: &Config, _delta_time: f32) -> GameResult;
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, _config: &Config) -> GameResult;
+    fn draw(&self, ctx: &mut Context, assets: &mut Assets, _config: &Config) -> GameResult;
 
     fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
         let (sw, sh) = screen;
@@ -117,7 +117,7 @@ pub trait Shooter: Model {
 }
 
 pub trait Scene {
-    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult;
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult;
 
     fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult;
 
@@ -145,7 +145,7 @@ pub trait Scene {
         }
     }
 
-    fn resize_event(&mut self, conf: &Config) {}
+    fn resize_event(&mut self, _conf: &Config) {}
 }
 
 pub trait UIElement {

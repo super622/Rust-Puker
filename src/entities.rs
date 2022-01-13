@@ -2,6 +2,7 @@ use ggez::{
     graphics::{self, DrawParam, Color},
     GameResult,
     Context,
+    audio::SoundSource,
 };
 use crate::{
     utils::*,
@@ -13,6 +14,7 @@ use glam::f32::{Vec2};
 use std::{
     any::Any,
 };
+use rand::{thread_rng, Rng};
 
 #[derive(Clone, Debug, Copy, PartialEq)]
 pub enum ActorState {
@@ -47,8 +49,6 @@ pub struct Player {
 
 impl Model for Player {
     fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
-        
-
         self.props.velocity = self.props.translation * PLAYER_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
@@ -61,24 +61,27 @@ impl Model for Player {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.player_base.dimensions()))
+            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("player_base").unwrap().dimensions()))
             .offset([0.5, 0.5]);
 
         match self.state {
             ActorState::Shoot => {
-                if self.props.forward == Vec2::X { graphics::draw(ctx, &assets.player_shoot_east, draw_params)?; }
-                else if self.props.forward == -Vec2::X { graphics::draw(ctx, &assets.player_shoot_west, draw_params)?; }
-                else if self.props.forward == -Vec2::Y { graphics::draw(ctx, &assets.player_shoot_north, draw_params)?; }
-                else if self.props.forward == Vec2::Y { graphics::draw(ctx, &assets.player_shoot_south, draw_params)?; }
-                else { graphics::draw(ctx, &assets.player_base, draw_params)?; }
+                if self.props.forward == Vec2::X { graphics::draw(ctx, assets.sprites.get("player_shoot_east").unwrap(), draw_params)?; }
+                else if self.props.forward == -Vec2::X { graphics::draw(ctx, assets.sprites.get("player_shoot_west").unwrap(), draw_params)?; }
+                else if self.props.forward == -Vec2::Y { graphics::draw(ctx, assets.sprites.get("player_shoot_north").unwrap(), draw_params)?; }
+                else if self.props.forward == Vec2::Y { graphics::draw(ctx, assets.sprites.get("player_shoot_south").unwrap(), draw_params)?; }
+                else { graphics::draw(ctx, assets.sprites.get("player_base").unwrap(), draw_params)?; }
             },
-            ActorState::Damaged => graphics::draw(ctx, &assets.player_damaged, draw_params.color(Color::RED))?,
-            ActorState::Dead => graphics::draw(ctx, &assets.player_dead, draw_params)?,
-            _ => graphics::draw(ctx, &assets.player_base, draw_params)?,
+            ActorState::Damaged => {
+                assets.audio.get_mut("player_damaged_sound").unwrap().play(ctx)?;
+                graphics::draw(ctx, assets.sprites.get("player_damaged").unwrap(), draw_params.color(Color::RED))?;
+            },
+            ActorState::Dead => graphics::draw(ctx, assets.sprites.get("player_dead").unwrap(), draw_params)?,
+            _ => graphics::draw(ctx, assets.sprites.get("player_base").unwrap(), draw_params)?,
         }
 
         if conf.draw_bbox_model { self.draw_bbox(ctx, (sw, sh))?; }
@@ -173,24 +176,22 @@ pub struct Shot {
 
 impl Model for Shot {
     fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
-        
-
         self.props.velocity = self.props.translation * SHOT_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
 
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.shot_puke_base.dimensions()))
+            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("shot_puke_base").unwrap().dimensions()))
             .offset([0.5, 0.5]);
 
         match self.tag {
-            ShotTag::Player => graphics::draw(ctx, &assets.shot_puke_base, draw_params)?,
-            ShotTag::Enemy => graphics::draw(ctx, &assets.shot_blood_base, draw_params)?,
+            ShotTag::Player => graphics::draw(ctx, assets.sprites.get("shot_puke_base").unwrap(), draw_params)?,
+            ShotTag::Enemy => graphics::draw(ctx, assets.sprites.get("shot_blood_base").unwrap(), draw_params)?,
         }
 
         if conf.draw_bbox_model { self.draw_bbox(ctx, (sw, sh))?; }
@@ -233,8 +234,6 @@ pub struct EnemyMask {
 
 impl Model for EnemyMask {
     fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
-        
-
         self.props.velocity = self.props.translation * ENEMY_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
@@ -246,16 +245,20 @@ impl Model for EnemyMask {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
+
+        let tremble: f32 = (thread_rng().gen::<f32>() * 2. - 1.) * 0.1;
+        let sign = thread_rng().gen_range(-1..2) as f32;
+
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.enemy_mask_base.dimensions()))
-            .offset([0.5, 0.5]);
+            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("enemy_mask_base").unwrap().dimensions()))
+            .offset([0.5 + tremble, 0.5 + tremble * sign]);
 
         match self.state {
-            ActorState::Damaged => graphics::draw(ctx, &assets.enemy_mask_base, draw_params.color(Color::RED))?,
-            _ => graphics::draw(ctx, &assets.enemy_mask_base, draw_params)?,
+            ActorState::Damaged => graphics::draw(ctx, assets.sprites.get("enemy_mask_base").unwrap(), draw_params.color(Color::RED))?,
+            _ => graphics::draw(ctx, assets.sprites.get("enemy_mask_base").unwrap(), draw_params)?,
         }
 
         if conf.draw_bbox_model { self.draw_bbox(ctx, (sw, sh))?; }

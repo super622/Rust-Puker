@@ -1,5 +1,5 @@
 use ggez::{
-    graphics::{self, Font, Color, DrawMode, DrawParam, Rect, Mesh, Text, PxScale},
+    graphics::{self, Font, Color, DrawMode, DrawParam, Rect, Mesh, MeshBuilder, Text, PxScale},
     Context,
     GameResult,
     mint::{Point2},
@@ -141,6 +141,8 @@ pub struct Minimap {
     pub pos: Point2<f32>,
     pub width: f32,
     pub height: f32,
+    pub cur_room: (usize, usize),
+    pub visited: [[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS],
 }
 
 impl UIElement for Minimap {
@@ -148,7 +150,45 @@ impl UIElement for Minimap {
         Ok(())
     }
 
-    fn draw(&mut self, _ctx: &mut Context, _assets: &Assets, _conf: &Config) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
+        let (mw, mh) = (self.width(ctx, sw), self.height(ctx, sh));
+        let pos = self.pos(sw, sh);
+        let map_rect = Mesh::new_rectangle(
+            ctx,
+            DrawMode::fill(),
+            Rect::new(pos.x, pos.y, mw, mh),
+            Color::new(0., 0., 0., 0.7),
+        )?;          
+        graphics::draw(ctx, &map_rect, DrawParam::default())?;
+
+        let (rw, rh) = (mw / (DUNGEON_GRID_COLS as f32), mh / (DUNGEON_GRID_ROWS as f32));
+        let mut room_rect;
+
+        for r in 0..DUNGEON_GRID_ROWS {
+            for c in 0..DUNGEON_GRID_COLS {
+                room_rect = MeshBuilder::new()
+                    .rectangle( 
+                        DrawMode::fill(),
+                        Rect::new(pos.x + (c as f32) * rw, pos.y + (r as f32) * rh, rw, rh),
+                        Color::BLACK,
+                    )?
+                    .rounded_rectangle(
+                        DrawMode::fill(),
+                        Rect::new(pos.x + (c as f32) * rw, pos.y + (r as f32) * rh, rw, rh),
+                        8.,
+                        Color::WHITE,
+                    )?
+                    .build(ctx)?;
+
+                match self.visited[r][c] {
+                    1 => graphics::draw(ctx, &room_rect, DrawParam::default().color(Color::new(0.3, 0.3, 0.3, 1.)))?,
+                    2 => graphics::draw(ctx, &room_rect, DrawParam::default().color(Color::new(0.6, 0.6, 0.6, 1.)))?,
+                    3 => graphics::draw(ctx, &room_rect, DrawParam::default().color(Color::WHITE))?,
+                    _ => (),
+                }
+            }
+        }
         Ok(())
     }
 
@@ -179,7 +219,7 @@ impl UIElement for HealthBar {
     fn draw(&mut self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let pos = self.pos(sw, sh);
-        let img_dims = &assets.heart_full.dimensions();
+        let img_dims = assets.sprites.get("heart_full").unwrap().dimensions();
         let img_width = self.width(ctx, sw) / self.max_health;
 
         for i in 1..=(self.max_health as i32) {
@@ -192,9 +232,9 @@ impl UIElement for HealthBar {
 
             let dif = self.health - index;
 
-            if dif >= 0. { graphics::draw(ctx, &assets.heart_full, draw_params)?; }
-            else if dif >= -0.5 { graphics::draw(ctx, &assets.heart_half, draw_params)?; }
-            else { graphics::draw(ctx, &assets.heart_empty, draw_params)?; }
+            if dif >= 0. { graphics::draw(ctx, assets.sprites.get("heart_full").unwrap(), draw_params)?; }
+            else if dif >= -0.5 { graphics::draw(ctx, assets.sprites.get("heart_half").unwrap(), draw_params)?; }
+            else { graphics::draw(ctx, assets.sprites.get("heart_empty").unwrap(), draw_params)?; }
         }
 
         Ok(())
@@ -220,7 +260,7 @@ pub struct Overlay {
 }
 
 impl Overlay {
-    pub fn new(player: &Player, dungeon: &Dungeon) -> Self {
+    pub fn new(player: &Player, _dungeon: &Dungeon, cur_room: (usize, usize)) -> Self {
         let pos = Point2 { x: 0., y: 0.};
         let (width, height) = (1.0, 1.0);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
@@ -230,6 +270,13 @@ impl Overlay {
                 height: HEALTH_BAR_SCALE.1,
                 health: player.health,
                 max_health: player.max_health,
+            }),
+            Box::new(Minimap {
+                pos: Point2 { x: MINIMAP_POS.0, y: MINIMAP_POS.1 },
+                width: MINIMAP_SCALE,
+                height: MINIMAP_SCALE,
+                cur_room,
+                visited: [[0; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS],
             }),
         ];
 
@@ -241,11 +288,24 @@ impl Overlay {
         }
     }
 
-    pub fn update_vars(&mut self, player: &Player, dungeon: &Dungeon) {
+    pub fn update_vars(&mut self, player: &Player, dungeon: &Dungeon, cur_room: (usize, usize)) {
         for e in self.ui_elements.iter_mut() {
             if let Some(h) = e.as_any_mut().downcast_mut::<HealthBar>() {
                 h.health = player.health;
                 h.max_health = player.max_health;
+            }
+            else if let Some(m) = e.as_any_mut().downcast_mut::<Minimap>() {
+                let (r, c) = cur_room;
+                let grid = dungeon.get_grid();
+
+                m.visited[m.cur_room.0][m.cur_room.1] = 2;
+                m.cur_room = cur_room;
+                m.visited[r][c] = 3;
+
+                if r > 1                     && grid[r - 1][c] != 0 { m.visited[r - 1][c] = usize::max(1, m.visited[r - 1][c]); }
+                if r < DUNGEON_GRID_ROWS - 1 && grid[r + 1][c] != 0 { m.visited[r + 1][c] = usize::max(1, m.visited[r + 1][c]); }
+                if c > 1                     && grid[r][c - 1] != 0 { m.visited[r][c - 1] = usize::max(1, m.visited[r][c - 1]); }
+                if c < DUNGEON_GRID_COLS - 1 && grid[r][c + 1] != 0 { m.visited[r][c + 1] = usize::max(1, m.visited[r][c + 1]); }
             }
         }
     }

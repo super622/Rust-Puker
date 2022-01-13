@@ -14,6 +14,7 @@ pub struct Config {
     pub screen_height: f32,
     pub old_screen_width: f32,
     pub old_screen_height: f32,
+    pub volume: f32,
     pub draw_bbox_model: bool,
     pub draw_bbox_stationary: bool,
     pub current_state: State,
