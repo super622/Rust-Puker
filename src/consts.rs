@@ -38,7 +38,7 @@ pub const WALL_SCALE: f32 = 1.;
 
 pub const ROOM_WIDTH: f32 = 15.;
 pub const ROOM_HEIGHT: f32 = 9.;
-pub const ROOM_LAYOUT_EMPTY: &str = "
+pub const ROOM_LAYOUT_START: &str = "
 #######d#######
 #             #
 #             #
@@ -50,27 +50,63 @@ d             d
 #######d#######
 ";
 
-pub const ROOM_LAYOUTS_MOB: &[&str] = &[
+pub const ROOM_LAYOUTS_EMPTY: &[&str] = &[
 "
 #######d#######
-#e           e#
-#ssss     ssss#
 #             #
-d             d
+#   . . . .   #
 #             #
-#ssss     ssss#
-#e           e#
+d   . . . .   d
+#             #
+#   . . . .   #
+#             #
 #######d#######
+",
+"
+#######d########
+#              #
+#     ....     #
+#    .....     #
+d              d
+#     .....    #
+#     ....     #
+#              #
+#######d########
 ",
 "
 #######d#######
 #             #
-#   s  s  s   #
+#  ss sss ss  #
 #             #
-d   s  s  s   d
+d  ss sss ss  d
 #             #
-#   s  s  s   #
+#  ss sss ss  #
 #             #
 #######d#######
+",
+];
+
+pub const ROOM_LAYOUTS_MOB: &[&str] = &[
 "
+#######d#######
+#m           m#
+#....     ....#
+#             #
+d             d
+#             #
+#....     ....#
+#m           m#
+#######d#######
+",
+"
+#######d#######
+#.           .#
+#.. . ... . ..#
+#.  . m.m .  .#
+d   .  .  .   d
+#.  . m.m .  .#
+#.. . ... . ..#
+#.           .#
+#######d#######
+",
 ];

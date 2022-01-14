@@ -202,7 +202,7 @@ impl PlayScene {
         let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
 
         for e in room.enemies.iter_mut() {
-            if e.get_pos().distance(self.player.get_pos()) <= ENEMY_SHOOT_RANGE * 0.6 {
+            if e.get_pos().distance(self.player.get_pos()) <= ENEMY_SHOOT_RANGE * 0.8 {
                 if let Some(enemy) = e.as_any_mut().downcast_mut::<EnemyMask>() {
                     enemy.props.forward = self.player.get_pos() - enemy.get_pos();
 
@@ -236,7 +236,7 @@ impl Scene for PlayScene {
 
         self.dungeon.get_room_mut(self.cur_room)?.update(ctx, assets, &self.config.borrow(), delta_time)?;
 
-        self.player.update(&self.config.borrow(), delta_time)?;
+        self.player.update(ctx, assets, &self.config.borrow(), delta_time)?;
 
         self.overlay.update_vars(&self.player, &self.dungeon, self.cur_room);
         self.overlay.update(ctx, &self.config.borrow())?;
@@ -269,11 +269,6 @@ impl Scene for PlayScene {
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
-
-    fn resize_event(&mut self, conf: &Config) {
-        self.player.resize_event(&conf);
-        self.dungeon.resize_event(&conf);
-    }
 }
 
 pub struct StartScene {
@@ -480,7 +475,6 @@ impl Scene for MenuScene {
 pub struct DeadScene {
     config: Rc<RefCell<Config>>,
     ui_elements: Vec<Box<dyn UIElement>>,
-    played_death_sound: bool,
 }
 
 impl DeadScene {
@@ -523,7 +517,6 @@ impl DeadScene {
         Self {
             config,
             ui_elements,
-            played_death_sound: false,
         }
     }
 }
@@ -539,11 +532,6 @@ impl Scene for DeadScene {
 
     fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
-
-        if !self.played_death_sound {
-            assets.audio.get_mut("death_sound").unwrap().play(ctx)?;
-            self.played_death_sound = true;
-        }
 
         let curtain = Mesh::new_rectangle(
             ctx,
@@ -573,7 +561,6 @@ impl Scene for DeadScene {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
                         self.config.borrow_mut().current_state = b.tag;
-                        self.played_death_sound = false;
                     }
                 },
                 None => (),

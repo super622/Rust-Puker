@@ -2,8 +2,9 @@ use ggez::{
     conf::{Conf, ModuleConf, WindowMode, WindowSetup},
     event::{self, EventHandler, KeyCode, MouseButton},
     filesystem,
-    graphics::{self, Rect},
-    input, timer,
+    graphics,
+    input,
+    timer,
     Context, ContextBuilder, GameResult,
 };
 use std::{cell::RefCell, collections::HashMap, env, path, rc::Rc};
@@ -169,20 +170,6 @@ impl EventHandler for MainState {
             _ => (),
         }
     }
-
-    fn resize_event(&mut self, _ctx: &mut Context, width: f32, height: f32) {
-        {
-            let mut conf = self.config.borrow_mut();
-            conf.old_screen_width = conf.screen_width;
-            conf.old_screen_height = conf.screen_height;
-            conf.screen_width = width;
-            conf.screen_height = height;
-        }
-
-        graphics::set_screen_coordinates(_ctx, Rect::new(0., 0., width, height)).unwrap();
-
-        for (_,s) in self.scenes.iter_mut() { s.resize_event(&self.config.borrow()); }
-    }
 }
 
 fn main() -> GameResult {
@@ -191,7 +178,6 @@ fn main() -> GameResult {
             width: DEFAULT_SCREEN_WIDTH,
             height: DEFAULT_SCREEN_HEIGHT,
             resizable: true,
-            resize_on_scale_factor_change: true,
             ..Default::default()
         },
         window_setup: WindowSetup {

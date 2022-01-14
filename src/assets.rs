@@ -37,12 +37,15 @@ impl Assets {
         sprites.insert("heart_half".to_string(), graphics::Image::new(ctx, "/images/heart_half.png")?);
         sprites.insert("heart_empty".to_string(), graphics::Image::new(ctx, "/images/heart_empty.png")?);
         sprites.insert("puker_logo".to_string(), graphics::Image::new(ctx, "/images/puker_logo.png")?);
+        sprites.insert("spikes".to_string(), graphics::Image::new(ctx, "/images/spikes.png")?);
 
         fonts.insert("button_font".to_string(), graphics::Font::new(ctx, "/fonts/enigma.ttf")?);
 
-        audio.insert("death_sound".to_string(), audio::Source::new(ctx, "/audio/death_sound.mp3")?);
+        audio.insert("player_death_sound".to_string(), audio::Source::new(ctx, "/audio/player_death_sound.mp3")?);
         audio.insert("player_damaged_sound".to_string(), audio::Source::new(ctx, "/audio/player_damaged_sound.mp3")?);
+        audio.insert("enemy_death_sound".to_string(), audio::Source::new(ctx, "/audio/enemy_death_sound.mp3")?);
         audio.insert("door_close_sound".to_string(), audio::Source::new(ctx, "/audio/door_close_sound.mp3")?);
+        audio.insert("door_open_sound".to_string(), audio::Source::new(ctx, "/audio/door_open_sound.mp3")?);
         audio.insert("bubble_pop_sound".to_string(), audio::Source::new(ctx, "/audio/bubble_pop_sound.mp3")?);
 
         Ok(Self {

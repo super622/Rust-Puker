@@ -20,7 +20,17 @@ use rand::{thread_rng, Rng};
 use glam::f32::Vec2;
 
 #[derive(Debug)]
+pub enum RoomTag {
+    Start,
+    Empty,
+    Mob,
+    Boss,
+    Item,
+}
+
+#[derive(Debug)]
 pub struct Room {
+    pub tag: RoomTag,
     pub width: f32,
     pub height: f32,
     pub grid_coords: (usize, usize),
@@ -28,17 +38,18 @@ pub struct Room {
     pub obstacles: Vec<Box<dyn Stationary>>,
     pub enemies: Vec<Box<dyn Actor>>,
     pub shots: Vec<Shot>,
+    pub just_entered: bool,
 }
 
 impl Room {
-    pub fn update(&mut self, ctx: &Context, assets: &mut Assets, conf: &Config, _delta_time: f32) -> GameResult {
+    pub fn update(&mut self, ctx: &mut Context, assets: &mut Assets, conf: &Config, _delta_time: f32) -> GameResult {
 
         for shot in self.shots.iter_mut() {
-            shot.update(conf, _delta_time)?;
+            shot.update(ctx, assets, conf, _delta_time)?;
         }
 
         for enemy in self.enemies.iter_mut() {
-            enemy.update(conf, _delta_time)?;
+            enemy.update(ctx, assets, conf, _delta_time)?;
         }
 
         let dead_enemies = self.enemies.iter()
@@ -47,21 +58,45 @@ impl Room {
             .map(|e| e.0).collect::<Vec<_>>();
         for (i,d) in dead_enemies.iter().enumerate() { self.enemies.remove(d - i); }
 
-        self.shots = self.shots.clone().into_iter().filter(|s| {
-            if s.get_pos().distance(s.spawn_pos.0) < s.range {
-                let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
-                return true;
-            }
-            false
-        }).collect();
+        let dead_shots = self.shots.iter()
+            .enumerate()
+            .filter(|s| s.1.get_pos().distance(s.1.spawn_pos.0) >= s.1.range)
+            .map(|s| s.0).collect::<Vec<_>>();
+        for (i,d) in dead_shots.iter().enumerate() { 
+            self.shots.remove(d - i); 
+            let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
+        }
         
-        if self.enemies.is_empty() {
-            for door in self.doors.iter_mut() {
-                match door {
-                    Some(i) => self.obstacles[*i].as_any_mut().downcast_mut::<Door>().unwrap().is_open = true,
-                    _ => ()
+        match self.tag {
+            RoomTag::Mob => {
+                if self.enemies.is_empty() {
+                    self.tag = RoomTag::Empty;
+                    let _ = assets.audio.get_mut("door_open_sound").unwrap().play(ctx);
+                    for door in self.doors.iter_mut() {
+                        match door {
+                            Some(i) => {
+                                self.obstacles[*i].as_any_mut().downcast_mut::<Door>().unwrap().is_open = true;
+                            }
+                            _ => ()
+                        }
+                    }
                 }
-            }
+                else {
+                    for door in self.doors.iter_mut() {
+                        match door {
+                            Some(i) => {
+                                let d = self.obstacles[*i].as_any_mut().downcast_mut::<Door>().unwrap();
+                                if d.is_open {
+                                    let _ = assets.audio.get_mut("door_close_sound").unwrap().play(ctx);
+                                    self.obstacles[*i].as_any_mut().downcast_mut::<Door>().unwrap().is_open = false;
+                                }
+                            }
+                            _ => ()
+                        }
+                    }
+                }
+            },
+            _ => (),
         }
 
         Ok(())
@@ -95,21 +130,10 @@ impl Room {
         coords + dims / 2.
     }
 
-    fn generate_room(screen: (f32, f32), grid_coords: (usize, usize), door_connects: [Option<(usize, usize)>; 4]) -> Room {
-        let (sw, sh) = screen;
-        
-        let width = ROOM_WIDTH;
-        let height = ROOM_HEIGHT;
+    fn parse_layout(sw: f32, sh: f32, rw: f32, rh: f32, layout: &str, door_connects: &[Option<(usize, usize)>; 4]) -> (Vec<Box<dyn Stationary>>, Vec<Box<dyn Actor>>, [Option<usize>; 4]) {
         let mut doors = [None; 4];
         let mut obstacles: Vec<Box<dyn Stationary>> = Vec::new(); 
         let mut enemies: Vec<Box<dyn Actor>> = Vec::new();
-        let shots = Vec::new();
-
-        let mut layout = ROOM_LAYOUT_EMPTY.trim().split('\n').map(|l| l.trim()).collect::<String>();
-        if grid_coords != Dungeon::get_start_room_coords() {
-            let layout_index = thread_rng().gen_range(0..ROOM_LAYOUTS_MOB.len()) as usize;
-            layout = ROOM_LAYOUTS_MOB[layout_index].trim().split('\n').map(|l| l.trim()).collect::<String>();
-        }
 
         let door_indices = [0, 3, 1 ,2];
         let mut door_index = 0_usize;
@@ -118,13 +142,13 @@ impl Room {
             match c {
                 '#' => {
                     obstacles.push(Box::new(Wall {
-                        pos: Room::get_model_pos(sw, sh, width, height, i).into(),
+                        pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
                         scale: Vec2::splat(WALL_SCALE),
                     }));
                 },
-                's' => {
+                '.' => {
                     obstacles.push(Box::new(Stone {
-                        pos: Room::get_model_pos(sw, sh, width, height, i).into(),
+                        pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
                         scale: Vec2::splat(WALL_SCALE),
                     }));
                 },
@@ -132,25 +156,25 @@ impl Room {
                     if let Some(coords) = door_connects[door_index] {
                         doors[door_index] = Some(obstacles.len());
                         obstacles.push(Box::new(Door {
-                            pos: Room::get_model_pos(sw, sh, width, height, i).into(),
+                            pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
                             scale: Vec2::splat(WALL_SCALE),
                             rotation: (door_indices[door_index] as f32) * PI / 2.,
-                            is_open: false,
+                            is_open: true,
                             connects_to: coords,
                         }));
                     }
                     else {
                         obstacles.push(Box::new(Wall {
-                            pos: Room::get_model_pos(sw, sh, width, height, i).into(),
+                            pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
                             scale: Vec2::splat(WALL_SCALE),
                         }));
                     }
                     door_index += 1;
                 },
-                'e' => {
+                'm' => {
                     enemies.push(Box::new(EnemyMask {
                         props: ActorProps {
-                            pos: Room::get_model_pos(sw, sh, width, height, i).into(),
+                            pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
                             scale: Vec2::splat(ENEMY_SCALE),
                             translation: Vec2::ZERO,
                             forward: Vec2::ZERO,
@@ -169,7 +193,34 @@ impl Room {
             }
         }
 
+        (obstacles, enemies, doors)
+    }
+
+    fn generate_room(screen: (f32, f32), grid_coords: (usize, usize), door_connects: [Option<(usize, usize)>; 4], tag: RoomTag) -> Room {
+        let (sw, sh) = screen;
+        
+        let width = ROOM_WIDTH;
+        let height = ROOM_HEIGHT;
+        let shots = Vec::new();
+
+        let mut layout = String::from(match tag {
+            RoomTag::Start => ROOM_LAYOUT_START,
+            RoomTag::Mob => {
+                let layout_index = thread_rng().gen_range(0..ROOM_LAYOUTS_MOB.len()) as usize;
+                ROOM_LAYOUTS_MOB[layout_index]
+            },
+            RoomTag::Empty => {
+                let layout_index = thread_rng().gen_range(0..ROOM_LAYOUTS_EMPTY.len()) as usize;
+                ROOM_LAYOUTS_EMPTY[layout_index]
+            },
+            _ => ROOM_LAYOUT_START,
+        });
+        layout = layout.trim().split('\n').map(|l| l.trim()).collect::<String>();
+
+        let (obstacles, enemies, doors) = Room::parse_layout(sw, sh, width, height, &layout, &door_connects);
+
         Room {
+            tag,
             width,
             height,
             grid_coords,
@@ -177,13 +228,8 @@ impl Room {
             obstacles,
             enemies,
             shots,
+            just_entered: true,
         }
-    }
-
-    pub fn resize_event(&mut self, conf: &Config) {
-        for e in self.enemies.iter_mut() { e.resize_event(conf); }
-        for s in self.shots.iter_mut() { s.resize_event(conf); }
-        for o in self.obstacles.iter_mut() { o.resize_event(conf); }
     }
 }
 
@@ -239,7 +285,12 @@ impl Dungeon {
             if j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] != 0 { doors[2] = Some((i, j + 1)); }
             if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] != 0 { doors[3] = Some((i + 1, j)); }
 
-            rooms.push(Room::generate_room(screen, (i, j), doors));
+            const START: (usize, usize) = Dungeon::get_start_room_coords();
+            let tag = match (i, j) {
+                START if true => RoomTag::Start,
+                _ => RoomTag::Mob,
+            };
+            rooms.push(Room::generate_room(screen, (i, j), doors, tag));
         }
 
         Dungeon {
@@ -268,7 +319,7 @@ impl Dungeon {
 
     pub fn get_grid(&self) -> &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS] { &self.grid }
 
-    pub fn get_start_room_coords() -> (usize, usize) { (3, 5) }
+    pub const fn get_start_room_coords() -> (usize, usize) { (3, 5) }
 
     fn check_dungeon_consistency(grid: &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS], rooms_len: usize) -> bool {
         let mut checked = vec![false; rooms_len];
@@ -301,10 +352,6 @@ impl Dungeon {
         if j > 0                     && grid[i][j - 1] != 0 { result += 1; }
 
         result
-    }
-
-    pub fn resize_event(&mut self, conf: &Config) {
-        for r in self.rooms.iter_mut() { r.resize_event(conf); }
     }
 }
 
@@ -345,12 +392,6 @@ impl Stationary for Door {
 
     fn get_scale(&self) -> Vec2 { self.scale }
 
-    fn resize_event(&mut self, conf: &Config) {
-        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
-        let new = Vec2::new(conf.screen_width, conf.screen_height);
-        self.pos.0 *= new / old;
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -388,12 +429,6 @@ impl Stationary for Wall {
     fn get_pos(&self) -> Vec2 { self.pos.0 }
 
     fn get_scale(&self) -> Vec2 { self.scale }
-
-    fn resize_event(&mut self, conf: &Config) {
-        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
-        let new = Vec2::new(conf.screen_width, conf.screen_height);
-        self.pos.0 *= new / old;
-    }
 
     fn as_any(&self) -> &dyn Any {
         self
@@ -433,12 +468,6 @@ impl Stationary for Stone {
     fn get_pos(&self) -> Vec2 { self.pos.0 }
 
     fn get_scale(&self) -> Vec2 { self.scale }
-
-    fn resize_event(&mut self, conf: &Config) {
-        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
-        let new = Vec2::new(conf.screen_width, conf.screen_height);
-        self.pos.0 *= new / old;
-    }
 
     fn as_any(&self) -> &dyn Any {
         self

@@ -48,7 +48,7 @@ pub struct Player {
 }
 
 impl Model for Player {
-    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.props.velocity = self.props.translation * PLAYER_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
@@ -56,7 +56,10 @@ impl Model for Player {
         self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
 
         if self.animation_cooldown == 0. { self.state = ActorState::Base; }
-        if self.health <= 0. { self.state = ActorState::Dead; }
+        if self.health <= 0. {
+            assets.audio.get_mut("player_death_sound").unwrap().play(ctx)?; 
+            self.state = ActorState::Dead;
+        }
 
         Ok(())
     }
@@ -98,12 +101,6 @@ impl Model for Player {
     fn get_translation(&self) -> Vec2 { self.props.translation }
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
-
-    fn resize_event(&mut self, conf: &Config) {
-        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
-        let new = Vec2::new(conf.screen_width, conf.screen_height);
-        self.props.pos.0 *= new / old;
-    }
 
     fn as_any(&self) -> &dyn Any { self }
 
@@ -156,6 +153,10 @@ impl Shooter for Player {
 
         Ok(())
     }
+
+//     fn get_range(&self, sw: f32, sh: f32) -> f32 {
+        
+//     }
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -175,7 +176,7 @@ pub struct Shot {
 }
 
 impl Model for Shot {
-    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
+    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.props.velocity = self.props.translation * SHOT_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
 
@@ -209,12 +210,6 @@ impl Model for Shot {
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
 
-    fn resize_event(&mut self, conf: &Config) {
-        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
-        let new = Vec2::new(conf.screen_width, conf.screen_height);
-        self.props.pos.0 *= new / old;
-    }
-
     fn as_any(&self) -> &dyn Any { self }
 
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
@@ -233,14 +228,17 @@ pub struct EnemyMask {
 }
 
 impl Model for EnemyMask {
-    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.props.velocity = self.props.translation * ENEMY_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
         self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
 
         if self.animation_cooldown == 0. { self.state = ActorState::Base; }
-        if self.health <= 0. { self.state = ActorState::Dead; }
+        if self.health <= 0. {
+            assets.audio.get_mut("enemy_death_sound").unwrap().play(ctx)?; 
+            self.state = ActorState::Dead;
+        }
 
         Ok(())
     }
@@ -275,12 +273,6 @@ impl Model for EnemyMask {
     fn get_translation(&self) -> Vec2 { self.props.translation }
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
-
-    fn resize_event(&mut self, conf: &Config) {
-        let old = Vec2::new(conf.old_screen_width, conf.old_screen_height);
-        let new = Vec2::new(conf.screen_width, conf.screen_height);
-        self.props.pos.0 *= new / old;
-    }
 
     fn as_any(&self) -> &dyn Any { self }
 
