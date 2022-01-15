@@ -36,6 +36,26 @@ pub trait Model: std::fmt::Debug {
         Ok(())
     }
 
+    fn draw_bcircle(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
+        let (sw, sh)= screen;
+        let bcircle = self.get_bcircle(sw, sh);
+        let mut text = Text::new(format!("{:?}", bcircle.0.0));
+
+        let mesh = Mesh::new_circle(ctx, DrawMode::stroke(2.0), bcircle.0, bcircle.1, 0.5, Color::BLUE)?;
+        graphics::draw(ctx, &mesh, DrawParam::default())?;
+
+        text.fragments_mut().iter_mut().map(|x| x.scale = Some(PxScale::from(24.0))).count();
+        graphics::draw(ctx, &text, DrawParam::default().dest([bcircle.0.0.x + bcircle.1, bcircle.0.0.y]))?;
+
+        Ok(())
+    }
+
+    fn get_bcircle(&self, sw: f32, sh: f32) -> (Vec2Wrap, f32) {
+        let width = sw / ROOM_WIDTH * self.get_scale().x;
+        let height = sh / ROOM_HEIGHT * self.get_scale().y;
+        (Vec2::new(self.get_pos().x, self.get_pos().y).into(), f32::max(width, height) / 2.)
+    }    
+
     fn scale_to_screen(&self, sw: f32, sh: f32, image: Rect) -> Vec2 {
         let bbox = self.get_bbox(sw, sh);
         Vec2::new(bbox.w / image.w, bbox.h / image.h)
@@ -46,6 +66,12 @@ pub trait Model: std::fmt::Debug {
         let height = sh / ROOM_HEIGHT * self.get_scale().y;
         Rect::new(self.get_pos().x - width / 2., self.get_pos().y - height / 2., width, height)
     }
+
+    // fn get_bcircle(&self, sw: f32, sh: f32) -> (Vec2, f32) {
+    //     let width = sw / ROOM_WIDTH * self.get_scale().x;
+    //     let height = sh / ROOM_HEIGHT * self.get_scale().y;
+    //     (self.get_pos(), f32::max(width, height) / 2.)
+    // }    
 
     fn get_pos(&self) -> Vec2;
 
@@ -108,12 +134,12 @@ pub trait Actor: Model {
     fn damage(&mut self, dmg: f32);
 }
 
-pub trait Shooter: Model {
+pub trait Shooter: Actor  {
     fn shoot(&mut self, shots: &mut Vec<Shot>) -> GameResult;
 
-//     fn get_range(&self, sw: f32, sh: f32) -> f32;  
+    fn get_range(&self) -> f32;  
 
-//     fn get_rate(&self) -> f32;  
+    fn get_rate(&self) -> f32;  
 }
 
 pub trait Scene {
@@ -131,11 +157,11 @@ pub trait Scene {
 
     fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { None }  
 
-    fn check_for_element_click(&self, ctx: &mut Context, sw: f32, sh: f32) -> Option<&dyn UIElement> {
+    fn check_for_element_click(&self, ctx: &mut Context, conf: &Config) -> Option<&dyn UIElement> {
         match self.get_ui_elements() {
             Some(ue) => {
                 for e in ue.iter() {
-                    if e.mouse_overlap(ctx, sw, sh) {
+                    if e.mouse_overlap(ctx, conf) {
                         return Some(&**e);
                     }
                 }
@@ -163,13 +189,18 @@ pub trait UIElement {
         Point2 { x: pos.x - w / 2., y: pos.y - h / 2. }
     }
         
-    fn mouse_overlap(&self, ctx: &mut Context, sw: f32, sh: f32) -> bool {
+    fn mouse_overlap(&self, ctx: &mut Context, conf: &Config) -> bool {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
         let tl = self.top_left(ctx, sw, sh);
-        let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
-        Rect::new(tl.x, tl.y, w, h).contains(input::mouse::position(ctx))
+        let (w, h) = (self.width(ctx, sh), self.height(ctx, sh));
+        Rect::new(tl.x, tl.y, w, h).contains(get_mouse_screen_coords(input::mouse::position(ctx), conf))
     }
 
     fn as_any(&self) -> &dyn Any;
     
     fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+pub trait Chaser: Actor {
+    fn chase(&mut self, player_pos: Vec2);
 }

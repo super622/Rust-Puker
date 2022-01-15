@@ -49,8 +49,13 @@ pub struct Player {
 
 impl Model for Player {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
-        self.props.velocity = self.props.translation * PLAYER_SPEED * _delta_time;
+        self.props.translation = self.props.translation.clamp_length_max(1.);
+        self.props.velocity -= self.props.velocity * _delta_time / 0.1;
+        self.props.velocity += self.props.translation * 100. * _delta_time;
         self.props.pos.0 += self.props.velocity;
+        if self.props.velocity.length() < 0.01 { self.props.velocity = self.props.velocity.clamp_length_min(0.); }
+        if self.props.velocity.length() > self.speed { self.props.velocity = self.props.velocity.clamp_length_max(self.speed); }
+
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
         self.damaged_cooldown = f32::max(0., self.damaged_cooldown - _delta_time);
         self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
@@ -87,7 +92,7 @@ impl Model for Player {
             _ => graphics::draw(ctx, assets.sprites.get("player_base").unwrap(), draw_params)?,
         }
 
-        if conf.draw_bbox_model { self.draw_bbox(ctx, (sw, sh))?; }
+        if conf.draw_bbox_model { self.draw_bcircle(ctx, (sw, sh))?; }
 
         Ok(())
     }
@@ -132,7 +137,7 @@ impl Shooter for Player {
         }
 
         self.shoot_timeout = 1. / self.shoot_rate;
-        let shot_dir = (self.props.forward + 0.5 * (self.props.translation * Vec2::new(self.props.forward.y, self.props.forward.x).abs())).normalize();
+        let shot_dir = (self.props.forward + 0.5 * (self.props.velocity.clamp_length_max(0.5) * Vec2::new(self.props.forward.y, self.props.forward.x).abs())).normalize();
 
         let shot = Shot {
             props: ActorProps {
@@ -154,9 +159,9 @@ impl Shooter for Player {
         Ok(())
     }
 
-//     fn get_range(&self, sw: f32, sh: f32) -> f32 {
-        
-//     }
+    fn get_range(&self) -> f32 { self.shoot_range }
+
+    fn get_rate(&self) -> f32 { self.shoot_rate }
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -195,7 +200,7 @@ impl Model for Shot {
             ShotTag::Enemy => graphics::draw(ctx, assets.sprites.get("shot_blood_base").unwrap(), draw_params)?,
         }
 
-        if conf.draw_bbox_model { self.draw_bbox(ctx, (sw, sh))?; }
+        if conf.draw_bbox_model { self.draw_bcircle(ctx, (sw, sh))?; }
 
         Ok(())
     }
@@ -229,8 +234,13 @@ pub struct EnemyMask {
 
 impl Model for EnemyMask {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
-        self.props.velocity = self.props.translation * ENEMY_SPEED * _delta_time;
+        self.props.translation = self.props.translation.clamp_length_max(1.);
+        self.props.velocity -= self.props.velocity * _delta_time / 0.1;
+        self.props.velocity += self.props.translation * 100. * _delta_time;
         self.props.pos.0 += self.props.velocity;
+        if self.props.velocity.length() < 0.01 { self.props.velocity = self.props.velocity.clamp_length_min(0.); }
+        if self.props.velocity.length() > self.speed { self.props.velocity = self.props.velocity.clamp_length_max(self.speed); }
+
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
         self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
 
@@ -259,7 +269,7 @@ impl Model for EnemyMask {
             _ => graphics::draw(ctx, assets.sprites.get("enemy_mask_base").unwrap(), draw_params)?,
         }
 
-        if conf.draw_bbox_model { self.draw_bbox(ctx, (sw, sh))?; }
+        if conf.draw_bbox_model { self.draw_bcircle(ctx, (sw, sh))?; }
 
         Ok(())
     }
@@ -296,8 +306,8 @@ impl Shooter for EnemyMask {
         }
 
         self.state = ActorState::Shoot;
-
         self.shoot_timeout = 1. / self.shoot_rate;
+
         let shot_dir = self.props.forward.normalize();
 
         let shot = Shot {
@@ -319,4 +329,8 @@ impl Shooter for EnemyMask {
 
         Ok(())
     }
+
+    fn get_range(&self) -> f32 { self.shoot_range }
+
+    fn get_rate(&self) -> f32 { self.shoot_rate }
 }

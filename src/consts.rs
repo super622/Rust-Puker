@@ -9,22 +9,24 @@ pub const HEALTH_BAR_POS: (f32, f32) = (0.02, 0.05);
 pub const MINIMAP_SCALE: f32 = 0.2;
 pub const MINIMAP_POS: (f32, f32) = (1. - MINIMAP_SCALE, 0.);
 
-pub const PLAYER_SCALE: f32 = 0.8;
+pub const PLAYER_SCALE: f32 = 0.6;
 pub const PLAYER_SHOOT_RATE: f32 = 2.5;
 pub const PLAYER_SHOOT_RANGE: f32 = 400.;
 pub const PLAYER_SHOOT_TIMEOUT: f32 = 0.;
 pub const PLAYER_HEALTH: f32 = 5.;
-pub const PLAYER_SPEED: f32 = 200.;
+pub const PLAYER_SPEED: f32 = 5.;
 pub const PLAYER_DAMAGE: f32 = 1.;
 pub const PLAYER_DAMAGED_COOLDOWN: f32 = 1.;
+pub const PLAYER_ACCELERATION: f32 = 1.;
 
 pub const ENEMY_SCALE: f32 = 0.8;
 pub const ENEMY_SHOOT_RATE: f32 = 0.5;
 pub const ENEMY_SHOOT_RANGE: f32 = 400.;
 pub const ENEMY_SHOOT_TIMEOUT: f32 = 0.;
 pub const ENEMY_HEALTH: f32 = 3.;
-pub const ENEMY_SPEED: f32 = 100.;
+pub const ENEMY_SPEED: f32 = 4.;
 pub const ENEMY_DAMAGE: f32 = 0.5;
+pub const ENEMY_ACCELERATION: f32 = 1.;
 
 pub const SHOT_SPEED: f32 = 300.;
 pub const SHOT_SCALE: f32 = 0.4;

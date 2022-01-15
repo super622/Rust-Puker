@@ -23,8 +23,8 @@ impl MainState {
         let config = Rc::new(RefCell::new(Config {
             screen_width: conf.window_mode.width,
             screen_height: conf.window_mode.height,
-            old_screen_width: conf.window_mode.width,
-            old_screen_height: conf.window_mode.height,
+            window_width: conf.window_mode.width,
+            window_height: conf.window_mode.height,
             volume: 0.5,
             draw_bbox_model: true,
             draw_bbox_stationary: false,
@@ -169,6 +169,12 @@ impl EventHandler for MainState {
             }
             _ => (),
         }
+    }
+
+    fn resize_event(&mut self, _ctx: &mut Context, _width: f32, _height: f32) {
+        let mut conf = self.config.borrow_mut();
+        conf.window_width = _width;
+        conf.window_height = _height;
     }
 }
 

@@ -12,8 +12,8 @@ use std::{
 pub struct Config {
     pub screen_width: f32,
     pub screen_height: f32,
-    pub old_screen_width: f32,
-    pub old_screen_height: f32,
+    pub window_width: f32,
+    pub window_height: f32,
     pub volume: f32,
     pub draw_bbox_model: bool,
     pub draw_bbox_stationary: bool,
@@ -114,33 +114,8 @@ impl From<Point2<f32>> for Vec2Wrap {
     }
 }
 
-///// Project Cartesian world coordinates to screen coordinates.
-/////
-//pub fn world_to_screen_space(sw: f32, sh: f32, point: Vec2) -> Vec2 {
-//    Vec2::new(
-//        point.x + sw / 2.,
-//        -point.y + sh / 2.,
-//    )
-//}
-
-///// Transform screen coordinates to Cartesian world coordinates.
-/////
-//pub fn screen_to_world_space(sw: f32, sh: f32, point: Vec2) -> Vec2 {
-//    Vec2::new(
-//        point.x - sw / 2.,
-//        -point.y + sh / 2.,
-//    )
-//}
-
-/// Checks if two rectangles overlap
-///
-pub fn rect_vs_rect(r1: &Rect, r2: &Rect) -> bool {
-    if r1.x == r1.x + r1.w || r1.y == r1.y + r1.h || r2.x == r2.x + r2.w || r2.y == r2.y + r2.h { return false; }
-    
-    if r1.x > r2.x + r2.w || r2.x > r1.x + r1.w { return false; }
-    if r1.y + r1.h > r2.y || r2.y + r2.h > r1.y { return false; }
-
-    true
+pub fn circle_vs_circle(c1: (Vec2Wrap, f32), c2: (Vec2Wrap, f32)) -> bool {
+    c1.0.0.distance(c2.0.0) < c1.1 + c2.1
 }
 
 /// Detects if a ray is intersecting a given rectangle.
@@ -205,7 +180,33 @@ pub fn dynamic_rect_vs_rect(source: &Rect, source_vel: &Vec2, target: &Rect, con
     false
 }
 
-pub fn mouse_relative_forward(target: Vec2, m: Vec2) -> Vec2 {
+/// Detects intersection between moving circle and stationary rectangle.
+/// Long live OneLoneCoder and his tutorials.
+///
+pub fn dynamic_circle_vs_rect(source: (Vec2Wrap, f32), source_vel: &Vec2, target: &Rect, contact_point: &mut Vec2, contact_normal: &mut Vec2, contact_time: &mut f32, _elapsed_time: f32) -> bool { 
+    let source_pos = source.0.0;
+    let source_r = source.1;
+
+    if source_vel.x == 0. && source_vel.y == 0. { return false; }
+
+    contact_point.x = f32::max(target.x, f32::min(target.x + target.w, source_pos.x));
+    contact_point.y = f32::max(target.y, f32::min(target.y + target.h, source_pos.y));
+
+    *contact_normal = *contact_point - source_pos;
+    *contact_time = source_r - contact_normal.length();
+
+    if contact_time.is_nan() { *contact_time = 0. }
+
+    if *contact_time > 0. {
+        return true;
+    }
+
+    false
+}
+
+pub fn mouse_relative_forward(target: Vec2, mouse: Point2<f32>, conf: &Config) -> Vec2 {
+    let m = get_mouse_screen_coords(mouse, conf);
+
     let dx = m.x - target.x;
     let dy = m.y - target.y;
 
@@ -215,3 +216,8 @@ pub fn mouse_relative_forward(target: Vec2, m: Vec2) -> Vec2 {
     Vec2::new(0., f32::signum(dy))
 }
 
+pub fn get_mouse_screen_coords(m: Point2<f32>, conf: &Config) -> Vec2 {
+    let (sw, sh) = (conf.screen_width, conf.screen_height);
+    let (ww, wh) = (conf.window_width, conf.window_height);
+    Vec2::new(m.x * sw / ww, m.y * sh / wh)
+}

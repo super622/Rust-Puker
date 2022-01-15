@@ -101,7 +101,7 @@ impl PlayScene {
             self.player.shoot(&mut room.shots)?;
         }
         if mouse::button_pressed(ctx, MouseButton::Left) {
-            self.player.props.forward = mouse_relative_forward(self.player.props.pos.0, Vec2::new(mouse::position(ctx).x, mouse::position(ctx).y));
+            self.player.props.forward = mouse_relative_forward(self.player.props.pos.0, mouse::position(ctx), &self.config.borrow());
             self.player.shoot(&mut room.shots)?;
         }
 
@@ -116,8 +116,14 @@ impl PlayScene {
         let room = &self.dungeon.get_room(self.cur_room)?;
         let mut collisions = Vec::<(usize, f32)>::new();
 
+        // for (i, obst) in room.obstacles.iter().enumerate() {
+        //     if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+        //         collisions.push((i, ct));
+        //     }
+        // }
+
         for (i, obst) in room.obstacles.iter().enumerate() {
-            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+            if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 collisions.push((i, ct));
             }
         }
@@ -125,7 +131,8 @@ impl PlayScene {
         collisions.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
         for (i, mut ct) in collisions.iter_mut() {
-            if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+            // if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+            if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 let obst = room.obstacles[*i].as_any();
 
                 if let Some(door) = obst.downcast_ref::<Door>() {
@@ -134,12 +141,14 @@ impl PlayScene {
                         self.player.props.pos.0 = Vec2::new(sw, sh) - self.player.props.pos.0;
                     }
                     else {
-                        self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
+                        self.player.props.pos.0 -= cn.normalize() * ct;
+                        // self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
                         // self.player.props.velocity += cn * self.player.get_velocity().abs() * (1. - ct);
                     }
                 }
                 else {
-                    self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
+                    self.player.props.pos.0 -= cn.normalize() * ct;
+                    // self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
                     // self.player.props.velocity += cn * self.player.get_velocity().abs() * (1. - ct);
                 }
             }
@@ -156,7 +165,8 @@ impl PlayScene {
             match s.tag {
                 ShotTag::Player => {
                     for enemy in room.enemies.iter_mut() {
-                        if s.get_bbox(sw, sh).overlaps(&enemy.get_bbox(sw, sh)) {
+                        // if s.get_bbox(sw, sh).overlaps(&enemy.get_bbox(sw, sh)) {
+                        if circle_vs_circle(s.get_bcircle(sw, sh), enemy.get_bcircle(sw, sh)) {
                             let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                             enemy.damage(s.damage);
                             return false;
@@ -164,7 +174,8 @@ impl PlayScene {
                     }
                 },
                 ShotTag::Enemy => {
-                    if s.get_bbox(sw, sh).overlaps(&self.player.get_bbox(sw, sh)) {
+                    // if s.get_bbox(sw, sh).overlaps(&self.player.get_bbox(sw, sh)) {
+                    if circle_vs_circle(s.get_bcircle(sw, sh), self.player.get_bcircle(sw, sh)) {
                         let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                         self.player.damage(s.damage);
                         return false;
@@ -173,7 +184,10 @@ impl PlayScene {
             };
 
             for obst in room.obstacles.iter() {
-                if s.get_bbox(sw, sh).overlaps(&obst.get_bbox(sw, sh)) {
+                let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
+                let mut ct = 0.;
+                // if s.get_bbox(sw, sh).overlaps(&obst.get_bbox(sw, sh)) {
+                if dynamic_circle_vs_rect(s.get_bcircle(sw, sh), &s.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, _delta_time) {
                     let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                     return false;
                 }
@@ -342,10 +356,9 @@ impl Scene for StartScene {
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
-
         if _button == MouseButton::Left {
-            match self.check_for_element_click(_ctx, sw, sh) {
+            let result = self.check_for_element_click(_ctx, &self.config.borrow());
+            match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
                         self.config.borrow_mut().current_state = b.tag;
@@ -453,10 +466,9 @@ impl Scene for MenuScene {
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
-
         if _button == MouseButton::Left {
-            match self.check_for_element_click(_ctx, sw, sh) {
+            let result = self.check_for_element_click(_ctx, &self.config.borrow());
+            match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
                         self.config.borrow_mut().current_state = b.tag;
@@ -554,10 +566,9 @@ impl Scene for DeadScene {
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
-
         if _button == MouseButton::Left {
-            match self.check_for_element_click(_ctx, sw, sh) {
+            let result = self.check_for_element_click(_ctx, &self.config.borrow());
+            match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
                         self.config.borrow_mut().current_state = b.tag;

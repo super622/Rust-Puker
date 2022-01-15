@@ -3,7 +3,6 @@ use ggez::{
     Context,
     GameResult,
     mint::{Point2},
-    input,
 };
 use std::{
     any::Any,
@@ -65,12 +64,6 @@ impl UIElement for TextSprite {
         Point2 { x: pos.x - w / 2., y: pos.y - h / 2. }
     }
         
-    fn mouse_overlap(&self, ctx: &mut Context, sw: f32, sh: f32) -> bool {
-        let tl = self.top_left(ctx, sw, sh);
-        let (w, h) = (self.width(ctx, sh), self.height(ctx, sh));
-        Rect::new(tl.x, tl.y, w, h).contains(input::mouse::position(ctx))
-    }
-
     fn as_any(&self) -> &dyn Any { self }
 
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
@@ -85,10 +78,8 @@ pub struct Button {
 
 impl UIElement for Button {
     fn update(&mut self, ctx: &mut Context, conf: &Config) -> GameResult {
-        let (sw, sh) = (conf.screen_width, conf.screen_height);
-
         self.color = Color::WHITE;
-        if self.mouse_overlap(ctx, sw, sh) {
+        if self.mouse_overlap(ctx, conf) {
             self.color = Color::RED;
         }
 
@@ -126,12 +117,6 @@ impl UIElement for Button {
         Point2 { x: pos.x - w / 2., y: pos.y - h / 2. }
     }
         
-    fn mouse_overlap(&self, ctx: &mut Context, sw: f32, sh: f32) -> bool {
-        let tl = self.top_left(ctx, sw, sh);
-        let (w, h) = (self.width(ctx, sh), self.height(ctx, sh));
-        Rect::new(tl.x, tl.y, w, h).contains(input::mouse::position(ctx))
-    }
-
     fn as_any(&self) -> &dyn Any { self }
 
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
