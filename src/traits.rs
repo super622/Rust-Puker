@@ -6,9 +6,7 @@ use ggez::{
     event::{KeyCode, MouseButton},
     input,
 };
-use std::{
-    any::Any,
-};
+use std::any::Any;
 use glam::f32::Vec2;
 use crate::{
     assets::*,
@@ -56,22 +54,16 @@ pub trait Model: std::fmt::Debug {
         (Vec2::new(self.get_pos().x, self.get_pos().y).into(), f32::max(width, height) / 2.)
     }    
 
-    fn scale_to_screen(&self, sw: f32, sh: f32, image: Rect) -> Vec2 {
-        let bbox = self.get_bbox(sw, sh);
-        Vec2::new(bbox.w / image.w, bbox.h / image.h)
-    }
-
     fn get_bbox(&self, sw: f32, sh: f32) -> graphics::Rect {
         let width = sw / ROOM_WIDTH * self.get_scale().x;
         let height = sh / ROOM_HEIGHT * self.get_scale().y;
         Rect::new(self.get_pos().x - width / 2., self.get_pos().y - height / 2., width, height)
     }
 
-    // fn get_bcircle(&self, sw: f32, sh: f32) -> (Vec2, f32) {
-    //     let width = sw / ROOM_WIDTH * self.get_scale().x;
-    //     let height = sh / ROOM_HEIGHT * self.get_scale().y;
-    //     (self.get_pos(), f32::max(width, height) / 2.)
-    // }    
+    fn scale_to_screen(&self, sw: f32, sh: f32, image: Rect) -> Vec2 {
+        let bbox = self.get_bbox(sw, sh);
+        Vec2::new(bbox.w / image.w, bbox.h / image.h)
+    }
 
     fn get_pos(&self) -> Vec2;
 
@@ -82,6 +74,16 @@ pub trait Model: std::fmt::Debug {
     fn get_translation(&self) -> Vec2;
 
     fn get_forward(&self) -> Vec2;
+
+    fn set_pos(&mut self, _new_pos: Vec2) {}
+
+    fn set_scale(&mut self, _new_scale: Vec2) {}
+
+    fn set_velocity(&mut self, _new_velocity: Vec2) {}
+
+    fn set_translation(&mut self, _new_translation: Vec2) {}
+
+    fn set_forward(&mut self, _new_forward: Vec2) {}
 
     fn as_any(&self) -> &dyn Any;
     
@@ -107,15 +109,15 @@ pub trait Stationary: std::fmt::Debug {
         Ok(())
     }
 
-    fn scale_to_screen(&self, sw: f32, sh: f32, image: Rect) -> Vec2 {
-        let bbox = self.get_bbox(sw, sh);
-        Vec2::new(bbox.w / image.w, bbox.h / image.h)
-    }
-
     fn get_bbox(&self, sw: f32, sh: f32) -> graphics::Rect {
         let width = sw / ROOM_WIDTH * self.get_scale().x;
         let height = sh / ROOM_HEIGHT * self.get_scale().y;
         Rect::new(self.get_pos().x - width / 2., self.get_pos().y - height / 2., width, height)
+    }
+
+    fn scale_to_screen(&self, sw: f32, sh: f32, image: Rect) -> Vec2 {
+        let bbox = self.get_bbox(sw, sh);
+        Vec2::new(bbox.w / image.w, bbox.h / image.h)
     }
 
     fn get_pos(&self) -> Vec2;
@@ -125,21 +127,6 @@ pub trait Stationary: std::fmt::Debug {
     fn as_any(&self) -> &dyn Any;
     
     fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
-
-pub trait Actor: Model {
-    fn get_health(&self) -> f32; 
-
-    fn damage(&mut self, dmg: f32);
-}
-
-pub trait Shooter: Actor  {
-    fn shoot(&mut self, shots: &mut Vec<Shot>) -> GameResult;
-
-    fn get_range(&self) -> f32;  
-
-    fn get_rate(&self) -> f32;  
 }
 
 pub trait Scene {
@@ -201,6 +188,24 @@ pub trait UIElement {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
+pub trait Actor: Model {
+    fn get_health(&self) -> f32; 
+
+    fn damage(&mut self, dmg: f32);
+
+    fn heal(&mut self, heal: f32) {}
+
+    fn get_tag(&self) -> ActorTag;
+}
+
 pub trait Chaser: Actor {
-    fn chase(&mut self, player_pos: Vec2);
+    fn chase(&mut self, target: Vec2);
+}
+
+pub trait Shooter: Actor {
+    fn shoot(&mut self, target: &Vec2, shots: &mut Vec<Shot>) -> GameResult;
+
+    fn get_range(&self) -> f32;  
+
+    fn get_rate(&self) -> f32;  
 }

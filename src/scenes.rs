@@ -137,19 +137,25 @@ impl PlayScene {
 
                 if let Some(door) = obst.downcast_ref::<Door>() {
                     if door.is_open {
-                        self.cur_room = door.connects_to;
-                        self.player.props.pos.0 = Vec2::new(sw, sh) - self.player.props.pos.0;
+                        if (self.player.props.pos.0 - door.pos.0).length() < self.player.get_bcircle(sw, sh).1 {
+                            self.cur_room = door.connects_to;
+                            self.player.props.pos.0 = Vec2::new(sw, sh) - self.player.props.pos.0 +
+                                match door.dir {
+                                    Direction::North => Vec2::new(0., -door.get_bbox(sw, sh).h / 2.),
+                                    Direction::South => Vec2::new(0., door.get_bbox(sw, sh).h / 2.),
+                                    Direction::West => Vec2::new(-door.get_bbox(sw, sh).w / 2., 0.),
+                                    Direction::East => Vec2::new(door.get_bbox(sw, sh).w / 2., 0.),
+                                };
+                        }
                     }
                     else {
                         self.player.props.pos.0 -= cn.normalize() * ct;
                         // self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
-                        // self.player.props.velocity += cn * self.player.get_velocity().abs() * (1. - ct);
                     }
                 }
                 else {
                     self.player.props.pos.0 -= cn.normalize() * ct;
                     // self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
-                    // self.player.props.velocity += cn * self.player.get_velocity().abs() * (1. - ct);
                 }
             }
         }
@@ -165,8 +171,7 @@ impl PlayScene {
             match s.tag {
                 ShotTag::Player => {
                     for enemy in room.enemies.iter_mut() {
-                        // if s.get_bbox(sw, sh).overlaps(&enemy.get_bbox(sw, sh)) {
-                        if circle_vs_circle(s.get_bcircle(sw, sh), enemy.get_bcircle(sw, sh)) {
+                        if circle_vs_circle(&s.get_bcircle(sw, sh), &enemy.get_bcircle(sw, sh)) {
                             let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                             enemy.damage(s.damage);
                             return false;
@@ -174,8 +179,7 @@ impl PlayScene {
                     }
                 },
                 ShotTag::Enemy => {
-                    // if s.get_bbox(sw, sh).overlaps(&self.player.get_bbox(sw, sh)) {
-                    if circle_vs_circle(s.get_bcircle(sw, sh), self.player.get_bcircle(sw, sh)) {
+                    if circle_vs_circle(&s.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
                         let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                         self.player.damage(s.damage);
                         return false;
@@ -186,7 +190,6 @@ impl PlayScene {
             for obst in room.obstacles.iter() {
                 let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
                 let mut ct = 0.;
-                // if s.get_bbox(sw, sh).overlaps(&obst.get_bbox(sw, sh)) {
                 if dynamic_circle_vs_rect(s.get_bcircle(sw, sh), &s.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, _delta_time) {
                     let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                     return false;
@@ -198,13 +201,23 @@ impl PlayScene {
         Ok(())
     }
 
-    fn handle_player_enemy_collisions(&mut self, _delta_time: f32) -> GameResult {
+    fn handle_player_environment_collisions(&mut self, _delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
         let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
 
         for e in room.enemies.iter_mut() {
-            if e.get_bbox(sw, sh).overlaps(&self.player.get_bbox(sw, sh)) {
+            if circle_vs_circle(&e.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
+                resolve_environment_collision(&mut **e, &mut self.player, sw, sh, _delta_time);
                 self.player.damage(ENEMY_DAMAGE);
+            }
+        }
+
+        for i in 0..room.enemies.len() {
+            for j in (i+1)..room.enemies.len() {
+                if circle_vs_circle(&room.enemies[i].get_bcircle(sw, sh), &room.enemies[j].get_bcircle(sw, sh)) {
+                    let split = room.enemies.split_at_mut(j);
+                    resolve_environment_collision(&mut *split.0[i], &mut *split.1[0], sw, sh, _delta_time);
+                }
             }
         }
 
@@ -216,19 +229,31 @@ impl PlayScene {
         let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
 
         for e in room.enemies.iter_mut() {
-            if e.get_pos().distance(self.player.get_pos()) <= ENEMY_SHOOT_RANGE * 0.8 {
-                if let Some(enemy) = e.as_any_mut().downcast_mut::<EnemyMask>() {
-                    enemy.props.forward = self.player.get_pos() - enemy.get_pos();
+            match e.get_tag() {
+                ActorTag::Enemy(etag) => {
+                    match etag {
+                        EnemyTag::Shooter => {
+                            if e.get_pos().distance(self.player.get_pos()) <= ENEMY_SHOOT_RANGE * 0.8 {
+                                if let Some(enemy) = e.as_any_mut().downcast_mut::<EnemyMask>() {
+                                    let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
+                                    let mut ct = 0.;
 
-                    let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
-                    let mut ct = 0.;
-
-                    if room.obstacles.iter()
-                        .filter(|o| { ray_vs_rect(&enemy.get_pos(), &enemy.get_forward(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
-                        .count() == 0 {
-                        enemy.shoot(&mut room.shots)?;
+                                    if room.obstacles.iter()
+                                        .filter(|o| { ray_vs_rect(&enemy.get_pos(), &enemy.get_forward(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
+                                        .count() == 0 {
+                                        enemy.shoot(&self.player.get_pos(), &mut room.shots)?;
+                                    }
+                                }
+                            }
+                        },
+                        EnemyTag::Chaser => {
+                            if let Some(enemy) = e.as_any_mut().downcast_mut::<EnemyBlueGuy>() {
+                                enemy.chase(self.player.get_pos());
+                            }
+                        },
                     }
-                }
+                },
+                _ => (),
             }
         }
 
@@ -242,7 +267,7 @@ impl Scene for PlayScene {
 
         self.handle_wall_collisions(delta_time)?;
 
-        self.handle_player_enemy_collisions(delta_time)?;
+        self.handle_player_environment_collisions(delta_time)?;
 
         self.handle_player_detection(delta_time)?;
 

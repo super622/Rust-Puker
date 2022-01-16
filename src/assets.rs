@@ -28,6 +28,7 @@ impl Assets {
         sprites.insert("shot_puke_base".to_string(), graphics::Image::new(ctx, "/images/shot_puke_base.png")?);
         sprites.insert("shot_blood_base".to_string(), graphics::Image::new(ctx, "/images/shot_blood_base.png")?);
         sprites.insert("enemy_mask_base".to_string(), graphics::Image::new(ctx, "/images/enemy_mask_base.png")?);
+        sprites.insert("enemy_blue_guy_base".to_string(), graphics::Image::new(ctx, "/images/enemy_blue_guy_base.png")?);
         sprites.insert("door_closed".to_string(), graphics::Image::new(ctx, "/images/door_closed.png")?);
         sprites.insert("door_open".to_string(), graphics::Image::new(ctx, "/images/door_open.png")?);
         sprites.insert("floor".to_string(), graphics::Image::new(ctx, "/images/floor.png")?);

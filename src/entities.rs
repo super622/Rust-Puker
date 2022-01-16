@@ -25,6 +25,12 @@ pub enum ActorState {
 }
 
 #[derive(Clone, Debug, Copy)]
+pub enum ActorTag {
+    Player,
+    Enemy(EnemyTag),
+}
+
+#[derive(Clone, Debug, Copy)]
 pub struct ActorProps {
     pub pos: Vec2Wrap,
     pub scale: Vec2,
@@ -92,7 +98,7 @@ impl Model for Player {
             _ => graphics::draw(ctx, assets.sprites.get("player_base").unwrap(), draw_params)?,
         }
 
-        if conf.draw_bbox_model { self.draw_bcircle(ctx, (sw, sh))?; }
+        if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }
 
         Ok(())
     }
@@ -123,10 +129,12 @@ impl Actor for Player {
             self.animation_cooldown = ANIMATION_COOLDOWN / self.damaged_cooldown;
         }
     }
+
+    fn get_tag(&self) -> ActorTag { ActorTag::Player }
 }
 
-impl Shooter for Player {
-    fn shoot(&mut self, shots: &mut Vec<Shot>) -> GameResult {
+impl Player {
+    pub fn shoot(&mut self, shots: &mut Vec<Shot>) -> GameResult {
         if self.shoot_timeout != 0. {
             return Ok(());
         }
@@ -158,10 +166,6 @@ impl Shooter for Player {
 
         Ok(())
     }
-
-    fn get_range(&self) -> f32 { self.shoot_range }
-
-    fn get_rate(&self) -> f32 { self.shoot_rate }
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -200,7 +204,7 @@ impl Model for Shot {
             ShotTag::Enemy => graphics::draw(ctx, assets.sprites.get("shot_blood_base").unwrap(), draw_params)?,
         }
 
-        if conf.draw_bbox_model { self.draw_bcircle(ctx, (sw, sh))?; }
+        if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }
 
         Ok(())
     }
@@ -220,26 +224,36 @@ impl Model for Shot {
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
+#[derive(Clone, Debug, Copy)]
+pub enum EnemyTag {
+    Shooter,
+    Chaser,
+}
+
 #[derive(Clone, Debug)]
 pub struct EnemyMask {
     pub props: ActorProps,
-    pub speed: f32,
+    pub tag: EnemyTag,
     pub state: ActorState,
     pub health: f32,
     pub shoot_rate: f32,
     pub shoot_range: f32,
     pub shoot_timeout: f32,
     pub animation_cooldown: f32,
+    pub afterlock_cooldown: f32,
 }
 
 impl Model for EnemyMask {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
-        self.props.translation = self.props.translation.clamp_length_max(1.);
-        self.props.velocity -= self.props.velocity * _delta_time / 0.1;
-        self.props.velocity += self.props.translation * 100. * _delta_time;
-        self.props.pos.0 += self.props.velocity;
-        if self.props.velocity.length() < 0.01 { self.props.velocity = self.props.velocity.clamp_length_min(0.); }
-        if self.props.velocity.length() > self.speed { self.props.velocity = self.props.velocity.clamp_length_max(self.speed); }
+        self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
+        
+        if self.afterlock_cooldown == 0. {
+            self.props.translation = self.props.translation.clamp_length_max(1.);
+            self.props.velocity -= self.props.velocity * _delta_time / 0.1;
+            self.props.velocity += self.props.translation * 100. * _delta_time;
+            self.props.pos.0 += self.props.velocity;
+            if self.props.velocity.length() < 0.01 { self.props.velocity = self.props.velocity.clamp_length_min(0.); }
+        }
 
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
         self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
@@ -269,7 +283,7 @@ impl Model for EnemyMask {
             _ => graphics::draw(ctx, assets.sprites.get("enemy_mask_base").unwrap(), draw_params)?,
         }
 
-        if conf.draw_bbox_model { self.draw_bcircle(ctx, (sw, sh))?; }
+        if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }
 
         Ok(())
     }
@@ -284,6 +298,16 @@ impl Model for EnemyMask {
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
 
+    fn set_pos(&mut self, new_pos: Vec2) { self.props.pos = new_pos.into(); }
+
+    fn set_scale(&mut self, new_scale: Vec2) { self.props.scale = new_scale.into(); }
+
+    fn set_velocity(&mut self, new_velocity: Vec2) { self.props.velocity = new_velocity.into(); } 
+
+    fn set_translation(&mut self, new_translation: Vec2) { self.props.translation = new_translation.into(); }
+
+    fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward.into(); } 
+
     fn as_any(&self) -> &dyn Any { self }
 
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
@@ -297,14 +321,17 @@ impl Actor for EnemyMask {
         self.state = ActorState::Damaged;
         self.animation_cooldown = ANIMATION_COOLDOWN;
     }
+
+    fn get_tag(&self) -> ActorTag { ActorTag::Enemy(self.tag) }
 }
 
 impl Shooter for EnemyMask {
-    fn shoot(&mut self, shots: &mut Vec<Shot>) -> GameResult {
+    fn shoot(&mut self, target: &Vec2, shots: &mut Vec<Shot>) -> GameResult {
         if self.shoot_timeout != 0. {
             return Ok(());
         }
 
+        self.props.forward = *target - self.get_pos();
         self.state = ActorState::Shoot;
         self.shoot_timeout = 1. / self.shoot_rate;
 
@@ -333,4 +360,104 @@ impl Shooter for EnemyMask {
     fn get_range(&self) -> f32 { self.shoot_range }
 
     fn get_rate(&self) -> f32 { self.shoot_rate }
+}
+
+#[derive(Clone, Debug)]
+pub struct EnemyBlueGuy {
+    pub props: ActorProps,
+    pub tag: EnemyTag,
+    pub speed: f32,
+    pub state: ActorState,
+    pub health: f32,
+    pub animation_cooldown: f32,
+    pub afterlock_cooldown: f32,
+}
+
+impl Model for EnemyBlueGuy {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+        self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
+        
+        if self.afterlock_cooldown == 0. {
+            self.props.translation = self.props.translation.clamp_length_max(1.);
+            self.props.velocity -= self.props.velocity * _delta_time / 0.1;
+            self.props.velocity += self.props.translation * 100. * _delta_time;
+            self.props.pos.0 += self.props.velocity;
+            if self.props.velocity.length() < 0.01 { self.props.velocity = self.props.velocity.clamp_length_min(0.); }
+            if self.props.velocity.length() > self.speed { self.props.velocity = self.props.velocity.clamp_length_max(self.speed); }
+        }
+
+        self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
+
+        if self.animation_cooldown == 0. { self.state = ActorState::Base; }
+        if self.health <= 0. {
+            assets.audio.get_mut("enemy_death_sound").unwrap().play(ctx)?; 
+            self.state = ActorState::Dead;
+        }
+
+        Ok(())
+    }
+
+    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
+        let mut angle = self.props.forward.angle_between((Vec2::Y + self.props.pos.0 - self.props.pos.0));
+        if angle.is_nan() { angle = 0.; }
+
+        let draw_params = DrawParam::default()
+            .dest(self.props.pos)
+            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("enemy_blue_guy_base").unwrap().dimensions()))
+            .rotation(-angle)
+            .offset([0.5, 0.5]);
+
+        match self.state {
+            ActorState::Damaged => graphics::draw(ctx, assets.sprites.get("enemy_blue_guy_base").unwrap(), draw_params.color(Color::RED))?,
+            _ => graphics::draw(ctx, assets.sprites.get("enemy_blue_guy_base").unwrap(), draw_params)?,
+        }
+
+        if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }
+
+        Ok(())
+    }
+
+    fn get_pos(&self) -> Vec2 { self.props.pos.into() }
+
+    fn get_scale(&self) -> Vec2 { self.props.scale }
+
+    fn get_velocity(&self) -> Vec2 { self.props.velocity }
+
+    fn get_translation(&self) -> Vec2 { self.props.translation }
+
+    fn get_forward(&self) -> Vec2 { self.props.forward }
+
+    fn set_pos(&mut self, new_pos: Vec2) { self.props.pos = new_pos.into(); }
+
+    fn set_scale(&mut self, new_scale: Vec2) { self.props.scale = new_scale.into(); }
+
+    fn set_velocity(&mut self, new_velocity: Vec2) { self.props.velocity = new_velocity.into(); } 
+
+    fn set_translation(&mut self, new_translation: Vec2) { self.props.translation = new_translation.into(); }
+
+    fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward.into(); } 
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+}
+
+impl Actor for EnemyBlueGuy {
+    fn get_health(&self) -> f32 { self.health }
+
+    fn damage(&mut self, dmg: f32) { 
+        self.health -= dmg; 
+        self.state = ActorState::Damaged;
+        self.animation_cooldown = ANIMATION_COOLDOWN;
+    }
+
+    fn get_tag(&self) -> ActorTag { ActorTag::Enemy(self.tag) }
+}
+
+impl Chaser for EnemyBlueGuy {
+    fn chase(&mut self, target: Vec2) {
+        self.props.translation = (target - self.get_pos()).normalize();
+        self.props.forward = self.props.translation;
+    }
 }

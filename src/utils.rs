@@ -8,6 +8,7 @@ use std::{
     fmt::{self, Display, Formatter},
     str::FromStr,
 };
+use crate::traits::*;
 
 pub struct Config {
     pub screen_width: f32,
@@ -15,7 +16,7 @@ pub struct Config {
     pub window_width: f32,
     pub window_height: f32,
     pub volume: f32,
-    pub draw_bbox_model: bool,
+    pub draw_bcircle_model: bool,
     pub draw_bbox_stationary: bool,
     pub current_state: State,
 }
@@ -78,6 +79,20 @@ impl Into<GameError> for Errors {
     }
 }
 
+#[derive(Clone, Copy, Hash, Debug)]
+pub enum Direction {
+    North,
+    South,
+    East,
+    West,
+}
+
+impl Display for Direction {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Clone, Debug, Copy, Default)]
 pub struct Vec2Wrap(pub Vec2);
 
@@ -114,7 +129,7 @@ impl From<Point2<f32>> for Vec2Wrap {
     }
 }
 
-pub fn circle_vs_circle(c1: (Vec2Wrap, f32), c2: (Vec2Wrap, f32)) -> bool {
+pub fn circle_vs_circle(c1: &(Vec2Wrap, f32), c2: &(Vec2Wrap, f32)) -> bool {
     c1.0.0.distance(c2.0.0) < c1.1 + c2.1
 }
 
@@ -183,11 +198,9 @@ pub fn dynamic_rect_vs_rect(source: &Rect, source_vel: &Vec2, target: &Rect, con
 /// Detects intersection between moving circle and stationary rectangle.
 /// Long live OneLoneCoder and his tutorials.
 ///
-pub fn dynamic_circle_vs_rect(source: (Vec2Wrap, f32), source_vel: &Vec2, target: &Rect, contact_point: &mut Vec2, contact_normal: &mut Vec2, contact_time: &mut f32, _elapsed_time: f32) -> bool { 
+pub fn dynamic_circle_vs_rect(source: (Vec2Wrap, f32), _source_vel: &Vec2, target: &Rect, contact_point: &mut Vec2, contact_normal: &mut Vec2, contact_time: &mut f32, _elapsed_time: f32) -> bool { 
     let source_pos = source.0.0;
     let source_r = source.1;
-
-    if source_vel.x == 0. && source_vel.y == 0. { return false; }
 
     contact_point.x = f32::max(target.x, f32::min(target.x + target.w, source_pos.x));
     contact_point.y = f32::max(target.y, f32::min(target.y + target.h, source_pos.y));
@@ -202,6 +215,40 @@ pub fn dynamic_circle_vs_rect(source: (Vec2Wrap, f32), source_vel: &Vec2, target
     }
 
     false
+}
+
+pub fn static_circle_vs_circle(c1: &(Vec2Wrap, f32), c2: &(Vec2Wrap, f32), displace_vec: &mut Vec2) -> bool {
+    let c1_pos = c1.0.0;
+    let c1_r = c1.1;
+    let c2_pos = c2.0.0;
+    let c2_r = c2.1;
+
+    let distance = c1_pos.distance(c2_pos);
+    let overlap = 0.5 * (distance - c1_r - c2_r);
+    *displace_vec = overlap * (c1_pos - c2_pos).normalize();
+
+    true
+}
+
+pub fn dynamic_circle_vs_circle(c1: &(Vec2Wrap, f32), c1_vel: &Vec2, c2: &(Vec2Wrap, f32), c2_vel: &Vec2, vel1: &mut Vec2, vel2: &mut Vec2, _elapsed_time: f32) { 
+    let c1_pos = c1.0.0;
+    let c1_r = c1.1;
+    let c1_mass = c1_r * 5.;
+    let c2_pos = c2.0.0;
+    let c2_r = c2.1;
+    let c2_mass = c2_r * 10.;
+
+    let norm = (c1_pos - c2_pos).normalize();
+    let tan = Vec2::new(-norm.y, norm.x);
+
+    let dp_tan = Vec2::new(c1_vel.dot(tan), c2_vel.dot(tan));
+    let dp_norm = Vec2::new(c1_vel.dot(norm), c2_vel.dot(norm));
+      
+    let m1 = (dp_norm.x * (c1_mass - c2_mass) + 2.0 * c2_mass * dp_norm.y) / (c1_mass + c2_mass);
+    let m2 = (dp_norm.y * (c2_mass - c1_mass) + 2.0 * c1_mass * dp_norm.x) / (c1_mass + c2_mass);
+
+    *vel1 = tan * dp_tan.x + norm * m1;
+    *vel2 = tan * dp_tan.y + norm * m2;
 }
 
 pub fn mouse_relative_forward(target: Vec2, mouse: Point2<f32>, conf: &Config) -> Vec2 {
@@ -221,3 +268,17 @@ pub fn get_mouse_screen_coords(m: Point2<f32>, conf: &Config) -> Vec2 {
     let (ww, wh) = (conf.window_width, conf.window_height);
     Vec2::new(m.x * sw / ww, m.y * sh / wh)
 }
+
+pub fn resolve_environment_collision(e1: &mut dyn Actor, e2: &mut dyn Actor, sw: f32, sh: f32, _delta_time: f32) {
+    let mut displace_vec = Vec2::ZERO;
+    if static_circle_vs_circle(&e1.get_bcircle(sw, sh), &e2.get_bcircle(sw, sh), &mut displace_vec) {
+        e1.set_pos(e1.get_pos() - displace_vec);
+        e2.set_pos(e2.get_pos() + displace_vec);
+    }
+
+    let (mut vel1, mut vel2) = (Vec2::ZERO, Vec2::ZERO);
+    dynamic_circle_vs_circle(&e1.get_bcircle(sw, sh), &e1.get_velocity(), &e2.get_bcircle(sw, sh), &e2.get_velocity(), &mut vel1, &mut vel2, _delta_time);
+    e1.set_velocity(-vel1);
+    e2.set_velocity(vel2);
+}
+

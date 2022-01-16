@@ -24,9 +24,10 @@ pub const ENEMY_SHOOT_RATE: f32 = 0.5;
 pub const ENEMY_SHOOT_RANGE: f32 = 400.;
 pub const ENEMY_SHOOT_TIMEOUT: f32 = 0.;
 pub const ENEMY_HEALTH: f32 = 3.;
-pub const ENEMY_SPEED: f32 = 4.;
+pub const ENEMY_SPEED: f32 = 3.;
 pub const ENEMY_DAMAGE: f32 = 0.5;
 pub const ENEMY_ACCELERATION: f32 = 1.;
+pub const ENEMY_AFTERLOCK_COOLDOWN: f32 = 2.;
 
 pub const SHOT_SPEED: f32 = 300.;
 pub const SHOT_SCALE: f32 = 0.4;
@@ -109,6 +110,17 @@ d   .  .  .   d
 #.  . m.m .  .#
 #.. . ... . ..#
 #.           .#
+#######d#######
+",
+"
+#######d#######
+#..         ..#
+#.           .#
+#      b      #
+d     bbb     d
+#      b      #
+#.           .#
+#..         ..#
 #######d#######
 ",
 ];

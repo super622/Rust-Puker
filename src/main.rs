@@ -26,7 +26,7 @@ impl MainState {
             window_width: conf.window_mode.width,
             window_height: conf.window_mode.height,
             volume: 0.5,
-            draw_bbox_model: true,
+            draw_bcircle_model: true,
             draw_bbox_stationary: false,
             current_state: State::Start,
         }));
