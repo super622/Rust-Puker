@@ -7,6 +7,7 @@ use ggez::{
 use std::{
     any::Any,
 };
+use glam::f32::Vec2;
 
 use crate::{
     assets::*,
@@ -23,6 +24,7 @@ pub struct TextSprite {
     pub font: Font,
     pub font_size: f32,
     pub color: Color,
+    pub background: Color,
 }
 
 impl TextSprite {
@@ -38,15 +40,22 @@ impl TextSprite {
 }
 
 impl UIElement for TextSprite {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult {
-        Ok(())
-    }
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
 
     fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let text = self.get_text(sh);
+        let (tw, th) = (text.dimensions(ctx).w, text.dimensions(ctx).h); 
         let tl = self.top_left(ctx, sw, sh);
 
+        let background = Mesh::new_rectangle(
+            ctx,
+            DrawMode::fill(),
+            Rect::new(tl.x, tl.y, tw, th),
+            self.background,
+        )?;
+
+        graphics::draw(ctx, &background, DrawParam::default())?;
         graphics::draw(ctx, &text, DrawParam::default().dest([tl.x, tl.y]))?;
 
         Ok(())
@@ -78,8 +87,11 @@ pub struct Button {
 
 impl UIElement for Button {
     fn update(&mut self, ctx: &mut Context, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
+        let (ww, wh) = (conf.window_width, conf.window_height);
+
         self.color = Color::WHITE;
-        if self.mouse_overlap(ctx, conf) {
+        if self.mouse_overlap(ctx, sw, sh, ww, wh) {
             self.color = Color::RED;
         }
 
@@ -131,9 +143,7 @@ pub struct Minimap {
 }
 
 impl UIElement for Minimap {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult {
-        Ok(())
-    }
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
 
     fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
@@ -197,9 +207,7 @@ pub struct HealthBar {
 }
 
 impl UIElement for HealthBar {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult {
-        Ok(())
-    }
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
 
     fn draw(&mut self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
@@ -234,7 +242,6 @@ impl UIElement for HealthBar {
     fn as_any(&self) -> &dyn Any { self }
     
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
-    
 }
 
 pub struct Overlay {
@@ -305,6 +312,53 @@ impl UIElement for Overlay {
 
     fn draw(&mut self, ctx: &mut Context, _assets: &Assets, _conf: &Config) -> GameResult {
         for e in self.ui_elements.iter_mut() { e.draw(ctx, _assets, _conf)?; }
+
+        Ok(())
+    }
+
+    fn pos(&self, sw: f32, sh: f32) -> Point2<f32> { Point2 { x: sw * self.pos.x, y: sh * self.pos.y } }
+
+    fn width(&self, _ctx: &mut Context, sw: f32) -> f32 { sw * self.width }
+
+    fn height(&self, _ctx: &mut Context, sh: f32) -> f32 { sh * self.height }
+
+    fn as_any(&self) -> &dyn Any { self }
+    
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+}
+
+pub struct CheckBox {
+    pub pos: Point2<f32>,
+    pub width: f32,
+    pub height: f32,
+    pub checked: bool,
+    pub color: Color,
+}
+
+impl UIElement for CheckBox {
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
+
+    fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
+        let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
+        let tl = self.top_left(ctx, sw, sh);
+
+        let tick = &[Vec2::new(tl.x + w / 4., tl.y + h / 2.), 
+                     Vec2::new(tl.x + w / 3., tl.y + h),
+                     Vec2::new(tl.x + w * 2. / 3., tl.y),];
+
+        let stroke = match self.checked {
+            true => 5.,
+            false => 0.,
+        };
+
+        let checkbox = MeshBuilder::new()
+            .rectangle(DrawMode::fill(), Rect::new(tl.x, tl.y, w, h), Color::WHITE)?
+            .rectangle(DrawMode::stroke(5.), Rect::new(tl.x, tl.y, w, h), self.color)?
+            .line(tick, stroke, self.color)?
+            .build(ctx)?;
+
+        graphics::draw(ctx, &checkbox, DrawParam::default())?;
 
         Ok(())
     }

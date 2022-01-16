@@ -6,7 +6,10 @@ use ggez::{
     event::{KeyCode, MouseButton},
     input,
 };
-use std::any::Any;
+use std::{
+    any::Any,
+    cell::{Ref, RefMut},
+};
 use glam::f32::Vec2;
 use crate::{
     assets::*,
@@ -144,12 +147,48 @@ pub trait Scene {
 
     fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { None }  
 
-    fn check_for_element_click(&self, ctx: &mut Context, conf: &Config) -> Option<&dyn UIElement> {
+    fn get_conf(&self) -> Option<Ref<Config>> { None }
+
+    fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { None }
+
+    fn get_clicked(&self, ctx: &mut Context) -> Option<&dyn UIElement> {
+        let (sw, sh, ww, wh);
+        {
+            let conf = self.get_conf().unwrap();
+            sw = conf.screen_width;
+            sh = conf.screen_height;
+            ww = conf.window_width;
+            wh = conf.window_height;
+        }
+
         match self.get_ui_elements() {
             Some(ue) => {
                 for e in ue.iter() {
-                    if e.mouse_overlap(ctx, conf) {
+                    if e.mouse_overlap(ctx, sw, sh, ww, wh) {
                         return Some(&**e);
+                    }
+                }
+                None
+            },
+            None => None
+        }
+    }
+
+    fn get_clicked_mut(&mut self, ctx: &mut Context) -> Option<&mut dyn UIElement> {
+        let (sw, sh, ww, wh);
+        {
+            let conf = self.get_conf().unwrap();
+            sw = conf.screen_width;
+            sh = conf.screen_height;
+            ww = conf.window_width;
+            wh = conf.window_height;
+        }
+
+        match self.get_ui_elements_mut() {
+            Some(ue) => {
+                for e in ue.iter_mut() {
+                    if e.mouse_overlap(ctx, sw, sh, ww, wh) {
+                        return Some(&mut **e);
                     }
                 }
                 None
@@ -176,11 +215,10 @@ pub trait UIElement {
         Point2 { x: pos.x - w / 2., y: pos.y - h / 2. }
     }
         
-    fn mouse_overlap(&self, ctx: &mut Context, conf: &Config) -> bool {
-        let (sw, sh) = (conf.screen_width, conf.screen_height);
+    fn mouse_overlap(&self, ctx: &mut Context, sw: f32, sh: f32, ww: f32, wh: f32) -> bool {
         let tl = self.top_left(ctx, sw, sh);
         let (w, h) = (self.width(ctx, sh), self.height(ctx, sh));
-        Rect::new(tl.x, tl.y, w, h).contains(get_mouse_screen_coords(input::mouse::position(ctx), conf))
+        Rect::new(tl.x, tl.y, w, h).contains(get_mouse_screen_coords(input::mouse::position(ctx), sw, sh, ww, wh))
     }
 
     fn as_any(&self) -> &dyn Any;

@@ -27,6 +27,7 @@ pub enum State {
     Start,
     New,
     Menu,
+    Options,
     Quit,
     Dead,
 }
@@ -252,7 +253,9 @@ pub fn dynamic_circle_vs_circle(c1: &(Vec2Wrap, f32), c1_vel: &Vec2, c2: &(Vec2W
 }
 
 pub fn mouse_relative_forward(target: Vec2, mouse: Point2<f32>, conf: &Config) -> Vec2 {
-    let m = get_mouse_screen_coords(mouse, conf);
+    let (sw, sh) = (conf.screen_width, conf.screen_height);
+    let (ww, wh) = (conf.window_width, conf.window_height);
+    let m = get_mouse_screen_coords(mouse, sw, sh, ww, wh);
 
     let dx = m.x - target.x;
     let dy = m.y - target.y;
@@ -263,9 +266,7 @@ pub fn mouse_relative_forward(target: Vec2, mouse: Point2<f32>, conf: &Config) -
     Vec2::new(0., f32::signum(dy))
 }
 
-pub fn get_mouse_screen_coords(m: Point2<f32>, conf: &Config) -> Vec2 {
-    let (sw, sh) = (conf.screen_width, conf.screen_height);
-    let (ww, wh) = (conf.window_width, conf.window_height);
+pub fn get_mouse_screen_coords(m: Point2<f32>, sw: f32, sh: f32, ww: f32, wh: f32) -> Vec2 {
     Vec2::new(m.x * sw / ww, m.y * sh / wh)
 }
 

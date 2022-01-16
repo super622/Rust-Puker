@@ -6,11 +6,12 @@ use ggez::{
     event::{KeyCode, MouseButton},
     input::{self, keyboard, mouse},
     audio::{SoundSource},
+    conf::FullscreenType,
 };
 use glam::f32::{Vec2};
 use std::{
     rc::Rc,
-    cell::RefCell,
+    cell::{RefCell, Ref, RefMut},
 };
 
 use crate::{
@@ -113,25 +114,25 @@ impl PlayScene {
         let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
         let mut ct = 0.;
 
-        let room = &self.dungeon.get_room(self.cur_room)?;
-        let mut collisions = Vec::<(usize, f32)>::new();
-
-        // for (i, obst) in room.obstacles.iter().enumerate() {
-        //     if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
-        //         collisions.push((i, ct));
-        //     }
-        // }
+        let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
+        let mut collisions_player = Vec::<(usize, f32)>::new();
+        let mut collisions_enemies = Vec::<(usize, f32)>::new();
+        // let mut collisions_collectables = Vec::<(usize, f32)>::new();
 
         for (i, obst) in room.obstacles.iter().enumerate() {
             if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
-                collisions.push((i, ct));
+                collisions_player.push((i, ct));
+            }
+            for e in room.enemies.iter() {
+                if dynamic_circle_vs_rect(e.get_bcircle(sw, sh), &e.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+                    collisions_enemies.push((i, ct));
+                }
             }
         }
 
-        collisions.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        collisions_player.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-        for (i, mut ct) in collisions.iter_mut() {
-            // if dynamic_rect_vs_rect(&self.player.get_bbox(sw, sh), &self.player.get_velocity(), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+        for (i, mut ct) in collisions_player.iter_mut() {
             if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 let obst = room.obstacles[*i].as_any();
 
@@ -148,14 +149,16 @@ impl PlayScene {
                                 };
                         }
                     }
-                    else {
-                        self.player.props.pos.0 -= cn.normalize() * ct;
-                        // self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
-                    }
+                    else { self.player.props.pos.0 -= cn.normalize() * ct; }
                 }
-                else {
-                    self.player.props.pos.0 -= cn.normalize() * ct;
-                    // self.player.props.pos.0 += cn * self.player.get_velocity().abs() * (1. - ct);
+                else { self.player.props.pos.0 -= cn.normalize() * ct; }
+            }
+        }
+
+        for (i, mut ct) in collisions_enemies.iter_mut() {
+            for e in room.enemies.iter_mut() {
+                if dynamic_circle_vs_rect(e.get_bcircle(sw, sh), &e.get_velocity(), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+                    e.set_pos(e.get_pos() - cn.normalize() * ct);
                 }
             }
         }
@@ -239,7 +242,7 @@ impl PlayScene {
                                     let mut ct = 0.;
 
                                     if room.obstacles.iter()
-                                        .filter(|o| { ray_vs_rect(&enemy.get_pos(), &enemy.get_forward(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
+                                        .filter(|o| { ray_vs_rect(&enemy.get_pos(), &(self.player.get_pos() - enemy.get_pos()), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
                                         .count() == 0 {
                                         enemy.shoot(&self.player.get_pos(), &mut room.shots)?;
                                     }
@@ -305,6 +308,10 @@ impl Scene for PlayScene {
         }
     }
 
+    fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
+
+    fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
+
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
@@ -328,6 +335,7 @@ impl StartScene {
                     font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
+                    background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
             }),
@@ -340,6 +348,7 @@ impl StartScene {
                     font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
+                    background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
             }),
@@ -382,7 +391,7 @@ impl Scene for StartScene {
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
         if _button == MouseButton::Left {
-            let result = self.check_for_element_click(_ctx, &self.config.borrow());
+            let result = self.get_clicked(_ctx);
             match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
@@ -393,6 +402,10 @@ impl Scene for StartScene {
             }
         }
     }
+
+    fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
+
+    fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
 
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
 
@@ -409,38 +422,54 @@ impl MenuScene {
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(Button {
-                pos: Point2 { x: 0.5, y: 0.3},
+                pos: Point2 { x: 0.5, y: 0.2},
                 tag: State::Play,
                 text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.3},
+                    pos: Point2 { x: 0.5, y: 0.2},
                     text: String::from("Continue"),
                     font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
+                    background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
             }),
             Box::new(Button {
-                pos: Point2 { x: 0.5, y: 0.5},
+                pos: Point2 { x: 0.5, y: 0.4},
                 tag: State::New,
                 text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.5},
+                    pos: Point2 { x: 0.5, y: 0.4},
                     text: String::from("New"),
                     font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
+                    background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
             }),
             Box::new(Button {
-                pos: Point2 { x: 0.5, y: 0.7},
+                pos: Point2 { x: 0.5, y: 0.6},
+                tag: State::Options,
+                text: TextSprite {
+                    pos: Point2 { x: 0.5, y: 0.6},
+                    text: String::from("Options"),
+                    font: *assets.fonts.get("button_font").unwrap(),
+                    font_size: BUTTON_TEXT_FONT_SIZE,
+                    color: Color::BLACK,
+                    background: Color::from([0.; 4]),
+                },
+                color: Color::WHITE,
+            }),
+            Box::new(Button {
+                pos: Point2 { x: 0.5, y: 0.8},
                 tag: State::Quit,
                 text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.7},
+                    pos: Point2 { x: 0.5, y: 0.8},
                     text: String::from("Quit"),
                     font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
+                    background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
             }),
@@ -492,7 +521,7 @@ impl Scene for MenuScene {
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
         if _button == MouseButton::Left {
-            let result = self.check_for_element_click(_ctx, &self.config.borrow());
+            let result = self.get_clicked(_ctx);
             match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
@@ -503,6 +532,10 @@ impl Scene for MenuScene {
             }
         }
     }
+
+    fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
+
+    fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
 
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
 
@@ -518,6 +551,14 @@ impl DeadScene {
     pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
+            Box::new(TextSprite {
+                pos: Point2 { x: 0.5, y: 0.3},
+                text: String::from("YOU DIED"),
+                font: Font::default(),
+                font_size: BUTTON_TEXT_FONT_SIZE * 2.,
+                color: Color::RED,
+                background: Color::from([0.; 4]),
+            }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.5},
                 tag: State::New,
@@ -527,6 +568,7 @@ impl DeadScene {
                     font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
+                    background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
             }),
@@ -539,15 +581,9 @@ impl DeadScene {
                     font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
+                    background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
-            }),
-            Box::new(TextSprite {
-                pos: Point2 { x: 0.5, y: 0.3},
-                text: String::from("YOU DIED"),
-                font: Font::default(),
-                font_size: BUTTON_TEXT_FONT_SIZE * 2.,
-                color: Color::RED,
             }),
         ];
 
@@ -592,11 +628,136 @@ impl Scene for DeadScene {
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
         if _button == MouseButton::Left {
-            let result = self.check_for_element_click(_ctx, &self.config.borrow());
+            let result = self.get_clicked(_ctx);
             match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
                         self.config.borrow_mut().current_state = b.tag;
+                    }
+                },
+                None => (),
+            }
+        }
+    }
+
+    fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
+
+    fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
+
+    fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
+
+    fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
+}
+
+pub struct OptionsScene {
+    config: Rc<RefCell<Config>>,
+    ui_elements: Vec<Box<dyn UIElement>>,
+}
+
+impl OptionsScene {
+    pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
+        let config = Rc::clone(config);
+        let ui_elements: Vec<Box<dyn UIElement>> = vec![
+            Box::new(TextSprite {
+                pos: Point2 { x: 0.5, y: 0.2},
+                text: String::from("OPTIONS"),
+                font: Font::default(),
+                font_size: BUTTON_TEXT_FONT_SIZE * 2.,
+                color: Color::RED,
+                background: Color::from([0.; 4]),
+            }),
+            Box::new(CheckBox {
+                pos: Point2 { x: 0.3, y: 0.4 },
+                width: 0.1,
+                height: 0.1,
+                checked: false,
+                color: Color::BLACK,
+            }),
+            Box::new(TextSprite {
+                pos: Point2 { x: 0.6, y: 0.4},
+                text: String::from("Fullscreen"),
+                font: Font::default(),
+                font_size: BUTTON_TEXT_FONT_SIZE,
+                color: Color::BLUE,
+                background: Color::from([1.; 4]),
+            }),
+            Box::new(Button {
+                pos: Point2 { x: 0.5, y: 0.8},
+                tag: State::Menu,
+                text: TextSprite {
+                    pos: Point2 { x: 0.5, y: 0.8},
+                    text: String::from("Back"),
+                    font: *assets.fonts.get("button_font").unwrap(),
+                    font_size: BUTTON_TEXT_FONT_SIZE,
+                    color: Color::BLACK,
+                    background: Color::from([0.; 4]),
+                },
+                color: Color::WHITE,
+            }),
+        ];
+
+        Self {
+            config,
+            ui_elements,
+        }
+    }
+}
+
+impl Scene for OptionsScene {
+    fn update(&mut self, ctx: &mut Context, _assets: &mut Assets, _delta_time: f32) -> GameResult {
+        for e in self.ui_elements.iter_mut() {
+            e.update(ctx, &self.config.borrow())?;
+        }
+
+        Ok(())
+    }
+
+    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+
+        let curtain = Mesh::new_rectangle(
+            ctx,
+            DrawMode::fill(),
+            Rect::new(0., 0., sw, sh),
+            [0.1, 0.2, 0.3, 0.3].into()
+        )?;
+
+        graphics::draw(ctx, &curtain, DrawParam::default())?;
+
+        for e in self.ui_elements.iter_mut() {
+            e.draw(ctx, assets, &self.config.borrow())?;
+        }
+
+        Ok(())
+    }
+
+    fn key_down_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
+        match _keycode {
+            KeyCode::Escape => self.config.borrow_mut().current_state = State::Menu,
+            _ => (),
+        }
+    }
+
+    fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
+
+    fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
+
+    fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
+
+    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        if _button == MouseButton::Left {
+            let result = self.get_clicked_mut(_ctx);
+            match result {
+                Some(e) => {
+                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
+                        self.config.borrow_mut().current_state = b.tag;
+                    }
+                    else if let Some(c) = e.as_any_mut().downcast_mut::<CheckBox>() {
+                        let _ = match c.checked {
+                            true => graphics::set_fullscreen(_ctx, FullscreenType::Windowed),
+                            false => graphics::set_fullscreen(_ctx, FullscreenType::True),
+                        };
+                        c.checked = !c.checked;
                     }
                 },
                 None => (),

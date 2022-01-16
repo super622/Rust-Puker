@@ -327,7 +327,7 @@ impl Actor for EnemyMask {
 
 impl Shooter for EnemyMask {
     fn shoot(&mut self, target: &Vec2, shots: &mut Vec<Shot>) -> GameResult {
-        if self.shoot_timeout != 0. {
+        if self.shoot_timeout != 0. || self.afterlock_cooldown != 0. {
             return Ok(());
         }
 
@@ -399,7 +399,7 @@ impl Model for EnemyBlueGuy {
 
     fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
-        let mut angle = self.props.forward.angle_between((Vec2::Y + self.props.pos.0 - self.props.pos.0));
+        let mut angle = self.props.forward.angle_between(Vec2::Y + self.props.pos.0 - self.props.pos.0);
         if angle.is_nan() { angle = 0.; }
 
         let draw_params = DrawParam::default()

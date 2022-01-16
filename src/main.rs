@@ -6,6 +6,7 @@ use ggez::{
     input,
     timer,
     Context, ContextBuilder, GameResult,
+    audio::SoundSource,
 };
 use std::{cell::RefCell, collections::HashMap, env, path, rc::Rc};
 
@@ -19,7 +20,7 @@ struct MainState {
 
 impl MainState {
     fn new(ctx: &mut Context, conf: &Conf) -> GameResult<MainState> {
-        let assets = Assets::new(ctx)?;
+        let mut assets = Assets::new(ctx)?;
         let config = Rc::new(RefCell::new(Config {
             screen_width: conf.window_mode.width,
             screen_height: conf.window_mode.height,
@@ -34,6 +35,11 @@ impl MainState {
         scenes.insert(State::Menu, Box::new(MenuScene::new(&config, &assets)));
         scenes.insert(State::Start, Box::new(StartScene::new(&config, &assets)));
         scenes.insert(State::Dead, Box::new(DeadScene::new(&config, &assets)));
+        scenes.insert(State::Options, Box::new(OptionsScene::new(&config, &assets)));
+              
+        for (_, s) in assets.audio.iter_mut() {
+            s.set_volume(0.3);
+        }
 
         let s = MainState {
             config,
@@ -82,7 +88,7 @@ impl EventHandler for MainState {
         }
 
         match scene {
-            State::Menu | State::Dead => self
+            State::Menu | State::Dead | State::Options => self
                 .scenes
                 .get_mut(&State::Play)
                 .unwrap()
