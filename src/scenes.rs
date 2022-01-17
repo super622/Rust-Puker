@@ -109,43 +109,26 @@ impl PlayScene {
         Ok(())
     }
 
-    fn handle_wall_collisions(&mut self, delta_time: f32) -> GameResult {
+    fn handle_block_collisions(&mut self, delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
         let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
         let mut ct = 0.;
-
         let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
-        let mut collisions_player = Vec::<(usize, f32)>::new();
-        let mut collisions_enemies = Vec::<(usize, f32)>::new();
-        // let mut collisions_collectables = Vec::<(usize, f32)>::new();
 
-        for (i, obst) in room.obstacles.iter().enumerate() {
-            if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
-                collisions_player.push((i, ct));
-            }
-            for e in room.enemies.iter() {
-                if dynamic_circle_vs_rect(e.get_bcircle(sw, sh), &e.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
-                    collisions_enemies.push((i, ct));
-                }
-            }
-        }
+        for o in room.obstacles.iter() {
+            if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+                let obst = o.as_any().downcast_ref::<Block>().unwrap();
 
-        collisions_player.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
-        for (i, mut ct) in collisions_player.iter_mut() {
-            if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
-                let obst = room.obstacles[*i].as_any();
-
-                if let Some(door) = obst.downcast_ref::<Door>() {
-                    if door.is_open {
-                        if (self.player.props.pos.0 - door.pos.0).length() < self.player.get_bcircle(sw, sh).1 {
-                            self.cur_room = door.connects_to;
+                if let BlockTag::Door { is_open, dir, connects_to } = obst.tag {
+                    if is_open {
+                        if (self.player.props.pos.0 - obst.pos.0).length() < self.player.get_bcircle(sw, sh).1 {
+                            self.cur_room = connects_to;
                             self.player.props.pos.0 = Vec2::new(sw, sh) - self.player.props.pos.0 +
-                                match door.dir {
-                                    Direction::North => Vec2::new(0., -door.get_bbox(sw, sh).h / 2.),
-                                    Direction::South => Vec2::new(0., door.get_bbox(sw, sh).h / 2.),
-                                    Direction::West => Vec2::new(-door.get_bbox(sw, sh).w / 2., 0.),
-                                    Direction::East => Vec2::new(door.get_bbox(sw, sh).w / 2., 0.),
+                                match dir {
+                                    Direction::North => Vec2::new(0., -obst.get_bbox(sw, sh).h / 2.),
+                                    Direction::South => Vec2::new(0., obst.get_bbox(sw, sh).h / 2.),
+                                    Direction::West => Vec2::new(-obst.get_bbox(sw, sh).w / 2., 0.),
+                                    Direction::East => Vec2::new(obst.get_bbox(sw, sh).w / 2., 0.),
                                 };
                         }
                     }
@@ -153,11 +136,9 @@ impl PlayScene {
                 }
                 else { self.player.props.pos.0 -= cn.normalize() * ct; }
             }
-        }
 
-        for (i, mut ct) in collisions_enemies.iter_mut() {
             for e in room.enemies.iter_mut() {
-                if dynamic_circle_vs_rect(e.get_bcircle(sw, sh), &e.get_velocity(), &room.obstacles[*i].get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+                if dynamic_circle_vs_rect(e.get_bcircle(sw, sh), &e.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                     e.set_pos(e.get_pos() - cn.normalize() * ct);
                 }
             }
@@ -204,7 +185,7 @@ impl PlayScene {
         Ok(())
     }
 
-    fn handle_player_environment_collisions(&mut self, _delta_time: f32) -> GameResult {
+    fn handle_environment_collisions(&mut self, _delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
         let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
 
@@ -268,9 +249,9 @@ impl Scene for PlayScene {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, delta_time: f32) -> GameResult {
         self.handle_input(ctx)?;
 
-        self.handle_wall_collisions(delta_time)?;
+        self.handle_block_collisions(delta_time)?;
 
-        self.handle_player_environment_collisions(delta_time)?;
+        self.handle_environment_collisions(delta_time)?;
 
         self.handle_player_detection(delta_time)?;
 

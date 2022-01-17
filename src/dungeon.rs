@@ -74,15 +74,25 @@ impl Room {
                     self.tag = RoomTag::Empty;
                     let _ = assets.audio.get_mut("door_open_sound").unwrap().play(ctx);
                     for door in self.doors.iter() {
-                        self.obstacles[*door].as_any_mut().downcast_mut::<Door>().unwrap().is_open = true;
+                        let block = self.obstacles[*door].as_any_mut().downcast_mut::<Block>().unwrap();
+                        block.tag = match block.tag {
+                            BlockTag::Door { dir, connects_to, .. } => BlockTag::Door { dir, connects_to, is_open: true },
+                            _ => unreachable!(),
+                        }
                     }
                 }
                 else {
                     for door in self.doors.iter() {
-                        let d = self.obstacles[*door].as_any_mut().downcast_mut::<Door>().unwrap();
-                        if d.is_open {
-                            let _ = assets.audio.get_mut("door_close_sound").unwrap().play(ctx);
-                            d.is_open = false;
+                        let block = self.obstacles[*door].as_any_mut().downcast_mut::<Block>().unwrap();
+                        block.tag = match block.tag {
+                            BlockTag::Door { dir, connects_to, is_open } => {
+                                if is_open {
+                                    let _ = assets.audio.get_mut("door_close_sound").unwrap().play(ctx);
+                                    BlockTag::Door { dir, connects_to, is_open: !is_open }
+                                }
+                                else { BlockTag::Door { dir, connects_to, is_open } }
+                            },
+                            _ => unreachable!(),
                         }
                     }
                 }
@@ -130,36 +140,29 @@ impl Room {
 
         for (i, c) in layout.chars().enumerate() {
             match c {
-                '#' => {
-                    obstacles.push(Box::new(Wall {
+                '#'|'.'|'v'|'d' => {
+                    obstacles.push(Box::new(Block {
                         pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
                         scale: Vec2::splat(WALL_SCALE),
+                        tag: match c {
+                            'd' => {
+                                door_index += 1;
+                                if let Some((connects_to, dir)) = door_connects[door_index - 1] {
+                                    doors.push(obstacles.len());
+                                    BlockTag::Door {
+                                        dir,
+                                        is_open: true,
+                                        connects_to,
+                                    }
+                                }
+                                else { BlockTag::Wall }
+                            }
+                            '#' => BlockTag::Wall,
+                            '.' => BlockTag::Stone,
+                            'v' => BlockTag::Spikes,
+                            _ => unreachable!(),
+                        },
                     }));
-                },
-                '.' => {
-                    obstacles.push(Box::new(Stone {
-                        pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
-                        scale: Vec2::splat(WALL_SCALE),
-                    }));
-                },
-                'd' => {
-                    if let Some((connects_to, dir)) = door_connects[door_index] {
-                        doors.push(obstacles.len());
-                        obstacles.push(Box::new(Door {
-                            pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
-                            scale: Vec2::splat(WALL_SCALE),
-                            dir,
-                            is_open: true,
-                            connects_to,
-                        }));
-                    }
-                    else {
-                        obstacles.push(Box::new(Wall {
-                            pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
-                            scale: Vec2::splat(WALL_SCALE),
-                        }));
-                    }
-                    door_index += 1;
                 },
                 'm' => {
                     enemies.push(Box::new(EnemyMask {
@@ -253,31 +256,46 @@ impl Dungeon {
         let mut grid;
         let mut rooms = Vec::new();
         let mut room_grid_coords;
+        let mut end_rooms;
 
         loop {
             let room_count = thread_rng().gen_range(0..2) + 5 + level * 2;
             grid = [[0; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS];
             room_grid_coords = Vec::new();
+            end_rooms = Vec::new();
+            let start_room = Dungeon::get_start_room_coords();
 
             let mut q = VecDeque::<(usize, usize)>::new();
-            q.push_back(Dungeon::get_start_room_coords());
+            q.push_back(start_room);
+            room_grid_coords.push(start_room);
+            grid[start_room.0][start_room.1] = room_grid_coords.len();
 
             while !q.is_empty() {
                 let (i, j) = q.pop_front().unwrap();
+                let cur_size = room_grid_coords.len();
 
-                if room_grid_coords.len() == room_count { break }
+                if thread_rng().gen_range(0..2) == 1 && room_grid_coords.len() < room_count && i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i + 1, j)) <= 1 { 
+                    room_grid_coords.push((i + 1, j));
+                    grid[i + 1][j] = room_grid_coords.len();
+                    q.push_back((i + 1, j)); 
+                }
+                if thread_rng().gen_range(0..2) == 1 && room_grid_coords.len() < room_count && i > 0                     && grid[i - 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i - 1, j)) <= 1 {
+                    room_grid_coords.push((i - 1, j));
+                    grid[i - 1][j] = room_grid_coords.len();
+                    q.push_back((i - 1, j));
+                }
+                if thread_rng().gen_range(0..2) == 1 && room_grid_coords.len() < room_count && j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j + 1)) <= 1 {
+                    room_grid_coords.push((i, j + 1));
+                    grid[i][j + 1] = room_grid_coords.len();
+                    q.push_back((i, j + 1));
+                }
+                if thread_rng().gen_range(0..2) == 1 && room_grid_coords.len() < room_count && j > 0                     && grid[i][j - 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j - 1)) <= 1 {
+                    room_grid_coords.push((i, j - 1));
+                    grid[i][j - 1] = room_grid_coords.len();
+                    q.push_back((i, j - 1));
+                }
 
-                if thread_rng().gen_range(0..2) == 1 { continue }
-
-                if grid[i][j] != 0 { continue }
-
-                room_grid_coords.push((i, j));
-                grid[i][j] = room_grid_coords.len();
-
-                if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i + 1, j)) <= 1 { q.push_back((i + 1, j)); }
-                if i > 0                     && grid[i - 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i - 1, j)) <= 1 { q.push_back((i - 1, j)); }
-                if j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j + 1)) <= 1 { q.push_back((i, j + 1)); }
-                if j > 0                     && grid[i][j - 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j - 1)) <= 1 { q.push_back((i, j - 1)); }
+                if room_grid_coords.len() - cur_size == 0 { end_rooms.push((i, j)); }
             }
 
             if room_grid_coords.len() < room_count { continue }
@@ -293,11 +311,18 @@ impl Dungeon {
             if j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] != 0 { doors[2] = Some(((i, j + 1), Direction::East)); }
             if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] != 0 { doors[3] = Some(((i + 1, j), Direction::South)); }
 
-            const START: (usize, usize) = Dungeon::get_start_room_coords();
-            let tag = match (i, j) {
-                START if true => RoomTag::Start,
-                _ => RoomTag::Mob,
-            };
+            let tag;
+            if (i, j) == Dungeon::get_start_room_coords() { tag = RoomTag::Start; }
+            else if (i, j) == end_rooms[end_rooms.len() - 1] { tag = RoomTag::Boss; }
+            else if (i, j) == end_rooms[end_rooms.len() - 2] { tag = RoomTag::Item; }
+            else { tag = RoomTag::Mob; }
+
+            // let tag = match (i, j) {
+            //     START if true => RoomTag::Start,
+            //     end_rooms[end_rooms.len() - 1] if true => RoomTag::Boss,
+            //     end_rooms[end_rooms.len() - 2] if true => RoomTag::Item,
+            //     _ => RoomTag::Mob,
+            // };
             rooms.push(Room::generate_room(screen, (i, j), doors, tag));
         }
 
@@ -364,108 +389,57 @@ impl Dungeon {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Door {
-    pub pos: Vec2Wrap,
-    pub scale: Vec2,
-    pub dir: Direction,
-    // pub rotation: f32,
-    pub is_open: bool,
-    pub connects_to: (usize, usize),
+pub enum BlockTag {
+    Door {
+        dir: Direction,
+        is_open: bool,
+        connects_to: (usize, usize),
+    },
+    Wall,
+    Stone,
+    Spikes,
 }
 
-impl Stationary for Door {
+#[derive(Debug, Copy, Clone)]
+pub struct Block {
+    pub pos: Vec2Wrap,
+    pub scale: Vec2,
+    pub tag: BlockTag,
+}
+
+impl Stationary for Block {
     fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult { Ok(()) }
 
     fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
-        let rotation = match self.dir {
-            Direction::North => 0.,
-            Direction::South => PI,
-            Direction::West => -PI / 2.,
-            Direction::East => PI / 2.,
+
+        let mut rotation = 0.;
+        let sprite = match self.tag {
+            BlockTag::Door { dir, is_open, .. } => {
+                rotation = match dir {
+                    Direction::North => 0.,
+                    Direction::South => PI,
+                    Direction::West => -PI / 2.,
+                    Direction::East => PI / 2.,
+                };
+
+                match is_open {
+                    true => assets.sprites.get("door_open").unwrap(),
+                    false => assets.sprites.get("door_closed").unwrap(),    
+                }
+            },
+            BlockTag::Wall => assets.sprites.get("wall").unwrap(),
+            BlockTag::Stone => assets.sprites.get("stone").unwrap(),
+            BlockTag::Spikes => assets.sprites.get("stone").unwrap(),
         };
+
         let draw_params = DrawParam::default()
             .dest(self.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("door_closed").unwrap().dimensions()) * 1.1)
             .rotation(rotation)
+            .scale(self.scale_to_screen(sw, sh, sprite.dimensions()) * 1.1)
             .offset([0.5, 0.5]);
 
-        match self.is_open {
-            true => graphics::draw(ctx, assets.sprites.get("door_open").unwrap(), draw_params)?,
-            false => graphics::draw(ctx, assets.sprites.get("door_closed").unwrap(), draw_params)?,
-        }
-
-        if conf.draw_bbox_stationary { self.draw_bbox(ctx, (sw, sh))?; }
-
-        Ok(())
-    }
-
-    fn get_pos(&self) -> Vec2 { self.pos.0 }
-
-    fn get_scale(&self) -> Vec2 { self.scale }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Wall {
-    pub pos: Vec2Wrap,
-    pub scale: Vec2,
-}
-
-impl Stationary for Wall {
-    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult { Ok(()) }
-
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
-        let (sw, sh) = (conf.screen_width, conf.screen_height);
-        let draw_params = DrawParam::default()
-            .dest(self.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("wall").unwrap().dimensions()) * 1.1)
-            .offset([0.5, 0.5]);
-
-        graphics::draw(ctx, assets.sprites.get("wall").unwrap(), draw_params)?;
-
-        if conf.draw_bbox_stationary { self.draw_bbox(ctx, (sw, sh))?; }
-
-        Ok(())
-    }
-
-    fn get_pos(&self) -> Vec2 { self.pos.0 }
-
-    fn get_scale(&self) -> Vec2 { self.scale }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Stone {
-    pub pos: Vec2Wrap,
-    pub scale: Vec2,
-}
-
-impl Stationary for Stone {
-    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult { Ok(()) }
-
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
-        let (sw, sh) = (conf.screen_width, conf.screen_height);
-        let draw_params = DrawParam::default()
-            .dest(self.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("wall").unwrap().dimensions()) * 1.1)
-            .offset([0.5, 0.5]);
-
-        graphics::draw(ctx, assets.sprites.get("stone").unwrap(), draw_params)?;
+        graphics::draw(ctx, sprite, draw_params)?;
 
         if conf.draw_bbox_stationary { self.draw_bbox(ctx, (sw, sh))?; }
 

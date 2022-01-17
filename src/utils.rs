@@ -211,13 +211,14 @@ pub fn dynamic_circle_vs_rect(source: (Vec2Wrap, f32), _source_vel: &Vec2, targe
 
     if contact_time.is_nan() { *contact_time = 0. }
 
-    if *contact_time > 0. {
-        return true;
-    }
+    if *contact_time > 0. { return true; }
 
     false
 }
 
+/// Detects intersection between static circles.
+/// Long live OneLoneCoder and his tutorials.
+///
 pub fn static_circle_vs_circle(c1: &(Vec2Wrap, f32), c2: &(Vec2Wrap, f32), displace_vec: &mut Vec2) -> bool {
     let c1_pos = c1.0.0;
     let c1_r = c1.1;
@@ -231,6 +232,9 @@ pub fn static_circle_vs_circle(c1: &(Vec2Wrap, f32), c2: &(Vec2Wrap, f32), displ
     true
 }
 
+/// Detects intersection between dynamic circles.
+/// Long live OneLoneCoder and his tutorials.
+///
 pub fn dynamic_circle_vs_circle(c1: &(Vec2Wrap, f32), c1_vel: &Vec2, c2: &(Vec2Wrap, f32), c2_vel: &Vec2, vel1: &mut Vec2, vel2: &mut Vec2, _elapsed_time: f32) { 
     let c1_pos = c1.0.0;
     let c1_r = c1.1;

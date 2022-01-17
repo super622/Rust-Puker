@@ -154,11 +154,15 @@ pub trait Scene {
     fn get_clicked(&self, ctx: &mut Context) -> Option<&dyn UIElement> {
         let (sw, sh, ww, wh);
         {
-            let conf = self.get_conf().unwrap();
-            sw = conf.screen_width;
-            sh = conf.screen_height;
-            ww = conf.window_width;
-            wh = conf.window_height;
+            match self.get_conf() {
+                Some(conf) => {
+                    sw = conf.screen_width;
+                    sh = conf.screen_height;
+                    ww = conf.window_width;
+                    wh = conf.window_height;
+                },
+                None => return None,
+            }
         }
 
         match self.get_ui_elements() {
@@ -177,11 +181,15 @@ pub trait Scene {
     fn get_clicked_mut(&mut self, ctx: &mut Context) -> Option<&mut dyn UIElement> {
         let (sw, sh, ww, wh);
         {
-            let conf = self.get_conf().unwrap();
-            sw = conf.screen_width;
-            sh = conf.screen_height;
-            ww = conf.window_width;
-            wh = conf.window_height;
+            match self.get_conf() {
+                Some(conf) => {
+                    sw = conf.screen_width;
+                    sh = conf.screen_height;
+                    ww = conf.window_width;
+                    wh = conf.window_height;
+                },
+                None => return None,
+            }
         }
 
         match self.get_ui_elements_mut() {
