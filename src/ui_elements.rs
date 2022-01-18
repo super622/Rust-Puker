@@ -78,11 +78,28 @@ impl UIElement for TextSprite {
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
+pub struct Border {
+    stroke: f32,
+    radius: f32,
+    color: Color,
+}
+
+impl Default for Border {
+    fn default() -> Self {
+        Self {
+            stroke: 2.,
+            radius: 5.,
+            color: Color::BLACK,
+        }
+    }
+}
+
 pub struct Button {
     pub pos: Point2<f32>,
     pub tag: State,
     pub text: TextSprite,
     pub color: Color,
+    pub border: Border,
 }
 
 impl UIElement for Button {
@@ -103,13 +120,12 @@ impl UIElement for Button {
         let (tw, th) = (self.text.width(ctx, sh) as f32, self.text.height(ctx, sh) as f32);
         let tl = self.top_left(ctx, sw, sh);
 
-        let btn = Mesh::new_rounded_rectangle(
-            ctx,
-            DrawMode::fill(),
-            Rect::new(tl.x, tl.y, tw, th),
-            5.,
-            self.color,
-        )?;
+        let rect = Rect::new(tl.x, tl.y, tw, th);
+
+        let btn = MeshBuilder::new()
+            .rounded_rectangle(DrawMode::fill(), rect, self.border.radius, self.color)?
+            .rounded_rectangle(DrawMode::stroke(self.border.stroke), rect, self.border.radius, self.border.color)?
+            .build(ctx)?;
 
         graphics::draw(ctx, &btn, DrawParam::default())?;
         self.text.draw(ctx, _assets, conf)?;

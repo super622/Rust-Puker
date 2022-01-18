@@ -211,6 +211,9 @@ impl PlayScene {
     fn handle_player_detection(&mut self, _delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
         let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
+        let grid = &room.get_target_distance_grid(self.player.get_pos(), sw, sh);
+        let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
+        let mut ct = 0.;
 
         for e in room.enemies.iter_mut() {
             match e.get_tag() {
@@ -219,9 +222,6 @@ impl PlayScene {
                         EnemyTag::Shooter => {
                             if e.get_pos().distance(self.player.get_pos()) <= ENEMY_SHOOT_RANGE * 0.8 {
                                 if let Some(enemy) = e.as_any_mut().downcast_mut::<EnemyMask>() {
-                                    let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
-                                    let mut ct = 0.;
-
                                     if room.obstacles.iter()
                                         .filter(|o| { ray_vs_rect(&enemy.get_pos(), &(self.player.get_pos() - enemy.get_pos()), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
                                         .count() == 0 {
@@ -232,7 +232,15 @@ impl PlayScene {
                         },
                         EnemyTag::Chaser => {
                             if let Some(enemy) = e.as_any_mut().downcast_mut::<EnemyBlueGuy>() {
-                                enemy.chase(self.player.get_pos());
+                                if room.obstacles.iter()
+                                    .filter(|o| { ray_vs_rect(&enemy.get_pos(), &(self.player.get_pos() - enemy.get_pos()), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
+                                    .count() == 0 {
+                                    enemy.chase(self.player.get_pos());
+                                }
+                                else {
+                                    let target = enemy.find_path(grid, sw, sh);
+                                    enemy.chase(target);
+                                }
                             }
                         },
                     }
@@ -319,6 +327,7 @@ impl StartScene {
                     background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
+                border: Border::default(),
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.6},
@@ -332,6 +341,7 @@ impl StartScene {
                     background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
+                border: Border::default(),
             }),
         ];
 
@@ -414,6 +424,7 @@ impl MenuScene {
                     background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
+                border: Border::default(),
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.4},
@@ -427,6 +438,7 @@ impl MenuScene {
                     background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
+                border: Border::default(),
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.6},
@@ -440,6 +452,7 @@ impl MenuScene {
                     background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
+                border: Border::default(),
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.8},
@@ -453,6 +466,7 @@ impl MenuScene {
                     background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
+                border: Border::default(),
             }),
         ];
 
@@ -552,6 +566,7 @@ impl DeadScene {
                     background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
+                border: Border::default(),
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.7},
@@ -565,6 +580,7 @@ impl DeadScene {
                     background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
+                border: Border::default(),
             }),
         ];
 
@@ -674,6 +690,7 @@ impl OptionsScene {
                     background: Color::from([0.; 4]),
                 },
                 color: Color::WHITE,
+                border: Border::default(),
             }),
         ];
 

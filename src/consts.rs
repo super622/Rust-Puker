@@ -13,8 +13,8 @@ pub const PLAYER_SCALE: f32 = 0.6;
 pub const PLAYER_SHOOT_RATE: f32 = 2.5;
 pub const PLAYER_SHOOT_RANGE: f32 = 400.;
 pub const PLAYER_SHOOT_TIMEOUT: f32 = 0.;
-pub const PLAYER_HEALTH: f32 = 5.;
-pub const PLAYER_SPEED: f32 = 5.;
+pub const PLAYER_HEALTH: f32 = 3.;
+pub const PLAYER_SPEED: f32 = 4.;
 pub const PLAYER_DAMAGE: f32 = 1.;
 pub const PLAYER_DAMAGED_COOLDOWN: f32 = 1.;
 pub const PLAYER_ACCELERATION: f32 = 1.;
@@ -39,8 +39,8 @@ pub const DUNGEON_GRID_COLS: usize = 9;
 
 pub const WALL_SCALE: f32 = 1.;
 
-pub const ROOM_WIDTH: f32 = 15.;
-pub const ROOM_HEIGHT: f32 = 9.;
+pub const ROOM_WIDTH: usize = 15;
+pub const ROOM_HEIGHT: usize = 9;
 pub const ROOM_LAYOUT_START: &str = "
 #######d#######
 #             #

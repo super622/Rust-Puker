@@ -457,7 +457,21 @@ impl Actor for EnemyBlueGuy {
 
 impl Chaser for EnemyBlueGuy {
     fn chase(&mut self, target: Vec2) {
-        self.props.translation = (target - self.get_pos()).normalize();
-        self.props.forward = self.props.translation;
+        if self.afterlock_cooldown == 0. {
+            self.props.translation = (target - self.get_pos()).normalize_or_zero();
+            self.props.forward = self.props.translation;
+        }
+    }
+
+    fn find_path(&mut self, grid: &[[i32; ROOM_WIDTH]], sw: f32, sh: f32) -> Vec2 {
+        let (mut i, mut j) = ((self.get_pos().y / sh * (ROOM_HEIGHT as f32)) as usize, (self.get_pos().x / sw * (ROOM_WIDTH as f32)) as usize);
+
+        if      i > 0               && grid[i - 1][j] > grid[i][j] { j += 1; }
+        else if j > 0               && grid[i][j - 1] > grid[i][j] { i += 1; }
+        else if j < ROOM_WIDTH - 1  && grid[i][j + 1] > grid[i][j] { i += 1; j += 2; }
+        else if i < ROOM_HEIGHT - 1 && grid[i + 1][j] > grid[i][j] { i += 2; j += 1; }
+        else { return self.get_pos() }
+
+        Vec2::new((2. * (j as f32) - 1.) * sw / (ROOM_WIDTH as f32) / 2., (2. * (i as f32) - 1.) * sh / (ROOM_HEIGHT as f32) / 2.)
     }
 }

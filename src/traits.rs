@@ -52,14 +52,14 @@ pub trait Model: std::fmt::Debug {
     }
 
     fn get_bcircle(&self, sw: f32, sh: f32) -> (Vec2Wrap, f32) {
-        let width = sw / ROOM_WIDTH * self.get_scale().x;
-        let height = sh / ROOM_HEIGHT * self.get_scale().y;
+        let width = sw / (ROOM_WIDTH as f32) * self.get_scale().x;
+        let height = sh / (ROOM_HEIGHT as f32) * self.get_scale().y;
         (Vec2::new(self.get_pos().x, self.get_pos().y).into(), f32::max(width, height) / 2.)
     }    
 
     fn get_bbox(&self, sw: f32, sh: f32) -> graphics::Rect {
-        let width = sw / ROOM_WIDTH * self.get_scale().x;
-        let height = sh / ROOM_HEIGHT * self.get_scale().y;
+        let width = sw / (ROOM_WIDTH as f32) * self.get_scale().x;
+        let height = sh / (ROOM_HEIGHT as f32) * self.get_scale().y;
         Rect::new(self.get_pos().x - width / 2., self.get_pos().y - height / 2., width, height)
     }
 
@@ -113,8 +113,8 @@ pub trait Stationary: std::fmt::Debug {
     }
 
     fn get_bbox(&self, sw: f32, sh: f32) -> graphics::Rect {
-        let width = sw / ROOM_WIDTH * self.get_scale().x;
-        let height = sh / ROOM_HEIGHT * self.get_scale().y;
+        let width = sw / (ROOM_WIDTH as f32) * self.get_scale().x;
+        let height = sh / (ROOM_HEIGHT as f32) * self.get_scale().y;
         Rect::new(self.get_pos().x - width / 2., self.get_pos().y - height / 2., width, height)
     }
 
@@ -246,6 +246,8 @@ pub trait Actor: Model {
 
 pub trait Chaser: Actor {
     fn chase(&mut self, target: Vec2);
+
+    fn find_path(&mut self, grid: &[[i32; ROOM_WIDTH]], sw: f32, sh: f32) -> Vec2;
 }
 
 pub trait Shooter: Actor {
