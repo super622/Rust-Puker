@@ -10,6 +10,7 @@ use crate::{
     utils::*,
     consts::*,
     traits::*,
+    items::*,
 };
 use std::{
     any::Any,
@@ -39,12 +40,12 @@ pub struct Room {
     pub obstacles: Vec<Box<dyn Stationary>>,
     pub enemies: Vec<Box<dyn Actor>>,
     pub shots: Vec<Shot>,
-    // pub drops: Vec<Collectable>
-    pub just_entered: bool,
+    pub drops: Vec<Collectable>,
 }
 
 impl Room {
     pub fn update(&mut self, ctx: &mut Context, assets: &mut Assets, conf: &Config, _delta_time: f32) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
 
         for shot in self.shots.iter_mut() {
             shot.update(ctx, assets, conf, _delta_time)?;
@@ -52,6 +53,10 @@ impl Room {
 
         for enemy in self.enemies.iter_mut() {
             enemy.update(ctx, assets, conf, _delta_time)?;
+        }
+
+        for drop in self.drops.iter_mut() {
+            drop.update(ctx, assets, conf, _delta_time)?;
         }
 
         let dead_enemies = self.enemies.iter()
@@ -68,10 +73,17 @@ impl Room {
             self.shots.remove(d - i); 
             let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
         }
+
+        let dead_drops = self.drops.iter()
+            .enumerate()
+            .filter(|d| d.1.tag == CollectableTag::Consumed)
+            .map(|d| d.0).collect::<Vec<_>>();
+        for (i,d) in dead_drops.iter().enumerate() { self.drops.remove(d - i); }
         
         if self.enemies.is_empty() {
             match self.tag {
                 RoomTag::Mob => {
+                    self.generate_collectable(sw, sh);
                     self.tag = RoomTag::Empty;
                     let _ = assets.audio.get_mut("door_open_sound").unwrap().play(ctx);
                     for door in self.doors.iter() {
@@ -116,6 +128,8 @@ impl Room {
         for enemy in self.enemies.iter() { enemy.draw(ctx, assets, conf)?; }
 
         for shot in self.shots.iter() { shot.draw(ctx, assets, conf)?; }
+
+        for drop in self.drops.iter() { drop.draw(ctx, assets, conf)?; }
 
         Ok(())
     }
@@ -217,6 +231,7 @@ impl Room {
         let width = ROOM_WIDTH as f32;
         let height = ROOM_HEIGHT as f32;
         let shots = Vec::new();
+        let drops = Vec::new();
 
         let mut layout = String::from(match tag {
             RoomTag::Start => ROOM_LAYOUT_START,
@@ -248,7 +263,7 @@ impl Room {
             obstacles,
             enemies,
             shots,
-            just_entered: true,
+            drops,
         }
     }
 
@@ -282,6 +297,44 @@ impl Room {
         }
 
         grid
+    }
+
+    fn generate_collectable(&mut self, sw: f32, sh: f32) {
+        if thread_rng().gen_bool(0.5) {
+            let (mut r, mut c) = (ROOM_HEIGHT / 2, ROOM_WIDTH / 2);
+            let (bw, bh) = (sw / self.width, sh / self.height);
+            let mut visited = [[false; ROOM_WIDTH]; ROOM_HEIGHT];
+            let mut q = VecDeque::new();
+            q.push_back((r, c));
+
+            while !q.is_empty() {
+                let (i, j) = q.pop_front().unwrap();
+                visited[i][j] = true;
+
+                if self.grid[i][j] == 0 { r = i; c = j; break }
+
+                if i > 0           && !visited[i - 1][j] { q.push_back((i - 1, j)) }
+                if j > 0           && !visited[i][j - 1] { q.push_back((i, j - 1)) }
+                if i < ROOM_HEIGHT && !visited[i + 1][j] { q.push_back((i + 1, j)) }
+                if j < ROOM_WIDTH  && !visited[i][j + 1] { q.push_back((i, j + 1)) }
+            }
+
+            let p = thread_rng().gen_range(0..101);
+
+            self.drops.push(Collectable {
+                props: ActorProps {
+                    pos: Vec2::new(bw * (c as f32) + bw / 2., bh * (r as f32) + bh / 2.).into(),
+                    scale: Vec2::splat(COLLECTABLE_SCALE),
+                    translation: Vec2::ZERO,
+                    forward: Vec2::ZERO,
+                    velocity: Vec2::ZERO,
+                },
+                tag: match p {
+                    0..=100 => CollectableTag::RedHeart((thread_rng().gen::<f32>() + 1.).round() / 2.),
+                    _ => unreachable!(),
+                },
+            });
+        }
     }
 }
 

@@ -119,11 +119,31 @@ pub trait Stationary: std::fmt::Debug {
         Ok(())
     }
 
+    fn draw_bcircle(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
+        let (sw, sh)= screen;
+        let bcircle = self.get_bcircle(sw, sh);
+        let mut text = Text::new(format!("{:?}", bcircle.0.0));
+
+        let mesh = Mesh::new_circle(ctx, DrawMode::stroke(2.0), bcircle.0, bcircle.1, 0.5, Color::BLUE)?;
+        graphics::draw(ctx, &mesh, DrawParam::default())?;
+
+        text.fragments_mut().iter_mut().map(|x| x.scale = Some(PxScale::from(24.0))).count();
+        graphics::draw(ctx, &text, DrawParam::default().dest([bcircle.0.0.x + bcircle.1, bcircle.0.0.y]))?;
+
+        Ok(())
+    }
+
     fn get_bbox(&self, sw: f32, sh: f32) -> graphics::Rect {
         let width = sw / (ROOM_WIDTH as f32) * self.get_scale().x;
         let height = sh / (ROOM_HEIGHT as f32) * self.get_scale().y;
         Rect::new(self.get_pos().x - width / 2., self.get_pos().y - height / 2., width, height)
     }
+
+    fn get_bcircle(&self, sw: f32, sh: f32) -> (Vec2Wrap, f32) {
+        let width = sw / (ROOM_WIDTH as f32) * self.get_scale().x;
+        let height = sh / (ROOM_HEIGHT as f32) * self.get_scale().y;
+        (Vec2::new(self.get_pos().x, self.get_pos().y).into(), f32::max(width, height) / 2.)
+    }    
 
     fn scale_to_screen(&self, sw: f32, sh: f32, image: Rect) -> Vec2 {
         let bbox = self.get_bbox(sw, sh);
@@ -244,9 +264,9 @@ pub trait UIElement {
 pub trait Actor: Model {
     fn get_health(&self) -> f32; 
 
-    fn damage(&mut self, dmg: f32);
+    fn damage(&mut self, _dmg: f32) {}
 
-    fn heal(&mut self, heal: f32) {}
+    fn heal(&mut self, _heal: f32) {}
 
     fn get_tag(&self) -> ActorTag;
 }

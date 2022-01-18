@@ -238,7 +238,7 @@ pub fn static_circle_vs_circle(c1: &(Vec2Wrap, f32), c2: &(Vec2Wrap, f32), displ
 pub fn dynamic_circle_vs_circle(c1: &(Vec2Wrap, f32), c1_vel: &Vec2, c2: &(Vec2Wrap, f32), c2_vel: &Vec2, vel1: &mut Vec2, vel2: &mut Vec2, _elapsed_time: f32) { 
     let c1_pos = c1.0.0;
     let c1_r = c1.1;
-    let c1_mass = c1_r * 5.;
+    let c1_mass = c1_r * 10.;
     let c2_pos = c2.0.0;
     let c2_r = c2.1;
     let c2_mass = c2_r * 10.;

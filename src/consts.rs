@@ -31,6 +31,8 @@ pub const ENEMY_AFTERLOCK_COOLDOWN: f32 = 2.;
 pub const SHOT_SPEED: f32 = 300.;
 pub const SHOT_SCALE: f32 = 0.4;
 
+pub const COLLECTABLE_SCALE: f32 = 0.4;
+
 pub const ANIMATION_COOLDOWN: f32 = 0.5;
 
 pub const DUNGEON_GRID_ROWS: usize = 8;

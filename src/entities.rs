@@ -46,6 +46,7 @@ pub struct Player {
     pub state: ActorState,
     pub health: f32,
     pub max_health: f32,
+    pub damage: f32,
     pub shoot_rate: f32,
     pub shoot_range: f32,
     pub shoot_timeout: f32,
@@ -142,6 +143,10 @@ impl Actor for Player {
         }
     }
 
+    fn heal(&mut self, heal: f32) {
+        self.health = f32::min(self.health + heal, self.max_health);
+    }
+
     fn get_tag(&self) -> ActorTag { ActorTag::Player }
 }
 
@@ -170,7 +175,7 @@ impl Player {
             spawn_pos: self.props.pos,
             speed: SHOT_SPEED,
             range: self.shoot_range,
-            damage: PLAYER_DAMAGE,
+            damage: self.damage,
             tag: ShotTag::Player,
         };
 

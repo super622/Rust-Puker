@@ -52,6 +52,7 @@ impl PlayScene {
             shoot_rate: PLAYER_SHOOT_RATE,
             shoot_range: PLAYER_SHOOT_RANGE,
             shoot_timeout: PLAYER_SHOOT_TIMEOUT,
+            damage: PLAYER_DAMAGE,
             damaged_cooldown: 0.,
             animation_cooldown: 0.,
             afterlock_cooldown: PLAYER_AFTERLOCK_COOLDOWN,
@@ -138,7 +139,11 @@ impl PlayScene {
                         }
                         else { self.player.props.pos.0 -= cn.normalize() * ct; }
                     },
-                    BlockTag::Spikes => { self.player.damage(1.); }
+                    BlockTag::Spikes => { 
+                        if circle_vs_circle(&o.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
+                            self.player.damage(1.);
+                        }
+                    }
                     _ => self.player.props.pos.0 -= cn.normalize() * ct,
                 }
             }
@@ -208,6 +213,12 @@ impl PlayScene {
                     let split = room.enemies.split_at_mut(j);
                     resolve_environment_collision(&mut *split.0[i], &mut *split.1[0], sw, sh, _delta_time);
                 }
+            }
+        }
+
+        for d in room.drops.iter_mut() {
+            if circle_vs_circle(&d.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
+                if !d.affect_player(&mut self.player) { resolve_environment_collision(d, &mut self.player, sw, sh, _delta_time); }
             }
         }
 
