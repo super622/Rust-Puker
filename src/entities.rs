@@ -51,16 +51,18 @@ pub struct Player {
     pub shoot_timeout: f32,
     pub damaged_cooldown: f32,
     pub animation_cooldown: f32,
+    pub afterlock_cooldown: f32,
 }
 
 impl Model for Player {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
-        self.props.translation = self.props.translation.clamp_length_max(1.);
-        self.props.velocity -= self.props.velocity * _delta_time / 0.1;
-        self.props.velocity += self.props.translation * 100. * _delta_time;
+        self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
+
+        if self.afterlock_cooldown == 0. {
+            self.velocity_lerp(self.speed, _delta_time);
+        }
+
         self.props.pos.0 += self.props.velocity;
-        if self.props.velocity.length() < 0.01 { self.props.velocity = self.props.velocity.clamp_length_min(0.); }
-        if self.props.velocity.length() > self.speed { self.props.velocity = self.props.velocity.clamp_length_max(self.speed); }
 
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
         self.damaged_cooldown = f32::max(0., self.damaged_cooldown - _delta_time);
@@ -112,6 +114,16 @@ impl Model for Player {
     fn get_translation(&self) -> Vec2 { self.props.translation }
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
+
+    fn set_pos(&mut self, new_pos: Vec2) { self.props.pos = new_pos.into(); }
+
+    fn set_scale(&mut self, new_scale: Vec2) { self.props.scale = new_scale; }
+
+    fn set_velocity(&mut self, new_velocity: Vec2) { self.props.velocity = new_velocity; } 
+
+    fn set_translation(&mut self, new_translation: Vec2) { self.props.translation = new_translation; }
+
+    fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward; } 
 
     fn as_any(&self) -> &dyn Any { self }
 
@@ -246,14 +258,11 @@ pub struct EnemyMask {
 impl Model for EnemyMask {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
-        
+
         if self.afterlock_cooldown == 0. {
-            self.props.translation = self.props.translation.clamp_length_max(1.);
-            self.props.velocity -= self.props.velocity * _delta_time / 0.1;
-            self.props.velocity += self.props.translation * 100. * _delta_time;
-            self.props.pos.0 += self.props.velocity;
-            if self.props.velocity.length() < 0.01 { self.props.velocity = self.props.velocity.clamp_length_min(0.); }
+            self.velocity_lerp(0., _delta_time);
         }
+        self.props.pos.0 += self.props.velocity;
 
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
         self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
@@ -300,13 +309,13 @@ impl Model for EnemyMask {
 
     fn set_pos(&mut self, new_pos: Vec2) { self.props.pos = new_pos.into(); }
 
-    fn set_scale(&mut self, new_scale: Vec2) { self.props.scale = new_scale.into(); }
+    fn set_scale(&mut self, new_scale: Vec2) { self.props.scale = new_scale; }
 
-    fn set_velocity(&mut self, new_velocity: Vec2) { self.props.velocity = new_velocity.into(); } 
+    fn set_velocity(&mut self, new_velocity: Vec2) { self.props.velocity = new_velocity; } 
 
-    fn set_translation(&mut self, new_translation: Vec2) { self.props.translation = new_translation.into(); }
+    fn set_translation(&mut self, new_translation: Vec2) { self.props.translation = new_translation; }
 
-    fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward.into(); } 
+    fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward; } 
 
     fn as_any(&self) -> &dyn Any { self }
 
@@ -378,13 +387,9 @@ impl Model for EnemyBlueGuy {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
         
         if self.afterlock_cooldown == 0. {
-            self.props.translation = self.props.translation.clamp_length_max(1.);
-            self.props.velocity -= self.props.velocity * _delta_time / 0.1;
-            self.props.velocity += self.props.translation * 100. * _delta_time;
-            self.props.pos.0 += self.props.velocity;
-            if self.props.velocity.length() < 0.01 { self.props.velocity = self.props.velocity.clamp_length_min(0.); }
-            if self.props.velocity.length() > self.speed { self.props.velocity = self.props.velocity.clamp_length_max(self.speed); }
+            self.velocity_lerp(self.speed, _delta_time);
         }
+        self.props.pos.0 += self.props.velocity;
 
         self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
 
@@ -430,13 +435,13 @@ impl Model for EnemyBlueGuy {
 
     fn set_pos(&mut self, new_pos: Vec2) { self.props.pos = new_pos.into(); }
 
-    fn set_scale(&mut self, new_scale: Vec2) { self.props.scale = new_scale.into(); }
+    fn set_scale(&mut self, new_scale: Vec2) { self.props.scale = new_scale; }
 
-    fn set_velocity(&mut self, new_velocity: Vec2) { self.props.velocity = new_velocity.into(); } 
+    fn set_velocity(&mut self, new_velocity: Vec2) { self.props.velocity = new_velocity; } 
 
-    fn set_translation(&mut self, new_translation: Vec2) { self.props.translation = new_translation.into(); }
+    fn set_translation(&mut self, new_translation: Vec2) { self.props.translation = new_translation; }
 
-    fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward.into(); } 
+    fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward; } 
 
     fn as_any(&self) -> &dyn Any { self }
 
@@ -461,17 +466,5 @@ impl Chaser for EnemyBlueGuy {
             self.props.translation = (target - self.get_pos()).normalize_or_zero();
             self.props.forward = self.props.translation;
         }
-    }
-
-    fn find_path(&mut self, grid: &[[i32; ROOM_WIDTH]], sw: f32, sh: f32) -> Vec2 {
-        let (mut i, mut j) = ((self.get_pos().y / sh * (ROOM_HEIGHT as f32)) as usize, (self.get_pos().x / sw * (ROOM_WIDTH as f32)) as usize);
-
-        if      i > 0               && grid[i - 1][j] > grid[i][j] { j += 1; }
-        else if j > 0               && grid[i][j - 1] > grid[i][j] { i += 1; }
-        else if j < ROOM_WIDTH - 1  && grid[i][j + 1] > grid[i][j] { i += 1; j += 2; }
-        else if i < ROOM_HEIGHT - 1 && grid[i + 1][j] > grid[i][j] { i += 2; j += 1; }
-        else { return self.get_pos() }
-
-        Vec2::new((2. * (j as f32) - 1.) * sw / (ROOM_WIDTH as f32) / 2., (2. * (i as f32) - 1.) * sh / (ROOM_HEIGHT as f32) / 2.)
     }
 }

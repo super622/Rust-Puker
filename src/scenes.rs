@@ -54,6 +54,7 @@ impl PlayScene {
             shoot_timeout: PLAYER_SHOOT_TIMEOUT,
             damaged_cooldown: 0.,
             animation_cooldown: 0.,
+            afterlock_cooldown: PLAYER_AFTERLOCK_COOLDOWN,
         };
         let dungeon = Dungeon::generate_dungeon((sw, sh));
         let cur_room = Dungeon::get_start_room_coords();
@@ -119,22 +120,27 @@ impl PlayScene {
             if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 let obst = o.as_any().downcast_ref::<Block>().unwrap();
 
-                if let BlockTag::Door { is_open, dir, connects_to } = obst.tag {
-                    if is_open {
-                        if (self.player.props.pos.0 - obst.pos.0).length() < self.player.get_bcircle(sw, sh).1 {
-                            self.cur_room = connects_to;
-                            self.player.props.pos.0 = Vec2::new(sw, sh) - self.player.props.pos.0 +
-                                match dir {
-                                    Direction::North => Vec2::new(0., -obst.get_bbox(sw, sh).h / 2.),
-                                    Direction::South => Vec2::new(0., obst.get_bbox(sw, sh).h / 2.),
-                                    Direction::West => Vec2::new(-obst.get_bbox(sw, sh).w / 2., 0.),
-                                    Direction::East => Vec2::new(obst.get_bbox(sw, sh).w / 2., 0.),
-                                };
+                match obst.tag {
+                    BlockTag::Door { is_open, dir, connects_to } => {
+                        if is_open {
+                            if (self.player.props.pos.0 - obst.pos.0).length() < self.player.get_bcircle(sw, sh).1 {
+                                self.cur_room = connects_to;
+                                self.player.props.pos.0 = Vec2::new(sw, sh) - self.player.props.pos.0 +
+                                    match dir {
+                                        Direction::North => Vec2::new(0., -obst.get_bbox(sw, sh).h / 2.),
+                                        Direction::South => Vec2::new(0., obst.get_bbox(sw, sh).h / 2.),
+                                        Direction::West => Vec2::new(-obst.get_bbox(sw, sh).w / 2., 0.),
+                                        Direction::East => Vec2::new(obst.get_bbox(sw, sh).w / 2., 0.),
+                                    };
+                                self.player.props.velocity = Vec2::ZERO;
+                                self.player.afterlock_cooldown = PLAYER_AFTERLOCK_COOLDOWN;
+                            }
                         }
-                    }
-                    else { self.player.props.pos.0 -= cn.normalize() * ct; }
+                        else { self.player.props.pos.0 -= cn.normalize() * ct; }
+                    },
+                    BlockTag::Spikes => { self.player.damage(1.); }
+                    _ => self.player.props.pos.0 -= cn.normalize() * ct,
                 }
-                else { self.player.props.pos.0 -= cn.normalize() * ct; }
             }
 
             for e in room.enemies.iter_mut() {

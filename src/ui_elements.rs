@@ -310,10 +310,10 @@ impl Overlay {
                 m.cur_room = cur_room;
                 m.visited[r][c] = 3;
 
-                if r > 1                     && grid[r - 1][c] != 0 { m.visited[r - 1][c] = usize::max(1, m.visited[r - 1][c]); }
-                if r < DUNGEON_GRID_ROWS - 1 && grid[r + 1][c] != 0 { m.visited[r + 1][c] = usize::max(1, m.visited[r + 1][c]); }
-                if c > 1                     && grid[r][c - 1] != 0 { m.visited[r][c - 1] = usize::max(1, m.visited[r][c - 1]); }
-                if c < DUNGEON_GRID_COLS - 1 && grid[r][c + 1] != 0 { m.visited[r][c + 1] = usize::max(1, m.visited[r][c + 1]); }
+                if r > 1                     && grid[r - 1][c].is_some() { m.visited[r - 1][c] = usize::max(1, m.visited[r - 1][c]); }
+                if r < DUNGEON_GRID_ROWS - 1 && grid[r + 1][c].is_some() { m.visited[r + 1][c] = usize::max(1, m.visited[r + 1][c]); }
+                if c > 1                     && grid[r][c - 1].is_some() { m.visited[r][c - 1] = usize::max(1, m.visited[r][c - 1]); }
+                if c < DUNGEON_GRID_COLS - 1 && grid[r][c + 1].is_some() { m.visited[r][c + 1] = usize::max(1, m.visited[r][c + 1]); }
             }
         }
     }

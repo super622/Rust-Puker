@@ -39,6 +39,8 @@ impl Assets {
         sprites.insert("heart_empty".to_string(), graphics::Image::new(ctx, "/images/heart_empty.png")?);
         sprites.insert("puker_logo".to_string(), graphics::Image::new(ctx, "/images/puker_logo.png")?);
         sprites.insert("spikes".to_string(), graphics::Image::new(ctx, "/images/spikes.png")?);
+        sprites.insert("heart_full_collectable".to_string(), graphics::Image::new(ctx, "/images/heart_full_collectable.png")?);
+        sprites.insert("heart_half_collectable".to_string(), graphics::Image::new(ctx, "/images/heart_half_collectable.png")?);
 
         fonts.insert("button_font".to_string(), graphics::Font::new(ctx, "/fonts/enigma.ttf")?);
 

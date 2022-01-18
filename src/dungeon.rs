@@ -19,7 +19,7 @@ use std::{
 use rand::{thread_rng, Rng};
 use glam::f32::Vec2;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum RoomTag {
     Start,
     Empty,
@@ -69,9 +69,9 @@ impl Room {
             let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
         }
         
-        match self.tag {
-            RoomTag::Mob => {
-                if self.enemies.is_empty() {
+        if self.enemies.is_empty() {
+            match self.tag {
+                RoomTag::Mob => {
                     self.tag = RoomTag::Empty;
                     let _ = assets.audio.get_mut("door_open_sound").unwrap().play(ctx);
                     for door in self.doors.iter() {
@@ -81,24 +81,24 @@ impl Room {
                             _ => unreachable!(),
                         }
                     }
-                }
-                else {
-                    for door in self.doors.iter() {
-                        let block = self.obstacles[*door].as_any_mut().downcast_mut::<Block>().unwrap();
-                        block.tag = match block.tag {
-                            BlockTag::Door { dir, connects_to, is_open } => {
-                                if is_open {
-                                    let _ = assets.audio.get_mut("door_close_sound").unwrap().play(ctx);
-                                    BlockTag::Door { dir, connects_to, is_open: !is_open }
-                                }
-                                else { BlockTag::Door { dir, connects_to, is_open } }
-                            },
-                            _ => unreachable!(),
+                },
+                _ => (),
+            }
+        }
+        else {
+            for door in self.doors.iter() {
+                let block = self.obstacles[*door].as_any_mut().downcast_mut::<Block>().unwrap();
+                block.tag = match block.tag {
+                    BlockTag::Door { dir, connects_to, is_open } => {
+                        if is_open {
+                            let _ = assets.audio.get_mut("door_close_sound").unwrap().play(ctx);
+                            BlockTag::Door { dir, connects_to, is_open: !is_open }
                         }
-                    }
+                        else { BlockTag::Door { dir, connects_to, is_open } }
+                    },
+                    _ => unreachable!(),
                 }
-            },
-            _ => (),
+            }
         }
 
         Ok(())
@@ -228,6 +228,10 @@ impl Room {
                 let layout_index = thread_rng().gen_range(0..ROOM_LAYOUTS_EMPTY.len()) as usize;
                 ROOM_LAYOUTS_EMPTY[layout_index]
             },
+            RoomTag::Item => {
+                let layout_index = thread_rng().gen_range(0..ROOM_LAYOUTS_ITEM.len()) as usize;
+                ROOM_LAYOUTS_ITEM[layout_index]
+            }
             _ => ROOM_LAYOUT_START,
         });
         layout = layout.trim().split('\n').map(|l| l.trim()).collect::<String>();
@@ -283,56 +287,52 @@ impl Room {
 
 #[derive(Debug)]
 pub struct Dungeon {
-    grid: [[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS],
-    rooms: Vec<Room>,
+    grid: [[Option<Room>; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS],
 }
 
 impl Dungeon {
     pub fn generate_dungeon(screen: (f32, f32)) -> Self {
         let level = 1;
+        const INIT: Option<Room> = None;
+        const INIT_ROW: [Option<Room>; DUNGEON_GRID_COLS] = [INIT; DUNGEON_GRID_COLS];
+        let mut grid_rooms: [[Option<Room>; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS] = [INIT_ROW; DUNGEON_GRID_ROWS];
         let mut grid;
-        let mut rooms = Vec::new();
         let mut room_dungeon_coords;
-        let mut end_rooms;
 
         loop {
             let room_count = thread_rng().gen_range(0..2) + 5 + level * 2;
-            grid = [[0; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS];
+            grid = [[0_usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS];
             room_dungeon_coords = Vec::new();
-            end_rooms = Vec::new();
             let start_room = Dungeon::get_start_room_coords();
 
-            let mut q = VecDeque::<(usize, usize)>::new();
-            q.push_back(start_room);
-            room_dungeon_coords.push(start_room);
+            let mut q = VecDeque::<((usize, usize), usize)>::new();
+            q.push_back((start_room, 0));
+            room_dungeon_coords.push((start_room, 0));
             grid[start_room.0][start_room.1] = room_dungeon_coords.len();
 
             while !q.is_empty() {
-                let (i, j) = q.pop_front().unwrap();
-                let cur_size = room_dungeon_coords.len();
+                let ((i, j), c) = q.pop_front().unwrap();
 
-                if thread_rng().gen_range(0..2) == 1 && room_dungeon_coords.len() < room_count && i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i + 1, j)) <= 1 { 
-                    room_dungeon_coords.push((i + 1, j));
+                if thread_rng().gen_bool(0.5) && room_dungeon_coords.len() < room_count && i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i + 1, j)) <= 1 { 
+                    room_dungeon_coords.push(((i + 1, j), c + 1));
                     grid[i + 1][j] = room_dungeon_coords.len();
-                    q.push_back((i + 1, j)); 
+                    q.push_back(((i + 1, j), c + 1)); 
                 }
-                if thread_rng().gen_range(0..2) == 1 && room_dungeon_coords.len() < room_count && i > 0                     && grid[i - 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i - 1, j)) <= 1 {
-                    room_dungeon_coords.push((i - 1, j));
+                if thread_rng().gen_bool(0.5) && room_dungeon_coords.len() < room_count && i > 0                     && grid[i - 1][j] == 0 && Dungeon::check_room_cardinals(&grid, (i - 1, j)) <= 1 {
+                    room_dungeon_coords.push(((i - 1, j), c + 1));
                     grid[i - 1][j] = room_dungeon_coords.len();
-                    q.push_back((i - 1, j));
+                    q.push_back(((i - 1, j), c + 1));
                 }
-                if thread_rng().gen_range(0..2) == 1 && room_dungeon_coords.len() < room_count && j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j + 1)) <= 1 {
-                    room_dungeon_coords.push((i, j + 1));
+                if thread_rng().gen_bool(0.5) && room_dungeon_coords.len() < room_count && j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j + 1)) <= 1 {
+                    room_dungeon_coords.push(((i, j + 1), c + 1));
                     grid[i][j + 1] = room_dungeon_coords.len();
-                    q.push_back((i, j + 1));
+                    q.push_back(((i, j + 1), c + 1));
                 }
-                if thread_rng().gen_range(0..2) == 1 && room_dungeon_coords.len() < room_count && j > 0                     && grid[i][j - 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j - 1)) <= 1 {
-                    room_dungeon_coords.push((i, j - 1));
+                if thread_rng().gen_bool(0.5) && room_dungeon_coords.len() < room_count && j > 0                     && grid[i][j - 1] == 0 && Dungeon::check_room_cardinals(&grid, (i, j - 1)) <= 1 {
+                    room_dungeon_coords.push(((i, j - 1), c + 1));
                     grid[i][j - 1] = room_dungeon_coords.len();
-                    q.push_back((i, j - 1));
+                    q.push_back(((i, j - 1), c + 1));
                 }
-
-                if room_dungeon_coords.len() - cur_size == 0 { end_rooms.push((i, j)); }
             }
 
             if room_dungeon_coords.len() < room_count { continue }
@@ -340,7 +340,14 @@ impl Dungeon {
             if Dungeon::check_dungeon_consistency(&grid, room_count) { break }
         }
 
-        for (i, j) in room_dungeon_coords.into_iter() {
+        room_dungeon_coords.sort_by(|a, b| b.1.cmp(&a.1));
+
+        let mut special_rooms = vec![
+            RoomTag::Item,
+            RoomTag::Boss,
+        ];
+
+        for ((i, j), _) in room_dungeon_coords.into_iter() {
             let mut doors = [None; 4];
 
             if i > 0                     && grid[i - 1][j] != 0 { doors[0] = Some(((i - 1, j), Direction::North)); }
@@ -350,44 +357,39 @@ impl Dungeon {
 
             let tag;
             if (i, j) == Dungeon::get_start_room_coords() { tag = RoomTag::Start; }
-            else if (i, j) == end_rooms[end_rooms.len() - 1] { tag = RoomTag::Boss; }
-            else if (i, j) == end_rooms[end_rooms.len() - 2] { tag = RoomTag::Item; }
-            else { tag = RoomTag::Mob; }
+            else if let Some(s) = special_rooms.pop() { tag = s; }
+            else { 
+                tag = match thread_rng().gen_bool(0.8) {
+                    true => RoomTag::Mob, 
+                    false => RoomTag::Empty, 
+                };
+            }
 
-            // let tag = match (i, j) {
-            //     START if true => RoomTag::Start,
-            //     end_rooms[end_rooms.len() - 1] if true => RoomTag::Boss,
-            //     end_rooms[end_rooms.len() - 2] if true => RoomTag::Item,
-            //     _ => RoomTag::Mob,
-            // };
-            rooms.push(Room::generate_room(screen, (i, j), doors, tag));
+            grid_rooms[i][j] = Some(Room::generate_room(screen, (i, j), doors, tag));
         }
 
         Dungeon {
-            grid,
-            rooms,
+            grid: grid_rooms,
         }
     }
 
     pub fn get_room(&self, dungeon_coords: (usize, usize)) -> GameResult<&Room> {
-        let index = self.get_room_index(dungeon_coords)?;
-        if !(1..=self.rooms.len()).contains(&index) { return Err(Errors::UnknownRoomIndex(index).into()); }
-        Ok(&self.rooms[index - 1])
+        if !(0..DUNGEON_GRID_ROWS).contains(&dungeon_coords.0) { return Err(Errors::UnknownGridCoords(dungeon_coords).into()); }
+        if !(0..DUNGEON_GRID_COLS).contains(&dungeon_coords.1) { return Err(Errors::UnknownGridCoords(dungeon_coords).into()); }
+        Ok(self.grid[dungeon_coords.0][dungeon_coords.1].as_ref().unwrap())
     }
 
     pub fn get_room_mut(&mut self, dungeon_coords: (usize, usize)) -> GameResult<&mut Room> {
-        let index = self.get_room_index(dungeon_coords)?;
-        if !(1..=self.rooms.len()).contains(&index) { return Err(Errors::UnknownRoomIndex(index).into()); }
-        Ok(&mut self.rooms[index - 1])
-    }
-
-    fn get_room_index(&self, dungeon_coords: (usize, usize)) -> GameResult<usize> {
         if !(0..DUNGEON_GRID_ROWS).contains(&dungeon_coords.0) { return Err(Errors::UnknownGridCoords(dungeon_coords).into()); }
         if !(0..DUNGEON_GRID_COLS).contains(&dungeon_coords.1) { return Err(Errors::UnknownGridCoords(dungeon_coords).into()); }
-        Ok(self.grid[dungeon_coords.0][dungeon_coords.1])
+        Ok(self.grid[dungeon_coords.0][dungeon_coords.1].as_mut().unwrap())
     }
 
-    pub fn get_grid(&self) -> &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS] { &self.grid }
+    // fn get_room_index(&self, dungeon_coords: (usize, usize)) -> GameResult<usize> {
+    //     Ok(self.grid[dungeon_coords.0][dungeon_coords.1])
+    // }
+
+    pub fn get_grid(&self) -> &[[Option<Room>; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS] { &self.grid }
 
     pub const fn get_start_room_coords() -> (usize, usize) { (3, 5) }
 
@@ -467,7 +469,7 @@ impl Stationary for Block {
             },
             BlockTag::Wall => assets.sprites.get("wall").unwrap(),
             BlockTag::Stone => assets.sprites.get("stone").unwrap(),
-            BlockTag::Spikes => assets.sprites.get("stone").unwrap(),
+            BlockTag::Spikes => assets.sprites.get("spikes").unwrap(),
         };
 
         let draw_params = DrawParam::default()

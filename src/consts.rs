@@ -14,10 +14,10 @@ pub const PLAYER_SHOOT_RATE: f32 = 2.5;
 pub const PLAYER_SHOOT_RANGE: f32 = 400.;
 pub const PLAYER_SHOOT_TIMEOUT: f32 = 0.;
 pub const PLAYER_HEALTH: f32 = 3.;
-pub const PLAYER_SPEED: f32 = 4.;
+pub const PLAYER_SPEED: f32 = 5.;
 pub const PLAYER_DAMAGE: f32 = 1.;
 pub const PLAYER_DAMAGED_COOLDOWN: f32 = 1.;
-pub const PLAYER_ACCELERATION: f32 = 1.;
+pub const PLAYER_AFTERLOCK_COOLDOWN: f32 = 0.5;
 
 pub const ENEMY_SCALE: f32 = 0.8;
 pub const ENEMY_SHOOT_RATE: f32 = 0.5;
@@ -26,7 +26,6 @@ pub const ENEMY_SHOOT_TIMEOUT: f32 = 0.;
 pub const ENEMY_HEALTH: f32 = 3.;
 pub const ENEMY_SPEED: f32 = 3.;
 pub const ENEMY_DAMAGE: f32 = 0.5;
-pub const ENEMY_ACCELERATION: f32 = 1.;
 pub const ENEMY_AFTERLOCK_COOLDOWN: f32 = 2.;
 
 pub const SHOT_SPEED: f32 = 300.;
@@ -41,7 +40,9 @@ pub const WALL_SCALE: f32 = 1.;
 
 pub const ROOM_WIDTH: usize = 15;
 pub const ROOM_HEIGHT: usize = 9;
-pub const ROOM_LAYOUT_START: &str = "
+
+pub const ROOM_LAYOUT_START: &str = 
+"
 #######d#######
 #             #
 #             #
@@ -52,6 +53,20 @@ d             d
 #             #
 #######d#######
 ";
+
+pub const ROOM_LAYOUTS_ITEM: &[&str] = &[
+"
+#######d#######
+#v           v#
+#      v      #
+#             #
+d    v i v    d
+#             #
+#      v      #
+#v           v#
+#######d#######
+",
+];
 
 pub const ROOM_LAYOUTS_EMPTY: &[&str] = &[
 "
@@ -77,15 +92,15 @@ d   v v v v   d
 #######d#######
 ",
 "
-#######d########
-#              #
-#     ....     #
-#    .....     #
-d              d
-#     .....    #
-#     ....     #
-#              #
-#######d########
+#######d#######
+#             #
+#    ....     #
+#   .....     #
+d             d
+#     .....   #
+#     ....    #
+#             #
+#######d#######
 ",
 "
 #######d#######
