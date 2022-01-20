@@ -88,11 +88,11 @@ pub trait Model: std::fmt::Debug {
 
     fn set_forward(&mut self, _new_forward: Vec2) {}
 
-    fn velocity_lerp(&mut self, speed: f32, _delta_time: f32) {
+    fn velocity_lerp(&mut self, speed: f32, _delta_time: f32, decay: f32) {
         self.set_translation(self.get_translation().clamp_length_max(1.));
-        self.set_velocity(self.get_velocity() - self.get_velocity() * _delta_time / 0.1 + self.get_translation() * 50. * _delta_time);
+        self.set_velocity(self.get_velocity() - self.get_velocity() * _delta_time * decay + self.get_translation() * 50. * _delta_time);
         if self.get_velocity().length() < 0.01 { self.set_velocity(self.get_velocity().clamp_length_min(0.)); }
-        if self.get_velocity().length() > speed { self.set_velocity(self.get_velocity().clamp_length_max(speed)); }
+        if self.get_velocity().length() > speed && speed > 0. { self.set_velocity(self.get_velocity().clamp_length_max(speed)); }
     }
 
     fn as_any(&self) -> &dyn Any;

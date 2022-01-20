@@ -300,7 +300,7 @@ impl Room {
     }
 
     fn generate_collectable(&mut self, sw: f32, sh: f32) {
-        if thread_rng().gen_bool(0.5) {
+        if thread_rng().gen_bool(1.) {
             let (mut r, mut c) = (ROOM_HEIGHT / 2, ROOM_WIDTH / 2);
             let (bw, bh) = (sw / self.width, sh / self.height);
             let mut visited = [[false; ROOM_WIDTH]; ROOM_HEIGHT];

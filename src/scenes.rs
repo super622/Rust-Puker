@@ -139,11 +139,9 @@ impl PlayScene {
                         }
                         else { self.player.props.pos.0 -= cn.normalize() * ct; }
                     },
-                    BlockTag::Spikes => { 
-                        if circle_vs_circle(&o.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
-                            self.player.damage(1.);
-                        }
-                    }
+                    BlockTag::Spikes => {
+                        if o.get_bbox(sw, sh).contains(self.player.props.pos) { self.player.damage(1.); }
+                    },
                     _ => self.player.props.pos.0 -= cn.normalize() * ct,
                 }
             }
@@ -151,6 +149,12 @@ impl PlayScene {
             for e in room.enemies.iter_mut() {
                 if dynamic_circle_vs_rect(e.get_bcircle(sw, sh), &e.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                     e.set_pos(e.get_pos() - cn.normalize() * ct);
+                }
+            }
+
+            for d in room.drops.iter_mut() {
+                if dynamic_circle_vs_rect(d.get_bcircle(sw, sh), &d.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+                    d.set_pos(d.get_pos() - cn.normalize() * ct);
                 }
             }
         }
@@ -218,7 +222,9 @@ impl PlayScene {
 
         for d in room.drops.iter_mut() {
             if circle_vs_circle(&d.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
-                if !d.affect_player(&mut self.player) { resolve_environment_collision(d, &mut self.player, sw, sh, _delta_time); }
+                if !d.affect_player(&mut self.player) {
+                    resolve_environment_collision(d, &mut self.player, sw, sh, _delta_time);
+                }
             }
         }
 

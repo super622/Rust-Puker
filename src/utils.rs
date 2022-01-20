@@ -283,7 +283,7 @@ pub fn resolve_environment_collision(e1: &mut dyn Actor, e2: &mut dyn Actor, sw:
 
     let (mut vel1, mut vel2) = (Vec2::ZERO, Vec2::ZERO);
     dynamic_circle_vs_circle(&e1.get_bcircle(sw, sh), &e1.get_velocity(), &e2.get_bcircle(sw, sh), &e2.get_velocity(), &mut vel1, &mut vel2, _delta_time);
-    e1.set_velocity(-vel1);
-    e2.set_velocity(vel2);
+    e1.set_velocity(e1.get_velocity() + vel1);
+    e2.set_velocity(e2.get_velocity() - vel2);
 }
 

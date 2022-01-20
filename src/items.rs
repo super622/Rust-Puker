@@ -37,7 +37,7 @@ pub struct Collectable {
 
 impl Model for Collectable {
     fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
-        self.velocity_lerp(0., _delta_time);
+        self.velocity_lerp(0., 5., _delta_time);
 
         self.props.pos.0 += self.props.velocity;
 

@@ -60,7 +60,7 @@ impl Model for Player {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
 
         if self.afterlock_cooldown == 0. {
-            self.velocity_lerp(self.speed, _delta_time);
+            self.velocity_lerp(self.speed, 10., _delta_time);
         }
 
         self.props.pos.0 += self.props.velocity;
@@ -265,7 +265,7 @@ impl Model for EnemyMask {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
 
         if self.afterlock_cooldown == 0. {
-            self.velocity_lerp(0., _delta_time);
+            self.velocity_lerp(0., 5., _delta_time);
         }
         self.props.pos.0 += self.props.velocity;
 
@@ -392,7 +392,7 @@ impl Model for EnemyBlueGuy {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
         
         if self.afterlock_cooldown == 0. {
-            self.velocity_lerp(self.speed, _delta_time);
+            self.velocity_lerp(self.speed, 10., _delta_time);
         }
         self.props.pos.0 += self.props.velocity;
 
