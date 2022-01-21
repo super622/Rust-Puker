@@ -88,9 +88,10 @@ pub trait Model: std::fmt::Debug {
 
     fn set_forward(&mut self, _new_forward: Vec2) {}
 
-    fn velocity_lerp(&mut self, speed: f32, _delta_time: f32, decay: f32) {
+    fn velocity_lerp(&mut self, _delta_time: f32, speed: f32, decay: f32, acceleration: f32) {
         self.set_translation(self.get_translation().clamp_length_max(1.));
-        self.set_velocity(self.get_velocity() - self.get_velocity() * _delta_time * decay + self.get_translation() * 50. * _delta_time);
+        self.set_velocity(self.get_velocity() + self.get_translation() * acceleration * _delta_time);
+        if self.get_translation().length() == 0. { self.set_velocity(self.get_velocity() - self.get_velocity() * _delta_time * decay) }
         if self.get_velocity().length() < 0.01 { self.set_velocity(self.get_velocity().clamp_length_min(0.)); }
         if self.get_velocity().length() > speed && speed > 0. { self.set_velocity(self.get_velocity().clamp_length_max(speed)); }
     }
@@ -275,15 +276,15 @@ pub trait Chaser: Actor {
     fn chase(&mut self, target: Vec2);
 
     fn find_path(&mut self, grid: &[[i32; ROOM_WIDTH]], sw: f32, sh: f32) -> Vec2 {
-        let (mut i, mut j) = ((self.get_pos().y / sh * (ROOM_HEIGHT as f32)) as usize, (self.get_pos().x / sw * (ROOM_WIDTH as f32)) as usize);
+        let (mut i, mut j) = pos_to_room_coords(self.get_pos(), sw, sh);
 
         if      i > 0               && grid[i - 1][j] > grid[i][j] { j += 1; }
         else if j > 0               && grid[i][j - 1] > grid[i][j] { i += 1; }
         else if j < ROOM_WIDTH - 1  && grid[i][j + 1] > grid[i][j] { i += 1; j += 2; }
         else if i < ROOM_HEIGHT - 1 && grid[i + 1][j] > grid[i][j] { i += 2; j += 1; }
-        else { return self.get_pos() }
+        else { return self.get_pos(); }
 
-        Vec2::new((2. * (j as f32) - 1.) * sw / (ROOM_WIDTH as f32) / 2., (2. * (i as f32) - 1.) * sh / (ROOM_HEIGHT as f32) / 2.)
+        room_coords_to_pos(i, j, sw, sh)
     }
 }
 
@@ -294,3 +295,9 @@ pub trait Shooter: Actor {
 
     fn get_rate(&self) -> f32;  
 }
+
+// pub trait Wanderer: Actor {
+//     fn wander(&mut self, grid: &[[i32; ROOM_WIDTH]], sw: f32, sh: f32) {
+//         let (mut i, mut j) = pos_to_room_coords(self.get_pos(), sw, sh);
+//     }
+// }

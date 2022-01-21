@@ -126,13 +126,13 @@ impl PlayScene {
                         if is_open {
                             if (self.player.props.pos.0 - obst.pos.0).length() < self.player.get_bcircle(sw, sh).1 {
                                 self.cur_room = connects_to;
-                                self.player.props.pos.0 = Vec2::new(sw, sh) - self.player.props.pos.0 +
-                                    match dir {
-                                        Direction::North => Vec2::new(0., -obst.get_bbox(sw, sh).h / 2.),
-                                        Direction::South => Vec2::new(0., obst.get_bbox(sw, sh).h / 2.),
-                                        Direction::West => Vec2::new(-obst.get_bbox(sw, sh).w / 2., 0.),
-                                        Direction::East => Vec2::new(obst.get_bbox(sw, sh).w / 2., 0.),
-                                    };
+                                let (di, dj) = pos_to_room_coords(obst.get_pos(), sw, sh);
+                                self.player.props.pos.0 = match dir {
+                                        Direction::North => room_coords_to_pos(ROOM_HEIGHT - di - 1, dj + 1, sw, sh),
+                                        Direction::South => room_coords_to_pos(ROOM_HEIGHT - di + 1, dj + 1, sw, sh),
+                                        Direction::West => room_coords_to_pos(di + 1, ROOM_WIDTH - dj - 1, sw, sh),
+                                        Direction::East => room_coords_to_pos(di + 1, ROOM_WIDTH - dj + 1, sw, sh),
+                                };
                                 self.player.props.velocity = Vec2::ZERO;
                                 self.player.afterlock_cooldown = PLAYER_AFTERLOCK_COOLDOWN;
                             }
@@ -266,6 +266,7 @@ impl PlayScene {
                                 }
                             }
                         },
+                        _ => (),
                     }
                 },
                 _ => (),

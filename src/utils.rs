@@ -8,7 +8,10 @@ use std::{
     fmt::{self, Display, Formatter},
     str::FromStr,
 };
-use crate::traits::*;
+use crate::{
+    traits::*,
+    consts::*,
+};
 
 pub struct Config {
     pub screen_width: f32,
@@ -287,3 +290,10 @@ pub fn resolve_environment_collision(e1: &mut dyn Actor, e2: &mut dyn Actor, sw:
     e2.set_velocity(e2.get_velocity() - vel2);
 }
 
+pub fn pos_to_room_coords(pos: Vec2, sw: f32, sh: f32) -> (usize, usize) {
+    ((pos.y / sh * (ROOM_HEIGHT as f32)).floor() as usize, (pos.x / sw * (ROOM_WIDTH as f32)).floor() as usize)
+}
+
+pub fn room_coords_to_pos(i: usize, j: usize, sw: f32, sh: f32) -> Vec2 {
+    Vec2::new((2. * (j as f32) - 1.) * sw / (ROOM_WIDTH as f32) / 2., (2. * (i as f32) - 1.) * sh / (ROOM_HEIGHT as f32) / 2.)
+}

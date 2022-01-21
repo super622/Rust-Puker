@@ -269,7 +269,8 @@ impl Room {
 
     pub fn get_target_distance_grid(&self, target: Vec2, sw: f32, sh: f32) -> [[i32; ROOM_WIDTH]; ROOM_HEIGHT] {
         let mut grid = self.grid;
-        let (ti, tj) = ((target.y / sh * (ROOM_HEIGHT as f32)) as usize, (target.x / sw * (ROOM_WIDTH as f32)) as usize);
+        let (ti, tj) = pos_to_room_coords(target, sw, sh);
+        if !(0..ROOM_HEIGHT).contains(&ti) || !(0..ROOM_WIDTH).contains(&tj) { return grid; }
 
         grid[ti][tj] = i32::MAX;
         let mut q = VecDeque::<(usize, usize)>::new();
@@ -300,7 +301,7 @@ impl Room {
     }
 
     fn generate_collectable(&mut self, sw: f32, sh: f32) {
-        if thread_rng().gen_bool(1.) {
+        if thread_rng().gen_bool(0.8) {
             let (mut r, mut c) = (ROOM_HEIGHT / 2, ROOM_WIDTH / 2);
             let (bw, bh) = (sw / self.width, sh / self.height);
             let mut visited = [[false; ROOM_WIDTH]; ROOM_HEIGHT];
@@ -437,10 +438,6 @@ impl Dungeon {
         if !(0..DUNGEON_GRID_COLS).contains(&dungeon_coords.1) { return Err(Errors::UnknownGridCoords(dungeon_coords).into()); }
         Ok(self.grid[dungeon_coords.0][dungeon_coords.1].as_mut().unwrap())
     }
-
-    // fn get_room_index(&self, dungeon_coords: (usize, usize)) -> GameResult<usize> {
-    //     Ok(self.grid[dungeon_coords.0][dungeon_coords.1])
-    // }
 
     pub fn get_grid(&self) -> &[[Option<Room>; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS] { &self.grid }
 
