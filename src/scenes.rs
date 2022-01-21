@@ -15,13 +15,15 @@ use std::{
 };
 
 use crate::{
-    entities::*,
+    player::*,
+    shots::*,
     assets::*,
     utils::*,
     dungeon::*,
     consts::*,
     traits::*,
     ui_elements::*,
+    enemies::*,
 };
 
 pub struct PlayScene {
@@ -154,7 +156,7 @@ impl PlayScene {
 
             for d in room.drops.iter_mut() {
                 if dynamic_circle_vs_rect(d.get_bcircle(sw, sh), &d.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
-                    d.set_pos(d.get_pos() - cn.normalize() * ct);
+                    d.set_velocity(d.get_velocity() - cn.normalize() * ct);
                 }
             }
         }
@@ -211,14 +213,14 @@ impl PlayScene {
             }
         }
 
-        for i in 0..room.enemies.len() {
-            for j in (i+1)..room.enemies.len() {
-                if circle_vs_circle(&room.enemies[i].get_bcircle(sw, sh), &room.enemies[j].get_bcircle(sw, sh)) {
-                    let split = room.enemies.split_at_mut(j);
-                    resolve_environment_collision(&mut *split.0[i], &mut *split.1[0], sw, sh, _delta_time);
-                }
-            }
-        }
+        // for i in 0..room.enemies.len() {
+        //     for j in (i+1)..room.enemies.len() {
+        //         if circle_vs_circle(&room.enemies[i].get_bcircle(sw, sh), &room.enemies[j].get_bcircle(sw, sh)) {
+        //             let split = room.enemies.split_at_mut(j);
+        //             resolve_environment_collision(&mut *split.0[i], &mut *split.1[0], sw, sh, _delta_time);
+        //         }
+        //     }
+        // }
 
         for d in room.drops.iter_mut() {
             if circle_vs_circle(&d.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {

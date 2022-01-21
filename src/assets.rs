@@ -41,6 +41,9 @@ impl Assets {
         sprites.insert("spikes".to_string(), graphics::Image::new(ctx, "/images/spikes.png")?);
         sprites.insert("heart_full_collectable".to_string(), graphics::Image::new(ctx, "/images/heart_full_collectable.png")?);
         sprites.insert("heart_half_collectable".to_string(), graphics::Image::new(ctx, "/images/heart_half_collectable.png")?);
+        sprites.insert("speed_boost".to_string(), graphics::Image::new(ctx, "/images/speed_boost.png")?);
+        sprites.insert("damage_boost".to_string(), graphics::Image::new(ctx, "/images/damage_boost.png")?);
+        sprites.insert("shoot_rate_boost".to_string(), graphics::Image::new(ctx, "/images/shoot_rate_boost.png")?);
 
         fonts.insert("button_font".to_string(), graphics::Font::new(ctx, "/fonts/enigma.ttf")?);
 
@@ -50,6 +53,7 @@ impl Assets {
         audio.insert("door_close_sound".to_string(), audio::Source::new(ctx, "/audio/door_close_sound.mp3")?);
         audio.insert("door_open_sound".to_string(), audio::Source::new(ctx, "/audio/door_open_sound.mp3")?);
         audio.insert("bubble_pop_sound".to_string(), audio::Source::new(ctx, "/audio/bubble_pop_sound.mp3")?);
+        audio.insert("power_up_sound".to_string(), audio::Source::new(ctx, "/audio/power_up_sound.mp3")?);
 
         Ok(Self {
             sprites,

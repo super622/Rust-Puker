@@ -6,11 +6,12 @@ use ggez::{
 };
 use crate::{
     assets::*,
-    entities::*,
+    enemies::*,
     utils::*,
     consts::*,
     traits::*,
     items::*,
+    shots::*,
 };
 use std::{
     any::Any,
@@ -230,8 +231,8 @@ impl Room {
         
         let width = ROOM_WIDTH as f32;
         let height = ROOM_HEIGHT as f32;
-        let shots = Vec::new();
-        let drops = Vec::new();
+        let shots = Vec::<Shot>::new();
+        let drops = Vec::<Collectable>::new();
 
         let mut layout = String::from(match tag {
             RoomTag::Start => ROOM_LAYOUT_START,
@@ -331,8 +332,10 @@ impl Room {
                     velocity: Vec2::ZERO,
                 },
                 tag: match p {
-                    0..=100 => CollectableTag::RedHeart((thread_rng().gen::<f32>() + 1.).round() / 2.),
-                    _ => unreachable!(),
+                    0..=50 => CollectableTag::RedHeart((thread_rng().gen::<f32>() + 1.).round() / 2.),
+                    51..=65 => CollectableTag::SpeedBoost(1.3),
+                    66..=80 => CollectableTag::DamageBoost(1.5),
+                    _ => CollectableTag::ShootRateBoost(1.3),
                 },
             });
         }

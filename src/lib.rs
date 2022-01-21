@@ -1,4 +1,3 @@
-pub mod entities;
 pub mod utils;
 pub mod assets;
 pub mod dungeon;
@@ -7,3 +6,6 @@ pub mod scenes;
 pub mod traits;
 pub mod ui_elements;
 pub mod items;
+pub mod player;
+pub mod enemies;
+pub mod shots;

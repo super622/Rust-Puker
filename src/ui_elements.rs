@@ -14,7 +14,7 @@ use crate::{
     utils::*,
     traits::*,
     consts::*,
-    entities::{Player},
+    player::*,
     dungeon::{Dungeon},
 };
 

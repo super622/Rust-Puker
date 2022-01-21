@@ -11,6 +11,7 @@ use std::{
 use crate::{
     traits::*,
     consts::*,
+    enemies::EnemyTag,
 };
 
 pub struct Config {
@@ -95,6 +96,29 @@ impl Display for Direction {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
+}
+
+#[derive(Clone, Debug, Copy, PartialEq)]
+pub enum ActorState {
+    Base,
+    Shoot,
+    Dead,
+    Damaged,
+}
+
+#[derive(Clone, Debug, Copy)]
+pub enum ActorTag {
+    Player,
+    Enemy(EnemyTag),
+}
+
+#[derive(Clone, Debug, Copy)]
+pub struct ActorProps {
+    pub pos: Vec2Wrap,
+    pub scale: Vec2,
+    pub translation: Vec2,
+    pub forward: Vec2,
+    pub velocity: Vec2,
 }
 
 #[derive(Clone, Debug, Copy, Default)]

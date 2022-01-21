@@ -11,11 +11,14 @@ pub const MINIMAP_POS: (f32, f32) = (1. - MINIMAP_SCALE, 0.);
 
 pub const PLAYER_SCALE: f32 = 0.6;
 pub const PLAYER_SHOOT_RATE: f32 = 2.5;
+pub const PLAYER_MAX_SHOOT_RATE: f32 = 10.;
 pub const PLAYER_SHOOT_RANGE: f32 = 400.;
 pub const PLAYER_SHOOT_TIMEOUT: f32 = 0.;
 pub const PLAYER_HEALTH: f32 = 3.;
 pub const PLAYER_SPEED: f32 = 5.;
+pub const PLAYER_MAX_SPEED: f32 = 10.;
 pub const PLAYER_DAMAGE: f32 = 1.;
+pub const PLAYER_MAX_DAMAGE: f32 = 3.;
 pub const PLAYER_DAMAGED_COOLDOWN: f32 = 1.;
 pub const PLAYER_AFTERLOCK_COOLDOWN: f32 = 0.5;
 

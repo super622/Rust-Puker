@@ -13,7 +13,7 @@ use std::{
 use glam::f32::Vec2;
 use crate::{
     assets::*,
-    entities::*,
+    shots::*,
     consts::*,
     utils::*,
 };
@@ -266,8 +266,6 @@ pub trait Actor: Model {
     fn get_health(&self) -> f32; 
 
     fn damage(&mut self, _dmg: f32) {}
-
-    fn heal(&mut self, _heal: f32) {}
 
     fn get_tag(&self) -> ActorTag;
 }
