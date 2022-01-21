@@ -68,7 +68,7 @@ impl Model for Collectable {
         };
 
         match self.tag {
-            CollectableTag::RedHeart(_) => (),
+            CollectableTag::RedHeart(_) => assets.audio.get_mut("heal_sound").unwrap().play(ctx)?,
             _ => assets.audio.get_mut("power_up_sound").unwrap().play(ctx)?,
         }
 

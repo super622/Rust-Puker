@@ -54,6 +54,7 @@ impl Assets {
         audio.insert("door_open_sound".to_string(), audio::Source::new(ctx, "/audio/door_open_sound.mp3")?);
         audio.insert("bubble_pop_sound".to_string(), audio::Source::new(ctx, "/audio/bubble_pop_sound.mp3")?);
         audio.insert("power_up_sound".to_string(), audio::Source::new(ctx, "/audio/power_up_sound.mp3")?);
+        audio.insert("heal_sound".to_string(), audio::Source::new(ctx, "/audio/heal_sound.mp3")?);
 
         Ok(Self {
             sprites,
