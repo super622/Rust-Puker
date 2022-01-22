@@ -16,12 +16,14 @@ use crate::{
     shots::*,
     consts::*,
     utils::*,
+    player::*,
 };
+use rand::{thread_rng, Rng};
 
-pub trait Model: std::fmt::Debug {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _config: &Config, _delta_time: f32) -> GameResult;
+pub trait Actor: std::fmt::Debug {
+    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _config: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult;
 
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, _config: &Config) -> GameResult;
+    fn draw(&self, _ctx: &mut Context, _assets: &mut Assets, _config: &Config) -> GameResult;
 
     fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
         let (sw, sh) = screen;
@@ -54,7 +56,7 @@ pub trait Model: std::fmt::Debug {
     fn get_bcircle(&self, sw: f32, sh: f32) -> (Vec2Wrap, f32) {
         let width = sw / (ROOM_WIDTH as f32) * self.get_scale().x;
         let height = sh / (ROOM_HEIGHT as f32) * self.get_scale().y;
-        (Vec2::new(self.get_pos().x, self.get_pos().y).into(), f32::max(width, height) / 2.)
+        (Vec2::new(self.get_pos().x, self.get_pos().y).into(), f32::min(width, height) / 2.)
     }    
 
     fn get_bbox(&self, sw: f32, sh: f32) -> graphics::Rect {
@@ -95,6 +97,12 @@ pub trait Model: std::fmt::Debug {
         if self.get_velocity().length() < 0.01 { self.set_velocity(self.get_velocity().clamp_length_min(0.)); }
         if self.get_velocity().length() > speed && speed > 0. { self.set_velocity(self.get_velocity().clamp_length_max(speed)); }
     }
+
+    fn get_health(&self) -> f32; 
+
+    fn damage(&mut self, _dmg: f32) {}
+
+    fn get_tag(&self) -> ActorTag;
 
     fn as_any(&self) -> &dyn Any;
     
@@ -143,7 +151,7 @@ pub trait Stationary: std::fmt::Debug {
     fn get_bcircle(&self, sw: f32, sh: f32) -> (Vec2Wrap, f32) {
         let width = sw / (ROOM_WIDTH as f32) * self.get_scale().x;
         let height = sh / (ROOM_HEIGHT as f32) * self.get_scale().y;
-        (Vec2::new(self.get_pos().x, self.get_pos().y).into(), f32::max(width, height) / 2.)
+        (Vec2::new(self.get_pos().x, self.get_pos().y).into(), f32::min(width, height) / 2.)
     }    
 
     fn scale_to_screen(&self, sw: f32, sh: f32, image: Rect) -> Vec2 {
@@ -262,14 +270,6 @@ pub trait UIElement {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-pub trait Actor: Model {
-    fn get_health(&self) -> f32; 
-
-    fn damage(&mut self, _dmg: f32) {}
-
-    fn get_tag(&self) -> ActorTag;
-}
-
 pub trait Chaser: Actor {
     fn chase(&mut self, target: Vec2);
 
@@ -294,8 +294,25 @@ pub trait Shooter: Actor {
     fn get_rate(&self) -> f32;  
 }
 
-// pub trait Wanderer: Actor {
-//     fn wander(&mut self, grid: &[[i32; ROOM_WIDTH]], sw: f32, sh: f32) {
-//         let (mut i, mut j) = pos_to_room_coords(self.get_pos(), sw, sh);
-//     }
-// }
+pub trait Wanderer: Actor {
+    fn wander(&mut self, grid: &[[i32; ROOM_WIDTH]], sw: f32, sh: f32) {
+        let (i, j) = pos_to_room_coords(self.get_pos(), sw, sh);
+        let mut dirs = Vec::new();
+
+        if i > 0               && grid[i - 1][j] == 0 { dirs.push(-Vec2::Y); }
+        if j > 0               && grid[i][j - 1] == 0 { dirs.push(-Vec2::X); }
+        if j < ROOM_WIDTH - 1  && grid[i][j + 1] == 0 { dirs.push(Vec2::X); }
+        if i < ROOM_HEIGHT - 1 && grid[i + 1][j] == 0 { dirs.push(Vec2::Y); }
+
+        if (self.get_change_direction_cooldown() == 0. && thread_rng().gen_bool(0.8)) || !dirs.contains(&self.get_translation()) {
+            let dir = thread_rng().gen_range(0..dirs.len());
+            self.set_translation(dirs[dir]);
+            self.set_forward(dirs[dir]);
+            self.set_change_direction_cooldown(ENEMY_WANDERER_CHANGE_DIRECTION_COOLDOWN);
+        }
+    }
+
+    fn get_change_direction_cooldown(&self) -> f32;
+
+    fn set_change_direction_cooldown(&mut self, cd: f32);
+}

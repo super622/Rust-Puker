@@ -10,6 +10,7 @@ use crate::{
     consts::*,
     traits::*,
     shots::*,
+    player::*,
 };
 use glam::f32::{Vec2};
 use std::{
@@ -37,8 +38,8 @@ pub struct EnemyMask {
     pub afterlock_cooldown: f32,
 }
 
-impl Model for EnemyMask {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+impl Actor for EnemyMask {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
 
         if self.afterlock_cooldown == 0. {
@@ -99,12 +100,6 @@ impl Model for EnemyMask {
 
     fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward; } 
 
-    fn as_any(&self) -> &dyn Any { self }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any { self }
-}
-
-impl Actor for EnemyMask {
     fn get_health(&self) -> f32 { self.health }
 
     fn damage(&mut self, dmg: f32) { 
@@ -114,6 +109,10 @@ impl Actor for EnemyMask {
     }
 
     fn get_tag(&self) -> ActorTag { ActorTag::Enemy(self.tag) }
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 impl Shooter for EnemyMask {
@@ -164,8 +163,8 @@ pub struct EnemyBlueGuy {
     pub afterlock_cooldown: f32,
 }
 
-impl Model for EnemyBlueGuy {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+impl Actor for EnemyBlueGuy {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
         
         if self.afterlock_cooldown == 0. {
@@ -225,12 +224,6 @@ impl Model for EnemyBlueGuy {
 
     fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward; } 
 
-    fn as_any(&self) -> &dyn Any { self }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any { self }
-}
-
-impl Actor for EnemyBlueGuy {
     fn get_health(&self) -> f32 { self.health }
 
     fn damage(&mut self, dmg: f32) { 
@@ -240,6 +233,10 @@ impl Actor for EnemyBlueGuy {
     }
 
     fn get_tag(&self) -> ActorTag { ActorTag::Enemy(self.tag) }
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 impl Chaser for EnemyBlueGuy {
@@ -260,15 +257,20 @@ pub struct EnemySlime {
     pub health: f32,
     pub animation_cooldown: f32,
     pub afterlock_cooldown: f32,
+    pub change_direction_cooldown: f32,
 }
     
-impl Model for EnemySlime {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+impl Actor for EnemySlime {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult {
+        let (sw, sh) = (_conf.screen_width, _conf.screen_height);
+
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
-        
+        self.change_direction_cooldown = f32::max(0., self.change_direction_cooldown - _delta_time);
+
         if self.afterlock_cooldown == 0. {
-            self.velocity_lerp(_delta_time, self.speed, 10., 10.);
+            self.wander(_grid, sw, sh);
         }
+        self.velocity_lerp(_delta_time, self.speed, 10., 10.);
         self.props.pos.0 += self.props.velocity;
 
         self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
@@ -284,18 +286,22 @@ impl Model for EnemySlime {
 
     fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
-        let mut angle = self.props.forward.angle_between(Vec2::Y + self.props.pos.0 - self.props.pos.0);
-        if angle.is_nan() { angle = 0.; }
+
+        let sprite = match self.props.forward {
+            v if v == -Vec2::Y => assets.sprites.get("enemy_slime_north").unwrap(),
+            v if v == Vec2::X => assets.sprites.get("enemy_slime_east").unwrap(),
+            v if v == -Vec2::X => assets.sprites.get("enemy_slime_west").unwrap(),
+            _ => assets.sprites.get("enemy_slime_south").unwrap(),
+        };
 
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("enemy_blue_guy_base").unwrap().dimensions()))
-            .rotation(-angle)
+            .scale(self.scale_to_screen(sw, sh, sprite.dimensions()))
             .offset([0.5, 0.5]);
 
         match self.state {
-            ActorState::Damaged => graphics::draw(ctx, assets.sprites.get("enemy_blue_guy_base").unwrap(), draw_params.color(Color::RED))?,
-            _ => graphics::draw(ctx, assets.sprites.get("enemy_blue_guy_base").unwrap(), draw_params)?,
+            ActorState::Damaged => graphics::draw(ctx, sprite, draw_params.color(Color::RED))?,
+            _ => graphics::draw(ctx, sprite, draw_params)?,
         }
 
         if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }
@@ -323,12 +329,6 @@ impl Model for EnemySlime {
 
     fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward; } 
 
-    fn as_any(&self) -> &dyn Any { self }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any { self }
-}
-
-impl Actor for EnemySlime {
     fn get_health(&self) -> f32 { self.health }
 
     fn damage(&mut self, dmg: f32) { 
@@ -338,4 +338,14 @@ impl Actor for EnemySlime {
     }
 
     fn get_tag(&self) -> ActorTag { ActorTag::Enemy(self.tag) }
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+}
+
+impl Wanderer for EnemySlime {
+    fn get_change_direction_cooldown(&self) -> f32 { self.change_direction_cooldown }
+
+    fn set_change_direction_cooldown(&mut self, cd: f32) { self.change_direction_cooldown = cd; }
 }

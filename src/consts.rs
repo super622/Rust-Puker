@@ -30,6 +30,7 @@ pub const ENEMY_HEALTH: f32 = 3.;
 pub const ENEMY_SPEED: f32 = 3.;
 pub const ENEMY_DAMAGE: f32 = 0.5;
 pub const ENEMY_AFTERLOCK_COOLDOWN: f32 = 2.;
+pub const ENEMY_WANDERER_CHANGE_DIRECTION_COOLDOWN: f32 = 2.;
 
 pub const SHOT_SPEED: f32 = 300.;
 pub const SHOT_SCALE: f32 = 0.4;
@@ -107,17 +108,6 @@ d             d
 #             #
 #######d#######
 ",
-"
-#######d#######
-#             #
-#  ss sss ss  #
-#             #
-d  ss sss ss  d
-#             #
-#  ss sss ss  #
-#             #
-#######d#######
-",
 ];
 
 pub const ROOM_LAYOUTS_MOB: &[&str] = &[
@@ -162,6 +152,17 @@ d     bbb     d
 d   .b m b.   d
 #             #
 #      .      #
+#             #
+#######d#######
+",
+"
+#######d#######
+#             #
+#  s       s  #
+#      s      #
+d    s   s    d
+#      s      #
+#  s       s  #
 #             #
 #######d#######
 ",

@@ -172,9 +172,11 @@ impl PlayScene {
             match s.tag {
                 ShotTag::Player => {
                     for enemy in room.enemies.iter_mut() {
-                        if circle_vs_circle(&s.get_bcircle(sw, sh), &enemy.get_bcircle(sw, sh)) {
+                        let (mut vel1, mut vel2) = (Vec2::ZERO, Vec2::ZERO);
+                        if dynamic_circle_vs_circle(&s.get_bcircle(sw, sh), &s.get_velocity(), &enemy.get_bcircle(sw, sh), &enemy.get_velocity(), &mut vel1, &mut vel2, _delta_time) {
                             let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                             enemy.damage(s.damage);
+                            enemy.set_velocity(enemy.get_velocity() + vel2);
                             return false;
                         }
                     }
@@ -202,7 +204,7 @@ impl PlayScene {
         Ok(())
     }
 
-    fn handle_environment_collisions(&mut self, _delta_time: f32) -> GameResult {
+    fn handle_environment_collisions(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
         let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
 
@@ -213,18 +215,9 @@ impl PlayScene {
             }
         }
 
-        // for i in 0..room.enemies.len() {
-        //     for j in (i+1)..room.enemies.len() {
-        //         if circle_vs_circle(&room.enemies[i].get_bcircle(sw, sh), &room.enemies[j].get_bcircle(sw, sh)) {
-        //             let split = room.enemies.split_at_mut(j);
-        //             resolve_environment_collision(&mut *split.0[i], &mut *split.1[0], sw, sh, _delta_time);
-        //         }
-        //     }
-        // }
-
         for d in room.drops.iter_mut() {
             if circle_vs_circle(&d.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
-                if !d.affect_player(&mut self.player) {
+                if !d.affect_player(ctx, assets, &mut self.player)? {
                     resolve_environment_collision(d, &mut self.player, sw, sh, _delta_time);
                 }
             }
@@ -285,15 +278,15 @@ impl Scene for PlayScene {
 
         self.handle_block_collisions(delta_time)?;
 
-        self.handle_environment_collisions(delta_time)?;
+        self.handle_environment_collisions(ctx, assets, delta_time)?;
 
         self.handle_player_detection(delta_time)?;
 
         self.handle_shot_collisions(ctx, assets, delta_time)?;
 
-        self.dungeon.get_room_mut(self.cur_room)?.update(ctx, assets, &self.config.borrow(), delta_time)?;
+        self.dungeon.get_room_mut(self.cur_room)?.update(ctx, assets, &self.config.borrow(), Some(&self.player), delta_time)?;
 
-        self.player.update(ctx, assets, &self.config.borrow(), delta_time)?;
+        self.player.update(ctx, assets, &self.config.borrow(), &self.dungeon.get_room(self.cur_room)?.grid, None, delta_time)?;
 
         self.overlay.update_vars(&self.player, &self.dungeon, self.cur_room);
         self.overlay.update(ctx, &self.config.borrow())?;

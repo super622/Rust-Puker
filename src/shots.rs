@@ -8,6 +8,7 @@ use crate::{
     utils::*,
     consts::*,
     traits::*,
+    player::*,
 };
 use std::{
     any::Any,
@@ -30,8 +31,8 @@ pub struct Shot {
     pub tag: ShotTag,
 }
 
-impl Model for Shot {
-    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+impl Actor for Shot {
+    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _conf: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult {
         self.props.velocity = self.props.translation * SHOT_SPEED * _delta_time;
         self.props.pos.0 += self.props.velocity;
 
@@ -64,6 +65,10 @@ impl Model for Shot {
     fn get_translation(&self) -> Vec2 { self.props.translation }
 
     fn get_forward(&self) -> Vec2 { self.props.forward }
+
+    fn get_health(&self) -> f32 { 0. }
+
+    fn get_tag(&self) -> ActorTag { ActorTag::Player }
 
     fn as_any(&self) -> &dyn Any { self }
 

@@ -247,6 +247,8 @@ pub fn dynamic_circle_vs_rect(source: (Vec2Wrap, f32), _source_vel: &Vec2, targe
 /// Long live OneLoneCoder and his tutorials.
 ///
 pub fn static_circle_vs_circle(c1: &(Vec2Wrap, f32), c2: &(Vec2Wrap, f32), displace_vec: &mut Vec2) -> bool {
+    if !circle_vs_circle(c1, c2) { return false; }
+
     let c1_pos = c1.0.0;
     let c1_r = c1.1;
     let c2_pos = c2.0.0;
@@ -262,10 +264,12 @@ pub fn static_circle_vs_circle(c1: &(Vec2Wrap, f32), c2: &(Vec2Wrap, f32), displ
 /// Detects intersection between dynamic circles.
 /// Long live OneLoneCoder and his tutorials.
 ///
-pub fn dynamic_circle_vs_circle(c1: &(Vec2Wrap, f32), c1_vel: &Vec2, c2: &(Vec2Wrap, f32), c2_vel: &Vec2, vel1: &mut Vec2, vel2: &mut Vec2, _elapsed_time: f32) { 
+pub fn dynamic_circle_vs_circle(c1: &(Vec2Wrap, f32), c1_vel: &Vec2, c2: &(Vec2Wrap, f32), c2_vel: &Vec2, vel1: &mut Vec2, vel2: &mut Vec2, _elapsed_time: f32) -> bool { 
+    if !circle_vs_circle(c1, c2) { return false; }
+
     let c1_pos = c1.0.0;
     let c1_r = c1.1;
-    let c1_mass = c1_r * 10.;
+    let c1_mass = c1_r * 5.;
     let c2_pos = c2.0.0;
     let c2_r = c2.1;
     let c2_mass = c2_r * 10.;
@@ -281,6 +285,8 @@ pub fn dynamic_circle_vs_circle(c1: &(Vec2Wrap, f32), c1_vel: &Vec2, c2: &(Vec2W
 
     *vel1 = tan * dp_tan.x + norm * m1;
     *vel2 = tan * dp_tan.y + norm * m2;
+
+    true
 }
 
 pub fn mouse_relative_forward(target: Vec2, mouse: Point2<f32>, conf: &Config) -> Vec2 {
@@ -309,9 +315,10 @@ pub fn resolve_environment_collision(e1: &mut dyn Actor, e2: &mut dyn Actor, sw:
     }
 
     let (mut vel1, mut vel2) = (Vec2::ZERO, Vec2::ZERO);
-    dynamic_circle_vs_circle(&e1.get_bcircle(sw, sh), &e1.get_velocity(), &e2.get_bcircle(sw, sh), &e2.get_velocity(), &mut vel1, &mut vel2, _delta_time);
-    e1.set_velocity(e1.get_velocity() + vel1);
-    e2.set_velocity(e2.get_velocity() - vel2);
+    if dynamic_circle_vs_circle(&e1.get_bcircle(sw, sh), &e1.get_velocity(), &e2.get_bcircle(sw, sh), &e2.get_velocity(), &mut vel1, &mut vel2, _delta_time) {
+        e1.set_velocity(e1.get_velocity() + vel1);
+        e2.set_velocity(e2.get_velocity() - vel2);
+    }
 }
 
 pub fn pos_to_room_coords(pos: Vec2, sw: f32, sh: f32) -> (usize, usize) {

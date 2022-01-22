@@ -12,6 +12,7 @@ use crate::{
     traits::*,
     items::*,
     shots::*,
+    player::*,
 };
 use std::{
     any::Any,
@@ -45,19 +46,19 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn update(&mut self, ctx: &mut Context, assets: &mut Assets, conf: &Config, _delta_time: f32) -> GameResult {
+    pub fn update(&mut self, ctx: &mut Context, assets: &mut Assets, conf: &Config, _player: Option<&Player>, _delta_time: f32) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
 
         for shot in self.shots.iter_mut() {
-            shot.update(ctx, assets, conf, _delta_time)?;
+            shot.update(ctx, assets, conf, &self.grid, _player, _delta_time)?;
         }
 
         for enemy in self.enemies.iter_mut() {
-            enemy.update(ctx, assets, conf, _delta_time)?;
+            enemy.update(ctx, assets, conf, &self.grid, _player, _delta_time)?;
         }
 
         for drop in self.drops.iter_mut() {
-            drop.update(ctx, assets, conf, _delta_time)?;
+            drop.update(ctx, assets, conf, &self.grid, _player, _delta_time)?;
         }
 
         let dead_enemies = self.enemies.iter()
@@ -217,6 +218,24 @@ impl Room {
                         state: ActorState::Base,
                         animation_cooldown: 0.,
                         afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
+                    }));
+                },
+                's' => {
+                    enemies.push(Box::new(EnemySlime {
+                        props: ActorProps {
+                            pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
+                            scale: Vec2::new(ENEMY_SCALE, ENEMY_SCALE * 0.5),
+                            translation: Vec2::ZERO,
+                            forward: Vec2::ZERO,
+                            velocity: Vec2::ZERO,
+                        },
+                        tag: EnemyTag::Wanderer,
+                        speed: ENEMY_SPEED * 0.5,
+                        health: ENEMY_HEALTH * 1.5,
+                        state: ActorState::Base,
+                        animation_cooldown: 0.,
+                        afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
+                        change_direction_cooldown: ENEMY_WANDERER_CHANGE_DIRECTION_COOLDOWN,
                     }));
                 },
                 _ => (),

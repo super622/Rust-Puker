@@ -35,14 +35,8 @@ pub struct Collectable {
     pub tag: CollectableTag,
 }
 
-impl Model for Collectable {
-    fn update(
-        &mut self,
-        _ctx: &mut Context,
-        _assets: &mut Assets,
-        _conf: &Config,
-        _delta_time: f32,
-    ) -> GameResult {
+impl Actor for Collectable {
+    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _conf: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult {
         self.velocity_lerp(_delta_time, 0., 2., 0.);
 
         self.props.pos.0 += self.props.velocity;
@@ -66,11 +60,6 @@ impl Model for Collectable {
             CollectableTag::DamageBoost(_) => assets.sprites.get("damage_boost").unwrap(),
             _ => unreachable!(),
         };
-
-        match self.tag {
-            CollectableTag::RedHeart(_) => assets.audio.get_mut("heal_sound").unwrap().play(ctx)?,
-            _ => assets.audio.get_mut("power_up_sound").unwrap().play(ctx)?,
-        }
 
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
@@ -104,13 +93,17 @@ impl Model for Collectable {
 
     fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward; }
 
+    fn get_health(&self) -> f32 { 0. }
+
+    fn get_tag(&self) -> ActorTag { ActorTag::Player }
+
     fn as_any(&self) -> &dyn Any { self }
 
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 impl Collectable {
-    pub fn affect_player(&mut self, player: &mut Player) -> bool {
+    pub fn affect_player(&mut self, ctx: &mut Context, assets: &mut Assets, player: &mut Player) -> GameResult<bool> {
         let result = match self.tag {
             CollectableTag::RedHeart(h) => {
                 if player.health < player.max_health {
@@ -133,14 +126,14 @@ impl Collectable {
             _ => false,
         };
 
-        if result { self.tag = CollectableTag::Consumed; }
+        if result { 
+            match self.tag {
+                CollectableTag::RedHeart(_) => assets.audio.get_mut("heal_sound").unwrap().play(ctx)?,
+                _ => assets.audio.get_mut("power_up_sound").unwrap().play(ctx)?,
+            }
+            self.tag = CollectableTag::Consumed; 
+        }
 
-        result
+        Ok(result)
     }
-}
-
-impl Actor for Collectable {
-    fn get_health(&self) -> f32 { 0. }
-
-    fn get_tag(&self) -> ActorTag { ActorTag::Player }
 }
