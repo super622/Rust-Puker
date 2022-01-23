@@ -1,5 +1,5 @@
 use ggez::{
-    graphics::{self, DrawParam, Color},
+    graphics::{self, MeshBuilder, Rect, DrawMode, DrawParam, Color},
     GameResult,
     Context,
     audio::SoundSource,
@@ -18,19 +18,12 @@ use std::{
 };
 use rand::{thread_rng, Rng};
 
-#[derive(Clone, Debug, Copy)]
-pub enum EnemyTag {
-    Shooter,
-    Chaser,
-    Wanderer,
-}
-
 #[derive(Clone, Debug)]
 pub struct EnemyMask {
     pub props: ActorProps,
-    pub tag: EnemyTag,
     pub state: ActorState,
     pub health: f32,
+    pub damage: f32,
     pub shoot_rate: f32,
     pub shoot_range: f32,
     pub shoot_timeout: f32,
@@ -39,12 +32,10 @@ pub struct EnemyMask {
 }
 
 impl Actor for EnemyMask {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
 
-        if self.afterlock_cooldown == 0. {
-            self.velocity_lerp(_delta_time, 0., 5., 0.);
-        }
+        self.velocity_lerp(_delta_time, 0., 5., 0.);
         self.props.pos.0 += self.props.velocity;
 
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
@@ -102,13 +93,24 @@ impl Actor for EnemyMask {
 
     fn get_health(&self) -> f32 { self.health }
 
+    fn get_state(&self) -> ActorState { self.state }
+
     fn damage(&mut self, dmg: f32) { 
         self.health -= dmg; 
         self.state = ActorState::Damaged;
         self.animation_cooldown = ANIMATION_COOLDOWN;
     }
 
-    fn get_tag(&self) -> ActorTag { ActorTag::Enemy(self.tag) }
+    fn get_damage(&self) -> f32 { return self.damage }
+
+    fn get_tag(&self) -> ActorTag { ActorTag::Enemy }
+
+    fn act(&mut self, sw: f32, sh: f32, _grid: &[[i32; ROOM_WIDTH]], _obstacles: &Vec<Box<dyn Stationary>>, _shots: &mut Vec<Shot>, _player: &Player) -> GameResult {
+        if self.afterlock_cooldown == 0. {
+            self.shoot(sw, sh, _obstacles, _shots, _player)?;
+        }
+        Ok(())
+    }
 
     fn as_any(&self) -> &dyn Any { self }
 
@@ -116,12 +118,20 @@ impl Actor for EnemyMask {
 }
 
 impl Shooter for EnemyMask {
-    fn shoot(&mut self, target: &Vec2, shots: &mut Vec<Shot>) -> GameResult {
-        if self.shoot_timeout != 0. || self.afterlock_cooldown != 0. {
-            return Ok(());
+    fn shoot(&mut self, sw: f32, sh: f32, obstacles: &Vec<Box<dyn Stationary>>, shots: &mut Vec<Shot>, player: &Player) -> GameResult {
+        let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
+        let mut ct = 0.;
+
+        if self.shoot_timeout != 0. 
+            || self.afterlock_cooldown != 0. 
+            || self.get_pos().distance(player.get_pos()) > self.shoot_range * 0.8
+            || obstacles.iter()
+                .filter(|o| { ray_vs_rect(&self.get_pos(), &(player.get_pos() - self.get_pos()), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
+                .count() != 0 {
+            return Ok(())
         }
 
-        self.props.forward = *target - self.get_pos();
+        self.props.forward = player.get_pos() - self.get_pos();
         self.state = ActorState::Shoot;
         self.shoot_timeout = 1. / self.shoot_rate;
 
@@ -155,21 +165,19 @@ impl Shooter for EnemyMask {
 #[derive(Clone, Debug)]
 pub struct EnemyBlueGuy {
     pub props: ActorProps,
-    pub tag: EnemyTag,
     pub speed: f32,
     pub state: ActorState,
     pub health: f32,
+    pub damage: f32,
     pub animation_cooldown: f32,
     pub afterlock_cooldown: f32,
 }
 
 impl Actor for EnemyBlueGuy {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
         
-        if self.afterlock_cooldown == 0. {
-            self.velocity_lerp(_delta_time, self.speed, 10., 20.);
-        }
+        self.velocity_lerp(_delta_time, self.speed, 10., 20.);
         self.props.pos.0 += self.props.velocity;
 
         self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
@@ -226,13 +234,24 @@ impl Actor for EnemyBlueGuy {
 
     fn get_health(&self) -> f32 { self.health }
 
+    fn get_state(&self) -> ActorState { self.state }
+
     fn damage(&mut self, dmg: f32) { 
         self.health -= dmg; 
         self.state = ActorState::Damaged;
         self.animation_cooldown = ANIMATION_COOLDOWN;
     }
 
-    fn get_tag(&self) -> ActorTag { ActorTag::Enemy(self.tag) }
+    fn get_damage(&self) -> f32 { return self.damage }
+
+    fn get_tag(&self) -> ActorTag { ActorTag::Enemy }
+
+    fn act(&mut self, sw: f32, sh: f32, _grid: &[[i32; ROOM_WIDTH]], _obstacles: &Vec<Box<dyn Stationary>>, _shots: &mut Vec<Shot>, _player: &Player) -> GameResult { 
+        if self.afterlock_cooldown == 0. {
+            self.chase(sw, sh, _obstacles, _grid, _player);
+        }
+        Ok(())
+    }
 
     fn as_any(&self) -> &dyn Any { self }
 
@@ -240,8 +259,18 @@ impl Actor for EnemyBlueGuy {
 }
 
 impl Chaser for EnemyBlueGuy {
-    fn chase(&mut self, target: Vec2) {
+    fn chase(&mut self, sw: f32, sh: f32, obstacles: &Vec<Box<dyn Stationary>>, grid: &[[i32; ROOM_WIDTH]], player: &Player) {
         if self.afterlock_cooldown == 0. {
+            let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
+            let mut ct = 0.;
+            let mut target = player.get_pos();
+
+            if obstacles.iter()
+                .filter(|o| { ray_vs_rect(&self.get_pos(), &(player.get_pos() - self.get_pos()), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
+                .count() != 0 {
+                target = self.find_path(grid, sw, sh);
+            }
+
             self.props.translation = (target - self.get_pos()).normalize_or_zero();
             self.props.forward = self.props.translation;
         }
@@ -251,25 +280,20 @@ impl Chaser for EnemyBlueGuy {
 #[derive(Clone, Debug, Copy)]
 pub struct EnemySlime {
     pub props: ActorProps,
-    pub tag: EnemyTag,
     pub speed: f32,
     pub state: ActorState,
     pub health: f32,
+    pub damage: f32,
     pub animation_cooldown: f32,
     pub afterlock_cooldown: f32,
     pub change_direction_cooldown: f32,
 }
     
 impl Actor for EnemySlime {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult {
-        let (sw, sh) = (_conf.screen_width, _conf.screen_height);
-
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
         self.change_direction_cooldown = f32::max(0., self.change_direction_cooldown - _delta_time);
 
-        if self.afterlock_cooldown == 0. {
-            self.wander(_grid, sw, sh);
-        }
         self.velocity_lerp(_delta_time, self.speed, 10., 10.);
         self.props.pos.0 += self.props.velocity;
 
@@ -331,13 +355,24 @@ impl Actor for EnemySlime {
 
     fn get_health(&self) -> f32 { self.health }
 
+    fn get_state(&self) -> ActorState { self.state }
+
     fn damage(&mut self, dmg: f32) { 
         self.health -= dmg; 
         self.state = ActorState::Damaged;
         self.animation_cooldown = ANIMATION_COOLDOWN;
     }
 
-    fn get_tag(&self) -> ActorTag { ActorTag::Enemy(self.tag) }
+    fn get_damage(&self) -> f32 { return self.damage }
+
+    fn get_tag(&self) -> ActorTag { ActorTag::Enemy }
+
+    fn act(&mut self, sw: f32, sh: f32, _grid: &[[i32; ROOM_WIDTH]], _obstacles: &Vec<Box<dyn Stationary>>, _shots: &mut Vec<Shot>, _player: &Player) -> GameResult {
+        if self.afterlock_cooldown == 0. {
+            self.wander(sw, sh, _grid);
+        }
+        Ok(())
+    }
 
     fn as_any(&self) -> &dyn Any { self }
 
@@ -348,4 +383,133 @@ impl Wanderer for EnemySlime {
     fn get_change_direction_cooldown(&self) -> f32 { self.change_direction_cooldown }
 
     fn set_change_direction_cooldown(&mut self, cd: f32) { self.change_direction_cooldown = cd; }
+}
+
+#[derive(Clone, Debug, Copy)]
+pub struct BossWeirdBall {
+    pub props: ActorProps,
+    pub speed: f32,
+    pub state: ActorState,
+    pub health: f32,
+    pub max_health: f32,
+    pub damage: f32,
+    pub animation_cooldown: f32,
+    pub afterlock_cooldown: f32,
+    pub change_direction_cooldown: f32,
+}
+
+impl Actor for BossWeirdBall {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+        self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
+        self.change_direction_cooldown = f32::max(0., self.change_direction_cooldown - _delta_time);
+
+        self.velocity_lerp(_delta_time, self.speed, 10., 10.);
+        self.props.pos.0 += self.props.velocity;
+
+        self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
+
+        if self.animation_cooldown == 0. { self.state = ActorState::Base; }
+        if self.health <= 0. {
+            assets.audio.get_mut("boss_death_sound").unwrap().play(ctx)?; 
+            self.state = ActorState::Dead;
+        }
+
+        Ok(())
+    }
+
+    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
+
+        let mut sprite = assets.sprites.get("boss_weird_ball_base").unwrap();
+        if self.state == ActorState::Shoot { 
+            sprite = match self.props.forward.x as i32 {
+                1 => assets.sprites.get("boss_weird_ball_shoot_cardinals").unwrap(),
+                _ => assets.sprites.get("boss_weird_ball_shoot_diagonals").unwrap(),
+            };
+        }
+
+        let draw_params = DrawParam::default()
+            .dest(self.props.pos)
+            .scale(self.scale_to_screen(sw, sh, sprite.dimensions()))
+            .offset([0.5, 0.5]);
+
+        match self.state {
+            ActorState::Damaged => graphics::draw(ctx, sprite, draw_params.color(Color::RED))?,
+            _ => graphics::draw(ctx, sprite, draw_params)?,
+        }
+
+        self.draw_health_bar(ctx, sw, sh)?;
+
+        if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }
+
+        Ok(())
+    }
+
+    fn get_pos(&self) -> Vec2 { self.props.pos.into() }
+
+    fn get_scale(&self) -> Vec2 { self.props.scale }
+
+    fn get_velocity(&self) -> Vec2 { self.props.velocity }
+
+    fn get_translation(&self) -> Vec2 { self.props.translation }
+
+    fn get_forward(&self) -> Vec2 { self.props.forward }
+
+    fn set_pos(&mut self, new_pos: Vec2) { self.props.pos = new_pos.into(); }
+
+    fn set_scale(&mut self, new_scale: Vec2) { self.props.scale = new_scale; }
+
+    fn set_velocity(&mut self, new_velocity: Vec2) { self.props.velocity = new_velocity; } 
+
+    fn set_translation(&mut self, new_translation: Vec2) { self.props.translation = new_translation; }
+
+    fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward; } 
+
+    fn get_health(&self) -> f32 { self.health }
+
+    fn get_state(&self) -> ActorState { self.state }
+
+    fn damage(&mut self, dmg: f32) { 
+        self.health -= dmg; 
+        self.state = ActorState::Damaged;
+        self.animation_cooldown = ANIMATION_COOLDOWN;
+    }
+
+    fn get_damage(&self) -> f32 { return self.damage }
+
+    fn get_tag(&self) -> ActorTag { ActorTag::Enemy }
+
+    fn act(&mut self, sw: f32, sh: f32, _grid: &[[i32; ROOM_WIDTH]], _obstacles: &Vec<Box<dyn Stationary>>, _shots: &mut Vec<Shot>, _player: &Player) -> GameResult {
+        if self.afterlock_cooldown == 0. {
+            self.wander(sw, sh, _grid);
+        }
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+}
+
+impl Wanderer for BossWeirdBall {
+    fn get_change_direction_cooldown(&self) -> f32 { self.change_direction_cooldown }
+
+    fn set_change_direction_cooldown(&mut self, cd: f32) { self.change_direction_cooldown = cd; }
+}
+
+impl BossWeirdBall {
+    fn draw_health_bar(&self, ctx: &mut Context, sw: f32, sh: f32) -> GameResult {
+        let bbox = self.get_bbox(sw, sh);
+        let (hbw, hbh) = (bbox.w * 1.4, sh * 0.01);
+        let (hbx, hby) = (bbox.x - (hbw - bbox.w) * 0.5, bbox.y - hbh * 2.);
+
+        let bar = MeshBuilder::new()
+            .rectangle(DrawMode::fill(), Rect::new(hbx, hby, hbw / self.max_health * self.health, hbh), Color::RED)?
+            .rectangle(DrawMode::stroke(3.), Rect::new(hbx, hby, hbw, hbh), Color::BLACK)?
+            .build(ctx)?;
+
+        graphics::draw(ctx, &bar, DrawParam::default())?;
+
+        Ok(())
+    }
 }

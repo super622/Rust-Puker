@@ -31,9 +31,17 @@ pub enum RoomTag {
     Item,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum RoomState {
+    Undiscovered,
+    Discovered,
+    Cleared,
+}
+
 #[derive(Debug)]
 pub struct Room {
     pub tag: RoomTag,
+    pub state: RoomState,
     pub width: f32,
     pub height: f32,
     pub grid: [[i32; ROOM_WIDTH]; ROOM_HEIGHT],
@@ -46,24 +54,26 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn update(&mut self, ctx: &mut Context, assets: &mut Assets, conf: &Config, _player: Option<&Player>, _delta_time: f32) -> GameResult {
+    pub fn update(&mut self, ctx: &mut Context, assets: &mut Assets, conf: &Config, _player: &Player, _delta_time: f32) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
+        let target_grid = &self.get_target_distance_grid(_player.get_pos(), sw, sh);
 
         for shot in self.shots.iter_mut() {
-            shot.update(ctx, assets, conf, &self.grid, _player, _delta_time)?;
+            shot.update(ctx, assets, conf, _delta_time)?;
         }
 
         for enemy in self.enemies.iter_mut() {
-            enemy.update(ctx, assets, conf, &self.grid, _player, _delta_time)?;
+            enemy.act(sw, sh, target_grid, &self.obstacles, &mut self.shots, _player)?;
+            enemy.update(ctx, assets, conf, _delta_time)?;
         }
 
         for drop in self.drops.iter_mut() {
-            drop.update(ctx, assets, conf, &self.grid, _player, _delta_time)?;
+            drop.update(ctx, assets, conf, _delta_time)?;
         }
 
         let dead_enemies = self.enemies.iter()
             .enumerate()
-            .filter(|e| e.1.get_health() <= 0.)
+            .filter(|e| e.1.get_state() == ActorState::Dead)
             .map(|e| e.0).collect::<Vec<_>>();
         for (i,d) in dead_enemies.iter().enumerate() { self.enemies.remove(d - i); }
 
@@ -83,8 +93,10 @@ impl Room {
         for (i,d) in dead_drops.iter().enumerate() { self.drops.remove(d - i); }
         
         if self.enemies.is_empty() {
+            self.state = RoomState::Cleared;
+
             match self.tag {
-                RoomTag::Mob => {
+                RoomTag::Mob | RoomTag::Boss => {
                     self.generate_collectable(sw, sh);
                     self.tag = RoomTag::Empty;
                     let _ = assets.audio.get_mut("door_open_sound").unwrap().play(ctx);
@@ -92,6 +104,7 @@ impl Room {
                         let block = self.obstacles[*door].as_any_mut().downcast_mut::<Block>().unwrap();
                         block.tag = match block.tag {
                             BlockTag::Door { dir, connects_to, .. } => BlockTag::Door { dir, connects_to, is_open: true },
+                            BlockTag::Hatch(_) => BlockTag::Hatch(true),
                             _ => unreachable!(),
                         }
                     }
@@ -110,6 +123,7 @@ impl Room {
                         }
                         else { BlockTag::Door { dir, connects_to, is_open } }
                     },
+                    BlockTag::Hatch(_) => BlockTag::Hatch(false),
                     _ => unreachable!(),
                 }
             }
@@ -142,7 +156,7 @@ impl Room {
 
     /// Helper function for determining the models/stationaries positions.
     ///
-    fn get_model_pos(sw: f32, sh: f32, rw: f32, rh: f32, index: usize) -> Vec2 {
+    fn get_entity_pos(sw: f32, sh: f32, rw: f32, rh: f32, index: usize) -> Vec2 {
         let dims = Vec2::new(sw / rw, sh / rh);
         let coords = Vec2::new((index % (rw as usize)) as f32, (index / (rw as usize)) as f32) * dims;
         coords + dims / 2.
@@ -158,11 +172,11 @@ impl Room {
 
         for (i, c) in layout.chars().enumerate() {
             match c {
-                '#'|'.'|'v'|'d' => {
+                '#'|'.'|'v'|'d'|'h' => {
                     if c != 'v' { grid[i / ROOM_WIDTH as usize][i % ROOM_WIDTH as usize] = i32::MIN; }
 
                     obstacles.push(Box::new(Block {
-                        pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
+                        pos: Room::get_entity_pos(sw, sh, rw, rh, i).into(),
                         scale: Vec2::splat(WALL_SCALE),
                         tag: match c {
                             'd' => {
@@ -180,6 +194,10 @@ impl Room {
                             '#' => BlockTag::Wall,
                             '.' => BlockTag::Stone,
                             'v' => BlockTag::Spikes,
+                            'h' => {
+                                doors.push(obstacles.len());
+                                BlockTag::Hatch(false)
+                            },
                             _ => unreachable!(),
                         },
                     }));
@@ -187,14 +205,14 @@ impl Room {
                 'm' => {
                     enemies.push(Box::new(EnemyMask {
                         props: ActorProps {
-                            pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
+                            pos: Room::get_entity_pos(sw, sh, rw, rh, i).into(),
                             scale: Vec2::splat(ENEMY_SCALE),
                             translation: Vec2::ZERO,
                             forward: Vec2::ZERO,
                             velocity: Vec2::ZERO,
                         },
-                        tag: EnemyTag::Shooter,
                         health: ENEMY_HEALTH,
+                        damage: ENEMY_DAMAGE,
                         state: ActorState::Base,
                         shoot_rate: ENEMY_SHOOT_RATE,
                         shoot_range: ENEMY_SHOOT_RANGE,
@@ -206,15 +224,15 @@ impl Room {
                 'b' => {
                     enemies.push(Box::new(EnemyBlueGuy {
                         props: ActorProps {
-                            pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
+                            pos: Room::get_entity_pos(sw, sh, rw, rh, i).into(),
                             scale: Vec2::splat(ENEMY_SCALE),
                             translation: Vec2::ZERO,
                             forward: Vec2::ZERO,
                             velocity: Vec2::ZERO,
                         },
-                        tag: EnemyTag::Chaser,
                         speed: ENEMY_SPEED,
                         health: ENEMY_HEALTH,
+                        damage: ENEMY_DAMAGE,
                         state: ActorState::Base,
                         animation_cooldown: 0.,
                         afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
@@ -223,15 +241,34 @@ impl Room {
                 's' => {
                     enemies.push(Box::new(EnemySlime {
                         props: ActorProps {
-                            pos: Room::get_model_pos(sw, sh, rw, rh, i).into(),
+                            pos: Room::get_entity_pos(sw, sh, rw, rh, i).into(),
                             scale: Vec2::new(ENEMY_SCALE, ENEMY_SCALE * 0.5),
                             translation: Vec2::ZERO,
                             forward: Vec2::ZERO,
                             velocity: Vec2::ZERO,
                         },
-                        tag: EnemyTag::Wanderer,
                         speed: ENEMY_SPEED * 0.5,
                         health: ENEMY_HEALTH * 1.5,
+                        damage: ENEMY_DAMAGE,
+                        state: ActorState::Base,
+                        animation_cooldown: 0.,
+                        afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
+                        change_direction_cooldown: ENEMY_WANDERER_CHANGE_DIRECTION_COOLDOWN,
+                    }));
+                },
+                'B' => {
+                    enemies.push(Box::new(BossWeirdBall {
+                        props: ActorProps {
+                            pos: Room::get_entity_pos(sw, sh, rw, rh, i).into(),
+                            scale: Vec2::splat(ENEMY_SCALE * 2.),
+                            translation: Vec2::ZERO,
+                            forward: Vec2::ZERO,
+                            velocity: Vec2::ZERO,
+                        },
+                        speed: ENEMY_SPEED * 0.5,
+                        health: BOSS_HEALTH,
+                        max_health: BOSS_HEALTH,
+                        damage: ENEMY_DAMAGE * 2.,
                         state: ActorState::Base,
                         animation_cooldown: 0.,
                         afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
@@ -248,6 +285,7 @@ impl Room {
     fn generate_room(screen: (f32, f32), dungeon_coords: (usize, usize), door_connects: [Option<((usize, usize), Direction)>; 4], tag: RoomTag) -> Room {
         let (sw, sh) = screen;
         
+        let state = RoomState::Undiscovered;
         let width = ROOM_WIDTH as f32;
         let height = ROOM_HEIGHT as f32;
         let shots = Vec::<Shot>::new();
@@ -267,7 +305,10 @@ impl Room {
                 let layout_index = thread_rng().gen_range(0..ROOM_LAYOUTS_ITEM.len()) as usize;
                 ROOM_LAYOUTS_ITEM[layout_index]
             }
-            _ => ROOM_LAYOUT_START,
+            RoomTag::Boss => {
+                let layout_index = thread_rng().gen_range(0..ROOM_LAYOUTS_BOSS.len()) as usize;
+                ROOM_LAYOUTS_BOSS[layout_index]
+            }
         });
         layout = layout.trim().split('\n').map(|l| l.trim()).collect::<String>();
 
@@ -275,6 +316,7 @@ impl Room {
 
         Room {
             tag,
+            state,
             width,
             height,
             grid,
@@ -364,11 +406,11 @@ impl Room {
 #[derive(Debug)]
 pub struct Dungeon {
     grid: [[Option<Room>; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS],
+    level: usize,
 }
 
 impl Dungeon {
-    pub fn generate_dungeon(screen: (f32, f32)) -> Self {
-        let level = 1;
+    pub fn generate_dungeon(screen: (f32, f32), level: usize) -> Self {
         const INIT: Option<Room> = None;
         const INIT_ROW: [Option<Room>; DUNGEON_GRID_COLS] = [INIT; DUNGEON_GRID_COLS];
         let mut grid_rooms: [[Option<Room>; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS] = [INIT_ROW; DUNGEON_GRID_ROWS];
@@ -446,24 +488,50 @@ impl Dungeon {
 
         Dungeon {
             grid: grid_rooms,
+            level,
         }
     }
 
-    pub fn get_room(&self, dungeon_coords: (usize, usize)) -> GameResult<&Room> {
+    pub fn get_room(&self, dungeon_coords: (usize, usize)) -> GameResult<Option<&Room>> {
         if !(0..DUNGEON_GRID_ROWS).contains(&dungeon_coords.0) { return Err(Errors::UnknownGridCoords(dungeon_coords).into()); }
         if !(0..DUNGEON_GRID_COLS).contains(&dungeon_coords.1) { return Err(Errors::UnknownGridCoords(dungeon_coords).into()); }
-        Ok(self.grid[dungeon_coords.0][dungeon_coords.1].as_ref().unwrap())
+        Ok(self.grid[dungeon_coords.0][dungeon_coords.1].as_ref())
     }
 
-    pub fn get_room_mut(&mut self, dungeon_coords: (usize, usize)) -> GameResult<&mut Room> {
+    pub fn get_room_mut(&mut self, dungeon_coords: (usize, usize)) -> GameResult<Option<&mut Room>> {
         if !(0..DUNGEON_GRID_ROWS).contains(&dungeon_coords.0) { return Err(Errors::UnknownGridCoords(dungeon_coords).into()); }
         if !(0..DUNGEON_GRID_COLS).contains(&dungeon_coords.1) { return Err(Errors::UnknownGridCoords(dungeon_coords).into()); }
-        Ok(self.grid[dungeon_coords.0][dungeon_coords.1].as_mut().unwrap())
+        Ok(self.grid[dungeon_coords.0][dungeon_coords.1].as_mut())
     }
 
     pub fn get_grid(&self) -> &[[Option<Room>; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS] { &self.grid }
 
+    pub fn get_level(&self) -> usize { self.level }
+
     pub const fn get_start_room_coords() -> (usize, usize) { (3, 5) }
+
+    pub fn update_rooms_state(&mut self, (i, j): (usize, usize)) -> GameResult {
+        let mut rooms = vec![(i, j)];
+
+        if i > 0                     { rooms.push((i - 1, j)); }
+        if j > 0                     { rooms.push((i, j - 1)); }
+        if j < DUNGEON_GRID_COLS - 1 { rooms.push((i, j + 1)); }
+        if i < DUNGEON_GRID_ROWS - 1 { rooms.push((i + 1, j)); }
+
+        for (ri, rj) in rooms {
+            match self.grid[ri][rj].as_mut() {
+                Some(r) => {
+                    r.state = match r.state {
+                        RoomState::Undiscovered => RoomState::Discovered,
+                        _ => r.state,
+                    };
+                },
+                None => (),
+            };
+        }
+
+        Ok(())
+    }
 
     fn check_dungeon_consistency(grid: &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS], rooms_len: usize) -> bool {
         let mut checked = vec![false; rooms_len];
@@ -500,6 +568,13 @@ impl Dungeon {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub struct Block {
+    pub pos: Vec2Wrap,
+    pub scale: Vec2,
+    pub tag: BlockTag,
+}
+
+#[derive(Debug, Copy, Clone)]
 pub enum BlockTag {
     Door {
         dir: Direction,
@@ -509,13 +584,7 @@ pub enum BlockTag {
     Wall,
     Stone,
     Spikes,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Block {
-    pub pos: Vec2Wrap,
-    pub scale: Vec2,
-    pub tag: BlockTag,
+    Hatch(bool),
 }
 
 impl Stationary for Block {
@@ -542,6 +611,12 @@ impl Stationary for Block {
             BlockTag::Wall => assets.sprites.get("wall").unwrap(),
             BlockTag::Stone => assets.sprites.get("stone").unwrap(),
             BlockTag::Spikes => assets.sprites.get("spikes").unwrap(),
+            BlockTag::Hatch(is_open) => {
+                match is_open {
+                    true => assets.sprites.get("hatch_open").unwrap(),
+                    false => assets.sprites.get("hatch_closed").unwrap(),
+                }
+            },
         };
 
         let draw_params = DrawParam::default()
@@ -560,6 +635,8 @@ impl Stationary for Block {
     fn get_pos(&self) -> Vec2 { self.pos.0 }
 
     fn get_scale(&self) -> Vec2 { self.scale }
+
+    fn get_tag(&self) -> BlockTag { self.tag }
 
     fn as_any(&self) -> &dyn Any {
         self

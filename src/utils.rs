@@ -11,7 +11,6 @@ use std::{
 use crate::{
     traits::*,
     consts::*,
-    enemies::EnemyTag,
 };
 
 pub struct Config {
@@ -109,7 +108,7 @@ pub enum ActorState {
 #[derive(Clone, Debug, Copy)]
 pub enum ActorTag {
     Player,
-    Enemy(EnemyTag),
+    Enemy,
 }
 
 #[derive(Clone, Debug, Copy)]

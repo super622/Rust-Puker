@@ -33,7 +33,7 @@ pub struct Player {
 }
 
 impl Actor for Player {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
 
         if self.afterlock_cooldown == 0. {
@@ -104,6 +104,8 @@ impl Actor for Player {
     fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward; } 
 
     fn get_health(&self) -> f32 { self.health }
+
+    fn get_state(&self) -> ActorState { self.state }
 
     fn damage(&mut self, dmg: f32) { 
         if self.damaged_cooldown <= 0. {

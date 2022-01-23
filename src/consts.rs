@@ -32,6 +32,8 @@ pub const ENEMY_DAMAGE: f32 = 0.5;
 pub const ENEMY_AFTERLOCK_COOLDOWN: f32 = 2.;
 pub const ENEMY_WANDERER_CHANGE_DIRECTION_COOLDOWN: f32 = 2.;
 
+pub const BOSS_HEALTH: f32 = 50.;
+
 pub const SHOT_SPEED: f32 = 300.;
 pub const SHOT_SCALE: f32 = 0.4;
 
@@ -163,6 +165,20 @@ d   .b m b.   d
 d    s   s    d
 #      s      #
 #  s       s  #
+#             #
+#######d#######
+",
+];
+
+pub const ROOM_LAYOUTS_BOSS: &[&str] = &[
+"
+#######d#######
+#             #
+#      h      #
+#             #
+d      B      d
+#             #
+#             #
 #             #
 #######d#######
 ",

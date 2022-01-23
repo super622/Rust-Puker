@@ -23,7 +23,6 @@ use crate::{
     consts::*,
     traits::*,
     ui_elements::*,
-    enemies::*,
 };
 
 pub struct PlayScene {
@@ -59,7 +58,7 @@ impl PlayScene {
             animation_cooldown: 0.,
             afterlock_cooldown: PLAYER_AFTERLOCK_COOLDOWN,
         };
-        let dungeon = Dungeon::generate_dungeon((sw, sh));
+        let dungeon = Dungeon::generate_dungeon((sw, sh), 1);
         let cur_room = Dungeon::get_start_room_coords();
         let overlay = Overlay::new(&player, &dungeon, cur_room);
 
@@ -73,7 +72,7 @@ impl PlayScene {
     }
 
     fn handle_input(&mut self, ctx: &mut Context) -> GameResult {
-        let room = self.dungeon.get_room_mut(self.cur_room)?;
+        let room = self.dungeon.get_room_mut(self.cur_room)?.unwrap();
         self.player.props.forward = Vec2::ZERO;
         self.player.props.translation = Vec2::ZERO;
 
@@ -117,16 +116,17 @@ impl PlayScene {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
         let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
         let mut ct = 0.;
-        let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
+        let room = self.dungeon.get_room_mut(self.cur_room)?.unwrap();
+        let mut next_level = false;
 
         for o in room.obstacles.iter() {
-            if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
-                let obst = o.as_any().downcast_ref::<Block>().unwrap();
+            let obst = o.as_any().downcast_ref::<Block>().unwrap();
 
+            if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 match obst.tag {
                     BlockTag::Door { is_open, dir, connects_to } => {
                         if is_open {
-                            if (self.player.props.pos.0 - obst.pos.0).length() < self.player.get_bcircle(sw, sh).1 {
+                            if (self.player.props.pos.0 - obst.pos.0).length() < obst.get_bcircle(sw, sh).1 {
                                 self.cur_room = connects_to;
                                 let (di, dj) = pos_to_room_coords(obst.get_pos(), sw, sh);
                                 self.player.props.pos.0 = match dir {
@@ -144,21 +144,37 @@ impl PlayScene {
                     BlockTag::Spikes => {
                         if o.get_bbox(sw, sh).contains(self.player.props.pos) { self.player.damage(1.); }
                     },
+                    BlockTag::Hatch(is_open) => {
+                        if is_open {
+                            next_level = true;
+                        }
+                    },
                     _ => self.player.props.pos.0 -= cn.normalize() * ct,
                 }
             }
 
-            for e in room.enemies.iter_mut() {
-                if dynamic_circle_vs_rect(e.get_bcircle(sw, sh), &e.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
-                    e.set_pos(e.get_pos() - cn.normalize() * ct);
-                }
-            }
+            match obst.tag {
+                BlockTag::Hatch(_) => (),
+                _ => {
+                    for e in room.enemies.iter_mut() {
+                        if dynamic_circle_vs_rect(e.get_bcircle(sw, sh), &e.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+                            e.set_pos(e.get_pos() - cn.normalize() * ct);
+                        }
+                    }
 
-            for d in room.drops.iter_mut() {
-                if dynamic_circle_vs_rect(d.get_bcircle(sw, sh), &d.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
-                    d.set_velocity(d.get_velocity() - cn.normalize() * ct);
-                }
+                    for d in room.drops.iter_mut() {
+                        if dynamic_circle_vs_rect(d.get_bcircle(sw, sh), &d.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+                            d.set_velocity(d.get_velocity() - cn.normalize() * ct);
+                        }
+                    }
+                },
             }
+        }
+
+        if next_level {
+            self.dungeon = Dungeon::generate_dungeon((sw, sh), self.dungeon.get_level() + 1);
+            self.cur_room = Dungeon::get_start_room_coords();
+            self.player.props.pos = Vec2::new(sw / 2., sh / 2.).into();
         }
 
         Ok(())
@@ -166,7 +182,7 @@ impl PlayScene {
 
     fn handle_shot_collisions(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
-        let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
+        let room = self.dungeon.get_room_mut(self.cur_room)?.unwrap();
 
         room.shots = room.shots.clone().into_iter().filter(|s| {
             match s.tag {
@@ -193,9 +209,12 @@ impl PlayScene {
             for obst in room.obstacles.iter() {
                 let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
                 let mut ct = 0.;
-                if dynamic_circle_vs_rect(s.get_bcircle(sw, sh), &s.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, _delta_time) {
-                    let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
-                    return false;
+                match obst.get_tag() {
+                    BlockTag::Hatch(_) | BlockTag::Spikes => (),
+                    _ => if dynamic_circle_vs_rect(s.get_bcircle(sw, sh), &s.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, _delta_time) {
+                        let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
+                        return false;
+                    },
                 }
             }
             true
@@ -206,12 +225,12 @@ impl PlayScene {
 
     fn handle_environment_collisions(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
-        let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
+        let room = self.dungeon.get_room_mut(self.cur_room)?.unwrap();
 
         for e in room.enemies.iter_mut() {
             if circle_vs_circle(&e.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
                 resolve_environment_collision(&mut **e, &mut self.player, sw, sh, _delta_time);
-                self.player.damage(ENEMY_DAMAGE);
+                self.player.damage(e.get_damage());
             }
         }
 
@@ -220,51 +239,6 @@ impl PlayScene {
                 if !d.affect_player(ctx, assets, &mut self.player)? {
                     resolve_environment_collision(d, &mut self.player, sw, sh, _delta_time);
                 }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn handle_player_detection(&mut self, _delta_time: f32) -> GameResult {
-        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
-        let room = &mut self.dungeon.get_room_mut(self.cur_room)?;
-        let grid = &room.get_target_distance_grid(self.player.get_pos(), sw, sh);
-        let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
-        let mut ct = 0.;
-
-        for e in room.enemies.iter_mut() {
-            match e.get_tag() {
-                ActorTag::Enemy(etag) => {
-                    match etag {
-                        EnemyTag::Shooter => {
-                            if e.get_pos().distance(self.player.get_pos()) <= ENEMY_SHOOT_RANGE * 0.8 {
-                                if let Some(enemy) = e.as_any_mut().downcast_mut::<EnemyMask>() {
-                                    if room.obstacles.iter()
-                                        .filter(|o| { ray_vs_rect(&enemy.get_pos(), &(self.player.get_pos() - enemy.get_pos()), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
-                                        .count() == 0 {
-                                        enemy.shoot(&self.player.get_pos(), &mut room.shots)?;
-                                    }
-                                }
-                            }
-                        },
-                        EnemyTag::Chaser => {
-                            if let Some(enemy) = e.as_any_mut().downcast_mut::<EnemyBlueGuy>() {
-                                if room.obstacles.iter()
-                                    .filter(|o| { ray_vs_rect(&enemy.get_pos(), &(self.player.get_pos() - enemy.get_pos()), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
-                                    .count() == 0 {
-                                    enemy.chase(self.player.get_pos());
-                                }
-                                else {
-                                    let target = enemy.find_path(grid, sw, sh);
-                                    enemy.chase(target);
-                                }
-                            }
-                        },
-                        _ => (),
-                    }
-                },
-                _ => (),
             }
         }
 
@@ -280,13 +254,12 @@ impl Scene for PlayScene {
 
         self.handle_environment_collisions(ctx, assets, delta_time)?;
 
-        self.handle_player_detection(delta_time)?;
-
         self.handle_shot_collisions(ctx, assets, delta_time)?;
 
-        self.dungeon.get_room_mut(self.cur_room)?.update(ctx, assets, &self.config.borrow(), Some(&self.player), delta_time)?;
+        self.dungeon.update_rooms_state(self.cur_room)?;
+        self.dungeon.get_room_mut(self.cur_room)?.unwrap().update(ctx, assets, &self.config.borrow(), &self.player, delta_time)?;
 
-        self.player.update(ctx, assets, &self.config.borrow(), &self.dungeon.get_room(self.cur_room)?.grid, None, delta_time)?;
+        self.player.update(ctx, assets, &self.config.borrow(), delta_time)?;
 
         self.overlay.update_vars(&self.player, &self.dungeon, self.cur_room);
         self.overlay.update(ctx, &self.config.borrow())?;
@@ -300,7 +273,7 @@ impl Scene for PlayScene {
     }
 
     fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
-        self.dungeon.get_room(self.cur_room)?.draw(ctx, assets, &self.config.borrow())?;
+        self.dungeon.get_room(self.cur_room)?.unwrap().draw(ctx, assets, &self.config.borrow())?;
 
         self.player.draw(ctx, assets, &self.config.borrow())?;
 

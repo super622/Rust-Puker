@@ -33,6 +33,9 @@ impl Assets {
         sprites.insert("enemy_slime_west".to_string(), graphics::Image::new(ctx, "/images/enemy_slime_west.png")?);
         sprites.insert("enemy_slime_north".to_string(), graphics::Image::new(ctx, "/images/enemy_slime_north.png")?);
         sprites.insert("enemy_slime_south".to_string(), graphics::Image::new(ctx, "/images/enemy_slime_south.png")?);
+        sprites.insert("boss_weird_ball_base".to_string(), graphics::Image::new(ctx, "/images/boss_weird_ball_base.png")?);
+        sprites.insert("boss_weird_ball_shoot_cardinals".to_string(), graphics::Image::new(ctx, "/images/boss_weird_ball_shoot_cardinals.png")?);
+        sprites.insert("boss_weird_ball_shoot_diagonals".to_string(), graphics::Image::new(ctx, "/images/boss_weird_ball_shoot_diagonals.png")?);
         sprites.insert("door_closed".to_string(), graphics::Image::new(ctx, "/images/door_closed.png")?);
         sprites.insert("door_open".to_string(), graphics::Image::new(ctx, "/images/door_open.png")?);
         sprites.insert("floor".to_string(), graphics::Image::new(ctx, "/images/floor.png")?);
@@ -48,6 +51,8 @@ impl Assets {
         sprites.insert("speed_boost".to_string(), graphics::Image::new(ctx, "/images/speed_boost.png")?);
         sprites.insert("damage_boost".to_string(), graphics::Image::new(ctx, "/images/damage_boost.png")?);
         sprites.insert("shoot_rate_boost".to_string(), graphics::Image::new(ctx, "/images/shoot_rate_boost.png")?);
+        sprites.insert("hatch_open".to_string(), graphics::Image::new(ctx, "/images/hatch_open.png")?);
+        sprites.insert("hatch_closed".to_string(), graphics::Image::new(ctx, "/images/hatch_closed.png")?);
 
         fonts.insert("button_font".to_string(), graphics::Font::new(ctx, "/fonts/enigma.ttf")?);
 
@@ -59,6 +64,7 @@ impl Assets {
         audio.insert("bubble_pop_sound".to_string(), audio::Source::new(ctx, "/audio/bubble_pop_sound.mp3")?);
         audio.insert("power_up_sound".to_string(), audio::Source::new(ctx, "/audio/power_up_sound.mp3")?);
         audio.insert("heal_sound".to_string(), audio::Source::new(ctx, "/audio/heal_sound.mp3")?);
+        audio.insert("boss_death_sound".to_string(), audio::Source::new(ctx, "/audio/boss_death_sound.mp3")?);
 
         Ok(Self {
             sprites,

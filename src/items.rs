@@ -36,7 +36,7 @@ pub struct Collectable {
 }
 
 impl Actor for Collectable {
-    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _conf: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult {
+    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.velocity_lerp(_delta_time, 0., 2., 0.);
 
         self.props.pos.0 += self.props.velocity;
@@ -94,6 +94,8 @@ impl Actor for Collectable {
     fn set_forward(&mut self, new_forward: Vec2) { self.props.forward = new_forward; }
 
     fn get_health(&self) -> f32 { 0. }
+
+    fn get_state(&self) -> ActorState { ActorState::Base }
 
     fn get_tag(&self) -> ActorTag { ActorTag::Player }
 

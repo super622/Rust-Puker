@@ -15,7 +15,7 @@ use crate::{
     traits::*,
     consts::*,
     player::*,
-    dungeon::{Dungeon},
+    dungeon::{Dungeon, RoomState},
 };
 
 pub struct TextSprite {
@@ -155,7 +155,7 @@ pub struct Minimap {
     pub width: f32,
     pub height: f32,
     pub cur_room: (usize, usize),
-    pub visited: [[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS],
+    pub rooms_state: Vec<Vec<RoomState>>,
 }
 
 impl UIElement for Minimap {
@@ -192,10 +192,10 @@ impl UIElement for Minimap {
                     )?
                     .build(ctx)?;
 
-                match self.visited[r][c] {
-                    1 => graphics::draw(ctx, &room_rect, DrawParam::default().color(Color::new(0.3, 0.3, 0.3, 1.)))?,
-                    2 => graphics::draw(ctx, &room_rect, DrawParam::default().color(Color::new(0.6, 0.6, 0.6, 1.)))?,
-                    3 => graphics::draw(ctx, &room_rect, DrawParam::default().color(Color::WHITE))?,
+                match self.rooms_state[r][c] {
+                    _ if self.cur_room == (r, c) => graphics::draw(ctx, &room_rect, DrawParam::default().color(Color::WHITE))?,
+                    RoomState::Discovered => graphics::draw(ctx, &room_rect, DrawParam::default().color(Color::new(0.3, 0.3, 0.3, 1.)))?,
+                    RoomState::Cleared => graphics::draw(ctx, &room_rect, DrawParam::default().color(Color::new(0.6, 0.6, 0.6, 1.)))?,
                     _ => (),
                 }
             }
@@ -284,7 +284,7 @@ impl Overlay {
                 width: MINIMAP_SCALE,
                 height: MINIMAP_SCALE,
                 cur_room,
-                visited: [[0; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS],
+                rooms_state: vec![vec![RoomState::Undiscovered; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS],
             }),
         ];
 
@@ -303,17 +303,13 @@ impl Overlay {
                 h.max_health = player.max_health;
             }
             else if let Some(m) = e.as_any_mut().downcast_mut::<Minimap>() {
-                let (r, c) = cur_room;
-                let grid = dungeon.get_grid();
-
-                m.visited[m.cur_room.0][m.cur_room.1] = 2;
                 m.cur_room = cur_room;
-                m.visited[r][c] = 3;
-
-                if r > 1                     && grid[r - 1][c].is_some() { m.visited[r - 1][c] = usize::max(1, m.visited[r - 1][c]); }
-                if r < DUNGEON_GRID_ROWS - 1 && grid[r + 1][c].is_some() { m.visited[r + 1][c] = usize::max(1, m.visited[r + 1][c]); }
-                if c > 1                     && grid[r][c - 1].is_some() { m.visited[r][c - 1] = usize::max(1, m.visited[r][c - 1]); }
-                if c < DUNGEON_GRID_COLS - 1 && grid[r][c + 1].is_some() { m.visited[r][c + 1] = usize::max(1, m.visited[r][c + 1]); }
+                m.rooms_state = dungeon.get_grid().iter().map(|r| {
+                    r.iter().map(|c| { 
+                        if let Some(room) = c { room.state }
+                        else { RoomState::Undiscovered }
+                    }).collect()
+                }).collect();
             }
         }
     }

@@ -13,15 +13,16 @@ use std::{
 use glam::f32::Vec2;
 use crate::{
     assets::*,
-    shots::*,
     consts::*,
     utils::*,
     player::*,
+    shots::Shot,
+    dungeon::BlockTag,
 };
 use rand::{thread_rng, Rng};
 
 pub trait Actor: std::fmt::Debug {
-    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _config: &Config, _grid: &[[i32; ROOM_WIDTH]], _player: Option<&Player>, _delta_time: f32) -> GameResult;
+    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _config: &Config, _delta_time: f32) -> GameResult;
 
     fn draw(&self, _ctx: &mut Context, _assets: &mut Assets, _config: &Config) -> GameResult;
 
@@ -98,9 +99,15 @@ pub trait Actor: std::fmt::Debug {
         if self.get_velocity().length() > speed && speed > 0. { self.set_velocity(self.get_velocity().clamp_length_max(speed)); }
     }
 
+    fn act(&mut self, _sw: f32, _sh: f32, _grid: &[[i32; ROOM_WIDTH]], _obstacles: &Vec<Box<dyn Stationary>>, _shots: &mut Vec<Shot>, _player: &Player) -> GameResult { Ok(()) }
+
     fn get_health(&self) -> f32; 
 
+    fn get_state(&self) -> ActorState;
+
     fn damage(&mut self, _dmg: f32) {}
+
+    fn get_damage(&self) -> f32 { 0. }
 
     fn get_tag(&self) -> ActorTag;
 
@@ -162,6 +169,8 @@ pub trait Stationary: std::fmt::Debug {
     fn get_pos(&self) -> Vec2;
 
     fn get_scale(&self) -> Vec2;
+
+    fn get_tag(&self) -> BlockTag;
 
     fn as_any(&self) -> &dyn Any;
     
@@ -271,7 +280,7 @@ pub trait UIElement {
 }
 
 pub trait Chaser: Actor {
-    fn chase(&mut self, target: Vec2);
+    fn chase(&mut self, sw: f32, sh: f32, obstacles: &Vec<Box<dyn Stationary>>, grid: &[[i32; ROOM_WIDTH]], player: &Player);
 
     fn find_path(&mut self, grid: &[[i32; ROOM_WIDTH]], sw: f32, sh: f32) -> Vec2 {
         let (mut i, mut j) = pos_to_room_coords(self.get_pos(), sw, sh);
@@ -287,7 +296,7 @@ pub trait Chaser: Actor {
 }
 
 pub trait Shooter: Actor {
-    fn shoot(&mut self, target: &Vec2, shots: &mut Vec<Shot>) -> GameResult;
+    fn shoot(&mut self, sw: f32, sh: f32, obstacles: &Vec<Box<dyn Stationary>>, shots: &mut Vec<Shot>, player: &Player) -> GameResult;
 
     fn get_range(&self) -> f32;  
 
@@ -295,14 +304,14 @@ pub trait Shooter: Actor {
 }
 
 pub trait Wanderer: Actor {
-    fn wander(&mut self, grid: &[[i32; ROOM_WIDTH]], sw: f32, sh: f32) {
+    fn wander(&mut self, sw: f32, sh: f32, grid: &[[i32; ROOM_WIDTH]]) {
         let (i, j) = pos_to_room_coords(self.get_pos(), sw, sh);
         let mut dirs = Vec::new();
 
-        if i > 0               && grid[i - 1][j] == 0 { dirs.push(-Vec2::Y); }
-        if j > 0               && grid[i][j - 1] == 0 { dirs.push(-Vec2::X); }
-        if j < ROOM_WIDTH - 1  && grid[i][j + 1] == 0 { dirs.push(Vec2::X); }
-        if i < ROOM_HEIGHT - 1 && grid[i + 1][j] == 0 { dirs.push(Vec2::Y); }
+        if i > 0               && grid[i - 1][j] >= 0 { dirs.push(-Vec2::Y); }
+        if j > 0               && grid[i][j - 1] >= 0 { dirs.push(-Vec2::X); }
+        if j < ROOM_WIDTH - 1  && grid[i][j + 1] >= 0 { dirs.push(Vec2::X); }
+        if i < ROOM_HEIGHT - 1 && grid[i + 1][j] >= 0 { dirs.push(Vec2::Y); }
 
         if (self.get_change_direction_cooldown() == 0. && thread_rng().gen_bool(0.8)) || !dirs.contains(&self.get_translation()) {
             let dir = thread_rng().gen_range(0..dirs.len());
