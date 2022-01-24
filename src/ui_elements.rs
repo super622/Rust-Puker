@@ -385,3 +385,38 @@ impl UIElement for CheckBox {
     
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
+
+pub struct Slider {
+    pub pos: Point2<f32>,
+    pub width: f32,
+    pub height: f32,
+    pub limit_left: f32,
+    pub limit_right: f32,
+    pub steps: f32,
+    pub current_step: f32,
+    pub left_side_color: Color,
+    pub right_side_color: Color,
+}
+
+impl UIElement for Slider {
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
+
+    fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
+        let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
+        let tl = self.top_left(ctx, sw, sh);
+
+
+        Ok(())
+    }
+
+    fn pos(&self, sw: f32, sh: f32) -> Point2<f32> { Point2 { x: sw * self.pos.x, y: sh * self.pos.y } }
+
+    fn width(&self, _ctx: &mut Context, sw: f32) -> f32 { sw * self.width }
+
+    fn height(&self, _ctx: &mut Context, sh: f32) -> f32 { sh * self.height }
+
+    fn as_any(&self) -> &dyn Any { self }
+    
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+}
