@@ -134,6 +134,7 @@ impl Shooter for EnemyMask {
         self.props.forward = player.get_pos() - self.get_pos();
         self.state = ActorState::Shoot;
         self.shoot_timeout = 1. / self.shoot_rate;
+        self.animation_cooldown = ANIMATION_COOLDOWN;
 
         let shot_dir = self.props.forward.normalize();
 
@@ -148,7 +149,7 @@ impl Shooter for EnemyMask {
             spawn_pos: self.props.pos,
             speed: SHOT_SPEED,
             range: self.shoot_range,
-            damage: ENEMY_DAMAGE,
+            damage: self.damage,
             tag: ShotTag::Enemy,
         };
 
@@ -393,6 +394,9 @@ pub struct BossWeirdBall {
     pub health: f32,
     pub max_health: f32,
     pub damage: f32,
+    pub shoot_rate: f32,
+    pub shoot_range: f32,
+    pub shoot_timeout: f32,
     pub animation_cooldown: f32,
     pub afterlock_cooldown: f32,
     pub change_direction_cooldown: f32,
@@ -402,11 +406,11 @@ impl Actor for BossWeirdBall {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
         self.change_direction_cooldown = f32::max(0., self.change_direction_cooldown - _delta_time);
+        self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
+        self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
 
         self.velocity_lerp(_delta_time, self.speed, 10., 10.);
         self.props.pos.0 += self.props.velocity;
-
-        self.animation_cooldown = f32::max(0., self.animation_cooldown - _delta_time);
 
         if self.animation_cooldown == 0. { self.state = ActorState::Base; }
         if self.health <= 0. {
@@ -420,13 +424,15 @@ impl Actor for BossWeirdBall {
     fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
 
-        let mut sprite = assets.sprites.get("boss_weird_ball_base").unwrap();
-        if self.state == ActorState::Shoot { 
-            sprite = match self.props.forward.x as i32 {
-                1 => assets.sprites.get("boss_weird_ball_shoot_cardinals").unwrap(),
-                _ => assets.sprites.get("boss_weird_ball_shoot_diagonals").unwrap(),
-            };
-        }
+        let sprite = match self.state {
+            ActorState::Shoot => { 
+                match self.props.forward.x as i32 {
+                    1 => assets.sprites.get("boss_weird_ball_shoot_cardinals").unwrap(),
+                    _ => assets.sprites.get("boss_weird_ball_shoot_diagonals").unwrap(),
+                }
+            },
+            _ => assets.sprites.get("boss_weird_ball_base").unwrap(),
+        };
 
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
@@ -482,6 +488,7 @@ impl Actor for BossWeirdBall {
     fn act(&mut self, sw: f32, sh: f32, _grid: &[[i32; ROOM_WIDTH]], _obstacles: &Vec<Box<dyn Stationary>>, _shots: &mut Vec<Shot>, _player: &Player) -> GameResult {
         if self.afterlock_cooldown == 0. {
             self.wander(sw, sh, _grid);
+            self.shoot(sw, sh, _obstacles, _shots, _player)?;
         }
         Ok(())
     }
@@ -512,4 +519,52 @@ impl BossWeirdBall {
 
         Ok(())
     }
+}
+
+impl Shooter for BossWeirdBall {
+    fn shoot(&mut self, _sw: f32, _sh: f32, _obstacles: &Vec<Box<dyn Stationary>>, shots: &mut Vec<Shot>, _player: &Player) -> GameResult {
+        if self.shoot_timeout != 0. 
+            || self.afterlock_cooldown != 0. {
+            return Ok(())
+        }
+
+        self.props.forward = match thread_rng().gen_bool(0.5) {
+            true => Vec2::X,
+            false => Vec2::Y,
+        };
+        self.state = ActorState::Shoot;
+        self.shoot_timeout = 1. / self.shoot_rate;
+        self.animation_cooldown = ANIMATION_COOLDOWN;
+
+        let mut shot_dir = match self.props.forward.x as i32 {
+            1 => Vec2::X,
+            _ => Vec2::ONE,
+        };
+
+        for _ in 0..4 {
+            let shot = Shot {
+                props: ActorProps {
+                    pos: self.props.pos,
+                    scale: Vec2::splat(SHOT_SCALE),
+                    translation: shot_dir,
+                    forward: shot_dir,
+                    velocity: Vec2::ZERO,
+                },
+                spawn_pos: self.props.pos,
+                speed: SHOT_SPEED,
+                range: self.shoot_range,
+                damage: self.damage,
+                tag: ShotTag::Enemy,
+            };
+
+            shots.push(shot);
+            shot_dir = shot_dir.perp();
+        }
+
+        Ok(())
+    }
+
+    fn get_range(&self) -> f32 { self.shoot_range }
+
+    fn get_rate(&self) -> f32 { self.shoot_rate }
 }
