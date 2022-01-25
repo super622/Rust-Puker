@@ -58,11 +58,7 @@ impl EventHandler for MainState {
         while timer::check_update_time(ctx, DESIRED_FPS) {
             let delta_time = 1.0 / (DESIRED_FPS as f32);
 
-            let scene;
-
-            {
-                scene = self.config.borrow().current_state;
-            }
+            let scene = self.config.borrow().current_state;
 
             match scene {
                 State::Play => input::mouse::set_cursor_grabbed(ctx, true)?,
@@ -81,11 +77,7 @@ impl EventHandler for MainState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         graphics::clear(ctx, [0.1, 0.2, 0.3, 1.0].into());
 
-        let scene;
-
-        {
-            scene = self.config.borrow().current_state;
-        }
+        let scene = self.config.borrow().current_state;
 
         match scene {
             State::Menu | State::Dead | State::Options => self
@@ -112,11 +104,7 @@ impl EventHandler for MainState {
         _keymod: input::keyboard::KeyMods,
         _repeat: bool,
     ) {
-        let scene;
-
-        {
-            scene = self.config.borrow().current_state;
-        }
+        let scene = self.config.borrow().current_state;
 
         self.scenes
             .get_mut(&scene)
@@ -130,11 +118,7 @@ impl EventHandler for MainState {
         keycode: KeyCode,
         _keymod: input::keyboard::KeyMods,
     ) {
-        let scene;
-
-        {
-            scene = self.config.borrow().current_state;
-        }
+        let scene = self.config.borrow().current_state;
 
         self.scenes
             .get_mut(&scene)
@@ -149,20 +133,14 @@ impl EventHandler for MainState {
         _x: f32,
         _y: f32,
     ) {
-        let mut scene;
-
-        {
-            scene = self.config.borrow().current_state;
-        }
+        let mut scene = self.config.borrow().current_state;
 
         self.scenes
             .get_mut(&scene)
             .unwrap()
             .mouse_button_down_event(_ctx, _button, _x, _y);
 
-        {
-            scene = self.config.borrow().current_state;
-        }
+        scene = self.config.borrow().current_state;
 
         match scene {
             State::New => {
