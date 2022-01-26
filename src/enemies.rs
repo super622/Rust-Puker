@@ -539,7 +539,7 @@ impl Shooter for BossWeirdBall {
         let mut shot_dir = match self.props.forward.x as i32 {
             1 => Vec2::X,
             _ => Vec2::ONE,
-        };
+        }.normalize();
 
         for _ in 0..4 {
             let shot = Shot {
