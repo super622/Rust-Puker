@@ -284,7 +284,7 @@ impl Scene for PlayScene {
 
     fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
         match keycode {
-            KeyCode::Escape => self.config.borrow_mut().current_state = State::Menu,
+            KeyCode::Escape => self.config.borrow_mut().current_state = State::PauseMenu,
             _ => (),
         }
     }
@@ -298,12 +298,12 @@ impl Scene for PlayScene {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
 }
 
-pub struct StartScene {
+pub struct MainMenuScene {
     config: Rc<RefCell<Config>>,
     ui_elements: Vec<Box<dyn UIElement>>,
 }
 
-impl StartScene {
+impl MainMenuScene {
     pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
@@ -344,7 +344,7 @@ impl StartScene {
     }
 }
 
-impl Scene for StartScene {
+impl Scene for MainMenuScene {
     fn update(&mut self, ctx: &mut Context, _assets: &mut Assets, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
             e.update(ctx, &self.config.borrow())?;
@@ -395,12 +395,12 @@ impl Scene for StartScene {
     fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
 }
 
-pub struct MenuScene {
+pub struct PauseMenuScene {
     config: Rc<RefCell<Config>>,
     ui_elements: Vec<Box<dyn UIElement>>,
 }
 
-impl MenuScene {
+impl PauseMenuScene {
     pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
@@ -423,7 +423,7 @@ impl MenuScene {
                 tag: State::New,
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.4},
-                    text: String::from("New"),
+                    text: String::from("New Game"),
                     font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
                     color: Color::BLACK,
@@ -469,7 +469,7 @@ impl MenuScene {
     }
 }
 
-impl Scene for MenuScene {
+impl Scene for PauseMenuScene {
     fn update(&mut self, ctx: &mut Context, _assets: &mut Assets, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
             e.update(ctx, &self.config.borrow())?;
@@ -672,7 +672,7 @@ impl OptionsScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.8},
-                tag: State::Menu,
+                tag: State::PauseMenu,
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.8},
                     text: String::from("Back"),
@@ -723,7 +723,7 @@ impl Scene for OptionsScene {
 
     fn key_down_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
         match _keycode {
-            KeyCode::Escape => self.config.borrow_mut().current_state = State::Menu,
+            KeyCode::Escape => self.config.borrow_mut().current_state = State::PauseMenu,
             _ => (),
         }
     }

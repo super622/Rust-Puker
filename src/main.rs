@@ -29,11 +29,11 @@ impl MainState {
             volume: 0.5,
             draw_bcircle_model: true,
             draw_bbox_stationary: false,
-            current_state: State::Start,
+            current_state: State::MainMenu,
         }));
         let mut scenes = HashMap::<State, Box<dyn Scene>>::new();
-        scenes.insert(State::Menu, Box::new(MenuScene::new(&config, &assets)));
-        scenes.insert(State::Start, Box::new(StartScene::new(&config, &assets)));
+        scenes.insert(State::PauseMenu, Box::new(PauseMenuScene::new(&config, &assets)));
+        scenes.insert(State::MainMenu, Box::new(MainMenuScene::new(&config, &assets)));
         scenes.insert(State::Dead, Box::new(DeadScene::new(&config, &assets)));
         scenes.insert(State::Options, Box::new(OptionsScene::new(&config, &assets)));
               
@@ -76,11 +76,12 @@ impl EventHandler for MainState {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         graphics::clear(ctx, [0.1, 0.2, 0.3, 1.0].into());
+        input::mouse::set_cursor_type(ctx, input::mouse::CursorIcon::Default);
 
         let scene = self.config.borrow().current_state;
 
         match scene {
-            State::Menu | State::Dead | State::Options => self
+            State::PauseMenu | State::Dead | State::Options => self
                 .scenes
                 .get_mut(&State::Play)
                 .unwrap()

@@ -1,5 +1,5 @@
-pub const DEFAULT_SCREEN_WIDTH: f32 = 800.;
-pub const DEFAULT_SCREEN_HEIGHT: f32 = 600.;
+pub const DEFAULT_SCREEN_WIDTH: f32 = 1280.;
+pub const DEFAULT_SCREEN_HEIGHT: f32 = 720.;
 
 pub const BUTTON_TEXT_FONT_SIZE: f32 = 0.1;
 

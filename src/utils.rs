@@ -1,6 +1,6 @@
 use ggez::{
     mint::Point2,
-    graphics::{Rect},
+    graphics::{Rect, Color},
     GameError,
 };
 use glam::f32::*;
@@ -27,9 +27,9 @@ pub struct Config {
 #[derive(Clone, Copy, Hash, Debug)]
 pub enum State {
     Play,
-    Start,
+    MainMenu,
     New,
-    Menu,
+    PauseMenu,
     Options,
     Quit,
     Dead,
@@ -45,15 +45,16 @@ impl FromStr for State {
     type Err = Errors;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input {
-            "Play" => Ok(State::Play),
-            "Start" => Ok(State::Start),
-            "New" => Ok(State::New),
-            "Menu" => Ok(State::Menu),
-            "Quit" => Ok(State::Quit),
-            "Dead" => Ok(State::Dead),
-            _ => Err(Errors::StateParse(input.to_string())),
-        }
+        let state = match input {
+            "Play" => State::Play,
+            "MainMenu" => State::MainMenu,
+            "New" => State::New,
+            "PauseMenu" => State::PauseMenu,
+            "Quit" => State::Quit,
+            "Dead" => State::Dead,
+            _ => return Err(Errors::StateParse(input.to_string())),
+        };
+        Ok(state)
     }
 }
 
@@ -268,10 +269,10 @@ pub fn dynamic_circle_vs_circle(c1: &(Vec2Wrap, f32), c1_vel: &Vec2, c2: &(Vec2W
 
     let c1_pos = c1.0.0;
     let c1_r = c1.1;
-    let c1_mass = c1_r * 5.;
+    let c1_mass = c1_r * 100.;
     let c2_pos = c2.0.0;
     let c2_r = c2.1;
-    let c2_mass = c2_r * 10.;
+    let c2_mass = c2_r * 100.;
 
     let norm = (c1_pos - c2_pos).normalize();
     let tan = Vec2::new(-norm.y, norm.x);
@@ -326,4 +327,8 @@ pub fn pos_to_room_coords(pos: Vec2, sw: f32, sh: f32) -> (usize, usize) {
 
 pub fn room_coords_to_pos(i: usize, j: usize, sw: f32, sh: f32) -> Vec2 {
     Vec2::new((2. * (j as f32) - 1.) * sw / (ROOM_WIDTH as f32) / 2., (2. * (i as f32) - 1.) * sh / (ROOM_HEIGHT as f32) / 2.)
+}
+
+pub fn invert_color(c: &Color) -> Color {
+    Color::from_rgb_u32(!c.to_rgb_u32())
 }

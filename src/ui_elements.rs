@@ -3,6 +3,7 @@ use ggez::{
     Context,
     GameResult,
     mint::{Point2},
+    input::{mouse},
 };
 use std::{
     any::Any,
@@ -103,27 +104,37 @@ pub struct Button {
 }
 
 impl UIElement for Button {
-    fn update(&mut self, ctx: &mut Context, conf: &Config) -> GameResult {
-        let (sw, sh) = (conf.screen_width, conf.screen_height);
-        let (ww, wh) = (conf.window_width, conf.window_height);
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult {
+        // let (sw, sh) = (conf.screen_width, conf.screen_height);
+        // let (ww, wh) = (conf.window_width, conf.window_height);
 
-        self.color = Color::WHITE;
-        if self.mouse_overlap(ctx, sw, sh, ww, wh) {
-            self.color = Color::RED;
-        }
+        // self.color = Color::WHITE;
+        // if self.mouse_overlap(ctx, sw, sh, ww, wh) {
+        //     self.color = Color::RED;
+        // }
 
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
+        let (ww, wh) = (conf.window_width, conf.window_height);
         let (tw, th) = (self.text.width(ctx, sh) as f32, self.text.height(ctx, sh) as f32);
         let tl = self.top_left(ctx, sw, sh);
 
         let rect = Rect::new(tl.x, tl.y, tw, th);
+        let color = match self.mouse_overlap(ctx, sw, sh, ww, wh) {
+            true => {
+                mouse::set_cursor_type(ctx, mouse::CursorIcon::Hand);
+                invert_color(&self.color)
+            },
+            _ => {
+                self.color
+            }
+        };
 
         let btn = MeshBuilder::new()
-            .rounded_rectangle(DrawMode::fill(), rect, self.border.radius, self.color)?
+            .rounded_rectangle(DrawMode::fill(), rect, self.border.radius, color)?
             .rounded_rectangle(DrawMode::stroke(self.border.stroke), rect, self.border.radius, self.border.color)?
             .build(ctx)?;
 
@@ -390,16 +401,25 @@ pub struct Slider {
     pub pos: Point2<f32>,
     pub width: f32,
     pub height: f32,
-    pub limit_left: f32,
-    pub limit_right: f32,
+    pub lower: f32,
+    pub upper: f32,
     pub steps: f32,
-    pub current_step: f32,
+    pub value: f32,
     pub left_side_color: Color,
     pub right_side_color: Color,
 }
 
+impl Slider {
+    pub fn step(&mut self, change: f32) {
+        self.value += change;
+    }
+}
+
 impl UIElement for Slider {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { 
+
+        Ok(()) 
+    }
 
     fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
