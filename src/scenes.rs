@@ -671,6 +671,32 @@ impl OptionsScene {
                 }),
                 ..Default::default()
             }),
+            Box::new(Slider {
+                pos: Point2 { x: 0.5, y: 0.6 },
+                value: config.borrow().volume * 100.,
+                border: Border {
+                    stroke: 3.,
+                    radius: 0.,
+                    ..Default::default()
+                },
+                decrease_button: Button {
+                    text: Some(TextSprite {
+                        text: String::from("<<"),
+                        font: *assets.fonts.get("button_font").unwrap(),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+                increase_button: Button {
+                    text: Some(TextSprite {
+                        text: String::from(">>"),
+                        font: *assets.fonts.get("button_font").unwrap(),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
         ];
 
         Self {
@@ -744,8 +770,8 @@ impl Scene for OptionsScene {
                             false => graphics::set_fullscreen(_ctx, FullscreenType::True),
                         };
                         c.checked = !c.checked;
-                        return;
                     }
+                    return;
                 },
                 None => return,
             }

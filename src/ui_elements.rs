@@ -94,9 +94,9 @@ impl UIElement for TextSprite {
 }
 
 pub struct Border {
-    stroke: f32,
-    radius: f32,
-    color: Color,
+    pub stroke: f32,
+    pub radius: f32,
+    pub color: Color,
 }
 
 impl Default for Border {
@@ -441,6 +441,7 @@ pub struct Slider {
     pub upper: f32,
     pub steps: f32,
     pub value: f32,
+    pub border: Border,
     // pub left_side_color: Color,
     // pub right_side_color: Color,
     pub decrease_button: Button,
@@ -448,20 +449,81 @@ pub struct Slider {
     pub slider_button: Button,
 }
 
-impl Slider {
-    pub fn step(&mut self, change: f32) {
-        self.value += change;
+impl Default for Slider {
+    fn default() -> Self {
+        Self {
+            pos: Point2 { x: 0.5, y: 0.5 },
+            width: 0.4,
+            height: 0.1,
+            lower: 0.,
+            upper: 100.,
+            steps: 100.,
+            value: 50.,
+            border: Border::default(),
+            decrease_button: Button::default(),
+            increase_button: Button::default(),
+            slider_button: Button::default(),
+        }
     }
 }
 
+impl Slider {
+    pub fn increase(&mut self) {
+        self.value = (self.value + (self.upper - self.lower) / self.steps).clamp(self.lower, self.upper);
+    }
+
+    pub fn decrease(&mut self) {
+        self.value = (self.value - (self.upper - self.lower) / self.steps).clamp(self.lower, self.upper);
+    }
+
+    pub fn get_step_in_pixels(&self, sw: f32) -> f32 { (self.lower - self.upper) / self.steps * self.width * sw }
+}
+
 impl UIElement for Slider {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { 
+        let (sw, sh) = (_conf.screen_width, _conf.screen_height);
+        let tl = self.top_left(_ctx, sw, sh);
+        let prop = self.value / (self.upper - self.lower);
+
+        self.slider_button = Button {
+            pos: Point2 { x: (tl.x + self.width(_ctx, sw) * prop) / sw, y: self.pos.y },
+            width: self.width * 0.1,
+            height: self.height,
+            ..Default::default()
+        };
+        self.decrease_button = Button {
+            pos: Point2 { x: self.pos.x - self.width / 2. - self.slider_button.width / 2., y: self.pos.y },
+            width: self.width * 0.1,
+            height: self.height,
+            text: self.decrease_button.text.clone(),
+            ..Default::default()
+        };
+        self.increase_button = Button {
+            pos: Point2 { x: self.pos.x + self.width / 2. + self.slider_button.width / 2., y: self.pos.y },
+            width: self.width * 0.1,
+            height: self.height,
+            text: self.increase_button.text.clone(),
+            ..Default::default()
+        };
+
+        Ok(()) 
+    }
 
     fn draw(&mut self, _ctx: &mut Context, _assets: &Assets, _conf: &Config) -> GameResult {
-        // let (sw, sh) = (conf.screen_width, conf.screen_height);
-        // let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
-        // let tl = self.top_left(ctx, sw, sh);
+        let (sw, sh) = (_conf.screen_width, _conf.screen_height);
+        let (w, h) = (self.width(_ctx, sw), self.height(_ctx, sh));
+        let tl = self.top_left(_ctx, sw, sh);
 
+        let ruler = MeshBuilder::new()
+            .rectangle(DrawMode::fill(), Rect::new(tl.x, tl.y, w, h), Color::RED)?
+            .rectangle(DrawMode::fill(), Rect::new(tl.x, tl.y, w * self.value / (self.upper - self.lower), h), Color::GREEN)?
+            .rounded_rectangle(DrawMode::stroke(self.border.stroke), Rect::new(tl.x, tl.y, w, h), self.border.radius, self.border.color)?
+            .build(_ctx)?;
+
+        graphics::draw(_ctx, &ruler, DrawParam::default())?;
+        self.decrease_button.draw(_ctx, _assets, _conf)?;
+        self.increase_button.draw(_ctx, _assets, _conf)?;
+        self.slider_button.draw(_ctx, _assets, _conf)?;
 
         Ok(())
     }
