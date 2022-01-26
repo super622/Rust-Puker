@@ -18,6 +18,7 @@ use crate::{
     player::*,
     shots::Shot,
     dungeon::BlockTag,
+    ui_elements::Button,
 };
 use rand::{thread_rng, Rng};
 
@@ -182,11 +183,39 @@ pub trait Scene {
 
     fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult;
 
-    fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool);
+    fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {}
 
-    fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods);
+    fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32);
+    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
+
+    fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {
+        let (sw, sh, ww, wh);
+        {
+            match self.get_conf() {
+                Some(conf) => {
+                    sw = conf.screen_width;
+                    sh = conf.screen_height;
+                    ww = conf.window_width;
+                    wh = conf.window_height;
+                },
+                None => return,
+            }
+        }
+
+        match self.get_ui_elements() {
+            Some(ue) => {
+                for e in ue.iter() {
+                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
+                        if e.mouse_overlap(_ctx, sw, sh, ww, wh) {
+                            input::mouse::set_cursor_type(_ctx, input::mouse::CursorIcon::Hand);
+                        }
+                    }
+                }
+            },
+            None => (),
+        }
+    }
 
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { None }
 

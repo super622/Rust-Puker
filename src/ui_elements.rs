@@ -19,6 +19,7 @@ use crate::{
     dungeon::{Dungeon, RoomState},
 };
 
+#[derive(Clone)]
 pub struct TextSprite {
     pub pos: Point2<f32>,
     pub text: String,
@@ -122,10 +123,12 @@ impl UIElement for Button {
         let (tw, th) = (self.text.width(ctx, sh) as f32, self.text.height(ctx, sh) as f32);
         let tl = self.top_left(ctx, sw, sh);
 
+        let mut text = self.text.clone();
         let rect = Rect::new(tl.x, tl.y, tw, th);
         let color = match self.mouse_overlap(ctx, sw, sh, ww, wh) {
             true => {
                 mouse::set_cursor_type(ctx, mouse::CursorIcon::Hand);
+                text.color = invert_color(&text.color);
                 invert_color(&self.color)
             },
             _ => {
@@ -139,7 +142,7 @@ impl UIElement for Button {
             .build(ctx)?;
 
         graphics::draw(ctx, &btn, DrawParam::default())?;
-        self.text.draw(ctx, _assets, conf)?;
+        text.draw(ctx, _assets, conf)?;
 
         Ok(())
     }
@@ -416,10 +419,7 @@ impl Slider {
 }
 
 impl UIElement for Slider {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { 
-
-        Ok(()) 
-    }
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult {  Ok(()) }
 
     fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);

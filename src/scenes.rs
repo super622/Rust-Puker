@@ -292,10 +292,6 @@ impl Scene for PlayScene {
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
 
     fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
-
-    fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
-
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
 }
 
 pub struct MainMenuScene {
@@ -367,10 +363,6 @@ impl Scene for MainMenuScene {
 
         Ok(())
     }
-
-    fn key_down_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {}
-
-    fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
         if _button == MouseButton::Left {
@@ -504,8 +496,6 @@ impl Scene for PauseMenuScene {
         }
     }
 
-    fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
-
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
         if _button == MouseButton::Left {
             let result = self.get_clicked(_ctx);
@@ -610,10 +600,6 @@ impl Scene for DeadScene {
 
         Ok(())
     }
-
-    fn key_down_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {}
-
-    fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
         if _button == MouseButton::Left {
@@ -727,8 +713,6 @@ impl Scene for OptionsScene {
             _ => (),
         }
     }
-
-    fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
 

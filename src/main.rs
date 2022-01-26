@@ -76,7 +76,6 @@ impl EventHandler for MainState {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         graphics::clear(ctx, [0.1, 0.2, 0.3, 1.0].into());
-        input::mouse::set_cursor_type(ctx, input::mouse::CursorIcon::Default);
 
         let scene = self.config.borrow().current_state;
 
@@ -154,6 +153,16 @@ impl EventHandler for MainState {
             }
             _ => (),
         }
+    }
+
+    fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {
+        input::mouse::set_cursor_type(_ctx, input::mouse::CursorIcon::Default);
+        let mut scene = self.config.borrow().current_state;
+
+        self.scenes
+            .get_mut(&scene)
+            .unwrap()
+            .mouse_motion_event(_ctx, _x, _y, _dx, _dy);
     }
 
     fn resize_event(&mut self, _ctx: &mut Context, _width: f32, _height: f32) {
