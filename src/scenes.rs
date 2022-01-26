@@ -282,11 +282,15 @@ impl Scene for PlayScene {
         Ok(())
     }
 
-    fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
-        match keycode {
+    fn key_down_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
+        let cur = self.config.borrow().current_state;
+
+        match _keycode {
             KeyCode::Escape => self.config.borrow_mut().current_state = State::PauseMenu,
             _ => (),
-        }
+        };
+
+        self.config.borrow_mut().previous_state = cur;
     }
 
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
@@ -304,10 +308,10 @@ impl MainMenuScene {
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(Button {
-                pos: Point2 { x: 0.5, y: 0.4},
-                tag: State::New,
+                pos: Point2 { x: 0.5, y: 0.3},
+                tag: Some(State::New),
                 text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.4},
+                    pos: Point2 { x: 0.5, y: 0.3},
                     text: String::from("Play"),
                     font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
@@ -318,10 +322,24 @@ impl MainMenuScene {
                 border: Border::default(),
             }),
             Box::new(Button {
-                pos: Point2 { x: 0.5, y: 0.6},
-                tag: State::Quit,
+                pos: Point2 { x: 0.5, y: 0.5},
+                tag: Some(State::Options),
                 text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.6},
+                    pos: Point2 { x: 0.5, y: 0.5},
+                    text: String::from("Options"),
+                    font: *assets.fonts.get("button_font").unwrap(),
+                    font_size: BUTTON_TEXT_FONT_SIZE,
+                    color: Color::BLACK,
+                    background: Color::from([0.; 4]),
+                },
+                color: Color::WHITE,
+                border: Border::default(),
+            }),
+            Box::new(Button {
+                pos: Point2 { x: 0.5, y: 0.7},
+                tag: Some(State::Quit),
+                text: TextSprite {
+                    pos: Point2 { x: 0.5, y: 0.7},
                     text: String::from("Quit"),
                     font: *assets.fonts.get("button_font").unwrap(),
                     font_size: BUTTON_TEXT_FONT_SIZE,
@@ -365,17 +383,25 @@ impl Scene for MainMenuScene {
     }
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let cur = self.config.borrow().current_state;
+        let prev = self.config.borrow().previous_state;
+
         if _button == MouseButton::Left {
             let result = self.get_clicked(_ctx);
             match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        self.config.borrow_mut().current_state = b.tag;
+                        match b.tag {
+                            Some(t) => self.config.borrow_mut().current_state = t,
+                            None => self.config.borrow_mut().current_state = prev,
+                        };
                     }
                 },
                 None => (),
             }
         }
+
+        self.config.borrow_mut().previous_state = cur;
     }
 
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
@@ -398,7 +424,7 @@ impl PauseMenuScene {
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.2},
-                tag: State::Play,
+                tag: Some(State::Play),
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.2},
                     text: String::from("Continue"),
@@ -412,7 +438,7 @@ impl PauseMenuScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.4},
-                tag: State::New,
+                tag: Some(State::New),
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.4},
                     text: String::from("New Game"),
@@ -426,7 +452,7 @@ impl PauseMenuScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.6},
-                tag: State::Options,
+                tag: Some(State::Options),
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.6},
                     text: String::from("Options"),
@@ -440,7 +466,7 @@ impl PauseMenuScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.8},
-                tag: State::Quit,
+                tag: Some(State::Quit),
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.8},
                     text: String::from("Quit"),
@@ -489,25 +515,37 @@ impl Scene for PauseMenuScene {
         Ok(())
     }
 
-    fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
-        match keycode {
+    fn key_down_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
+        let cur = self.config.borrow().current_state;
+
+        match _keycode {
             KeyCode::Escape => self.config.borrow_mut().current_state = State::Play,
             _ => (),
         }
+
+        self.config.borrow_mut().previous_state = cur;
     }
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let cur = self.config.borrow().current_state;
+        let prev = self.config.borrow().previous_state;
+
         if _button == MouseButton::Left {
             let result = self.get_clicked(_ctx);
             match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        self.config.borrow_mut().current_state = b.tag;
+                        match b.tag {
+                            Some(t) => self.config.borrow_mut().current_state = t,
+                            None => self.config.borrow_mut().current_state = prev,
+                        };
                     }
                 },
                 None => (),
             }
         }
+
+        self.config.borrow_mut().previous_state = cur;
     }
 
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
@@ -538,7 +576,7 @@ impl DeadScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.5},
-                tag: State::New,
+                tag: Some(State::New),
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.5},
                     text: String::from("Try Again"),
@@ -552,7 +590,7 @@ impl DeadScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.7},
-                tag: State::Quit,
+                tag: Some(State::Quit),
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.7},
                     text: String::from("Quit"),
@@ -602,17 +640,25 @@ impl Scene for DeadScene {
     }
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let cur = self.config.borrow().current_state;
+        let prev = self.config.borrow().previous_state;
+
         if _button == MouseButton::Left {
             let result = self.get_clicked(_ctx);
             match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        self.config.borrow_mut().current_state = b.tag;
+                        match b.tag {
+                            Some(t) => self.config.borrow_mut().current_state = t,
+                            None => self.config.borrow_mut().current_state = prev,
+                        };
                     }
                 },
                 None => (),
             }
         }
+
+        self.config.borrow_mut().previous_state = cur;
     }
 
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
@@ -658,7 +704,7 @@ impl OptionsScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.8},
-                tag: State::PauseMenu,
+                tag: None,
                 text: TextSprite {
                     pos: Point2 { x: 0.5, y: 0.8},
                     text: String::from("Back"),
@@ -708,10 +754,15 @@ impl Scene for OptionsScene {
     }
 
     fn key_down_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {
+        let prev = self.config.borrow().previous_state;
+        let cur = self.config.borrow().current_state;
+
         match _keycode {
-            KeyCode::Escape => self.config.borrow_mut().current_state = State::PauseMenu,
+            KeyCode::Escape => self.config.borrow_mut().current_state = prev,
             _ => (),
-        }
+        };
+
+        self.config.borrow_mut().previous_state = cur;
     }
 
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
@@ -719,12 +770,18 @@ impl Scene for OptionsScene {
     fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let cur = self.config.borrow().current_state;
+        let prev = self.config.borrow().previous_state;
+
         if _button == MouseButton::Left {
             let result = self.get_clicked_mut(_ctx);
             match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        self.config.borrow_mut().current_state = b.tag;
+                        match b.tag {
+                            Some(t) => self.config.borrow_mut().current_state = t,
+                            None => self.config.borrow_mut().current_state = prev,
+                        };
                     }
                     else if let Some(c) = e.as_any_mut().downcast_mut::<CheckBox>() {
                         let _ = match c.checked {
@@ -732,11 +789,14 @@ impl Scene for OptionsScene {
                             false => graphics::set_fullscreen(_ctx, FullscreenType::True),
                         };
                         c.checked = !c.checked;
+                        return;
                     }
                 },
                 None => (),
             }
         }
+
+        self.config.borrow_mut().previous_state = cur;
     }
 
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }

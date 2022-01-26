@@ -98,24 +98,14 @@ impl Default for Border {
 
 pub struct Button {
     pub pos: Point2<f32>,
-    pub tag: State,
+    pub tag: Option<State>,
     pub text: TextSprite,
     pub color: Color,
     pub border: Border,
 }
 
 impl UIElement for Button {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult {
-        // let (sw, sh) = (conf.screen_width, conf.screen_height);
-        // let (ww, wh) = (conf.window_width, conf.window_height);
-
-        // self.color = Color::WHITE;
-        // if self.mouse_overlap(ctx, sw, sh, ww, wh) {
-        //     self.color = Color::RED;
-        // }
-
-        Ok(())
-    }
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
 
     fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
@@ -419,12 +409,12 @@ impl Slider {
 }
 
 impl UIElement for Slider {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult {  Ok(()) }
+    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
 
     fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
-        let (sw, sh) = (conf.screen_width, conf.screen_height);
-        let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
-        let tl = self.top_left(ctx, sw, sh);
+        // let (sw, sh) = (conf.screen_width, conf.screen_height);
+        // let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
+        // let tl = self.top_left(ctx, sw, sh);
 
 
         Ok(())

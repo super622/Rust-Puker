@@ -183,9 +183,9 @@ pub trait Scene {
 
     fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult;
 
-    fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {}
+    fn key_down_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {}
 
-    fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
+    fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
 
@@ -207,7 +207,7 @@ pub trait Scene {
             Some(ue) => {
                 for e in ue.iter() {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        if e.mouse_overlap(_ctx, sw, sh, ww, wh) {
+                        if b.mouse_overlap(_ctx, sw, sh, ww, wh) {
                             input::mouse::set_cursor_type(_ctx, input::mouse::CursorIcon::Hand);
                         }
                     }

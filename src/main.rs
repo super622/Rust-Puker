@@ -30,6 +30,7 @@ impl MainState {
             draw_bcircle_model: true,
             draw_bbox_stationary: false,
             current_state: State::MainMenu,
+            previous_state: State::MainMenu,
         }));
         let mut scenes = HashMap::<State, Box<dyn Scene>>::new();
         scenes.insert(State::PauseMenu, Box::new(PauseMenuScene::new(&config, &assets)));
@@ -80,11 +81,12 @@ impl EventHandler for MainState {
         let scene = self.config.borrow().current_state;
 
         match scene {
-            State::PauseMenu | State::Dead | State::Options => self
-                .scenes
-                .get_mut(&State::Play)
-                .unwrap()
-                .draw(ctx, &mut self.assets)?,
+            State::PauseMenu | State::Dead | State::Options => {
+                match self.scenes.get_mut(&State::Play) {
+                    Some(s) => s.draw(ctx, &mut self.assets)?,
+                    None => (),
+                }
+            },
             _ => (),
         }
 
@@ -157,7 +159,7 @@ impl EventHandler for MainState {
 
     fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {
         input::mouse::set_cursor_type(_ctx, input::mouse::CursorIcon::Default);
-        let mut scene = self.config.borrow().current_state;
+        let scene = self.config.borrow().current_state;
 
         self.scenes
             .get_mut(&scene)

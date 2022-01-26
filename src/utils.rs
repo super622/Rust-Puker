@@ -22,6 +22,7 @@ pub struct Config {
     pub draw_bcircle_model: bool,
     pub draw_bbox_stationary: bool,
     pub current_state: State,
+    pub previous_state: State,
 }
 
 #[derive(Clone, Copy, Hash, Debug)]
