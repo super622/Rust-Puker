@@ -41,6 +41,19 @@ impl TextSprite {
     }
 }
 
+impl Default for TextSprite {
+    fn default() -> Self {
+        Self {
+            pos: Point2 { x: 0.5, y: 0.5 },
+            text: String::from(""),
+            font: Font::default(),
+            font_size: BUTTON_TEXT_FONT_SIZE,
+            color: Color::BLACK,
+            background: Color::from([0.; 4]),
+        }
+    }
+}
+
 impl UIElement for TextSprite {
     fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
 
@@ -98,10 +111,26 @@ impl Default for Border {
 
 pub struct Button {
     pub pos: Point2<f32>,
+    pub width: f32,
+    pub height: f32,
     pub tag: Option<State>,
-    pub text: TextSprite,
+    pub text: Option<TextSprite>,
     pub color: Color,
     pub border: Border,
+}
+
+impl Default for Button {
+    fn default() -> Self {
+        Self {
+            pos: Point2 { x: 0.5, y: 0.5 },
+            width: 0.3,
+            height: 0.1,
+            tag: None,
+            text: None,
+            color: Color::WHITE,
+            border: Border::default(),
+        }
+    }
 }
 
 impl UIElement for Button {
@@ -110,20 +139,25 @@ impl UIElement for Button {
     fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let (ww, wh) = (conf.window_width, conf.window_height);
-        let (tw, th) = (self.text.width(ctx, sh) as f32, self.text.height(ctx, sh) as f32);
+        let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
         let tl = self.top_left(ctx, sw, sh);
 
-        let mut text = self.text.clone();
-        let rect = Rect::new(tl.x, tl.y, tw, th);
+        // let (tw, th);
+        let mut text = None;
+        if let Some(t) = &self.text {
+            text = Some(t.clone());
+            // tw = t.width(ctx, sh) as f32;
+            // th = t.height(ctx, sh) as f32;
+        }
+
+        let rect = Rect::new(tl.x, tl.y, w, h);
         let color = match self.mouse_overlap(ctx, sw, sh, ww, wh) {
             true => {
                 mouse::set_cursor_type(ctx, mouse::CursorIcon::Hand);
-                text.color = invert_color(&text.color);
+                if let Some(t) = &mut text { t.color = invert_color(&t.color); }
                 invert_color(&self.color)
             },
-            _ => {
-                self.color
-            }
+            _ => self.color,
         };
 
         let btn = MeshBuilder::new()
@@ -132,23 +166,20 @@ impl UIElement for Button {
             .build(ctx)?;
 
         graphics::draw(ctx, &btn, DrawParam::default())?;
-        text.draw(ctx, _assets, conf)?;
+        if let Some(t) = &mut text { 
+            t.pos = self.pos;
+            t.draw(ctx, _assets, conf)?; 
+        }
 
         Ok(())
     }
 
     fn pos(&self, sw: f32, sh: f32) -> Point2<f32> { Point2 { x: sw * self.pos.x, y: sh * self.pos.y } }
 
-    fn width(&self, ctx: &mut Context, sh: f32) -> f32 { self.text.width(ctx, sh) as f32 }
+    fn width(&self, _ctx: &mut Context, sw: f32) -> f32 { self.width * sw }
 
-    fn height(&self, ctx: &mut Context, sh: f32) -> f32 { self.text.height(ctx, sh) as f32 }
+    fn height(&self, _ctx: &mut Context, sh: f32) -> f32 { self.height * sh }
 
-    fn top_left(&self, ctx: &mut Context, sw: f32, sh: f32) -> Point2<f32> {
-        let pos = self.pos(sw, sh);
-        let (w, h) = (self.width(ctx, sh), self.height(ctx, sh));
-        Point2 { x: pos.x - w / 2., y: pos.y - h / 2. }
-    }
-        
     fn as_any(&self) -> &dyn Any { self }
 
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
@@ -351,6 +382,18 @@ pub struct CheckBox {
     pub color: Color,
 }
 
+impl Default for CheckBox {
+    fn default() -> Self {
+        Self {
+            pos: Point2 { x: 0.5, y: 0.5 },
+            width: 0.1,
+            height: 0.1,
+            checked: false,
+            color: Color::BLACK,
+        }
+    }
+}
+
 impl UIElement for CheckBox {
     fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
 
@@ -398,8 +441,11 @@ pub struct Slider {
     pub upper: f32,
     pub steps: f32,
     pub value: f32,
-    pub left_side_color: Color,
-    pub right_side_color: Color,
+    // pub left_side_color: Color,
+    // pub right_side_color: Color,
+    pub decrease_button: Button,
+    pub increase_button: Button,
+    pub slider_button: Button,
 }
 
 impl Slider {
@@ -411,7 +457,7 @@ impl Slider {
 impl UIElement for Slider {
     fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
 
-    fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&mut self, _ctx: &mut Context, _assets: &Assets, _conf: &Config) -> GameResult {
         // let (sw, sh) = (conf.screen_width, conf.screen_height);
         // let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
         // let tl = self.top_left(ctx, sw, sh);

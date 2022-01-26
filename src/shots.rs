@@ -6,7 +6,6 @@ use ggez::{
 use crate::{
     assets::*,
     utils::*,
-    consts::*,
     traits::*,
 };
 use std::{
@@ -32,7 +31,7 @@ pub struct Shot {
 
 impl Actor for Shot {
     fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
-        self.props.velocity = self.props.translation * SHOT_SPEED * _delta_time;
+        self.props.velocity = (self.props.velocity + self.props.translation * 100. * _delta_time).clamp_length_max(self.speed);
         self.props.pos.0 += self.props.velocity;
 
         Ok(())

@@ -141,11 +141,11 @@ impl Room {
 
         for obst in self.obstacles.iter() { obst.draw(ctx, assets, conf)?; }
 
-        for enemy in self.enemies.iter() { enemy.draw(ctx, assets, conf)?; }
+        for drop in self.drops.iter() { drop.draw(ctx, assets, conf)?; }
 
         for shot in self.shots.iter() { shot.draw(ctx, assets, conf)?; }
 
-        for drop in self.drops.iter() { drop.draw(ctx, assets, conf)?; }
+        for enemy in self.enemies.iter() { enemy.draw(ctx, assets, conf)?; }
 
         Ok(())
     }

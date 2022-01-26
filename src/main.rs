@@ -146,13 +146,11 @@ impl EventHandler for MainState {
 
         match scene {
             State::New => {
-                self.scenes
-                    .insert(State::Play, Box::new(PlayScene::new(&self.config)));
+                self.scenes.insert(State::Play, Box::new(PlayScene::new(&self.config)));
                 self.config.borrow_mut().current_state = State::Play;
             }
-            State::Quit => {
-                ggez::event::quit(_ctx);
-            }
+            State::Quit => ggez::event::quit(_ctx),
+            State::MainMenu => { self.scenes.remove(&State::Play); },
             _ => (),
         }
     }

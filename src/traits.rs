@@ -299,7 +299,7 @@ pub trait UIElement {
         
     fn mouse_overlap(&self, ctx: &mut Context, sw: f32, sh: f32, ww: f32, wh: f32) -> bool {
         let tl = self.top_left(ctx, sw, sh);
-        let (w, h) = (self.width(ctx, sh), self.height(ctx, sh));
+        let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
         Rect::new(tl.x, tl.y, w, h).contains(get_mouse_screen_coords(input::mouse::position(ctx), sw, sh, ww, wh))
     }
 

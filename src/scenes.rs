@@ -1,5 +1,5 @@
 use ggez::{
-    graphics::{self, Font, DrawMode, Color, DrawParam, Rect, Mesh},
+    graphics::{self, DrawMode, Color, DrawParam, Rect, Mesh},
     Context,
     GameResult,
     mint::{Point2},
@@ -310,44 +310,32 @@ impl MainMenuScene {
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.3},
                 tag: Some(State::New),
-                text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.3},
+                text: Some(TextSprite {
                     text: String::from("Play"),
                     font: *assets.fonts.get("button_font").unwrap(),
-                    font_size: BUTTON_TEXT_FONT_SIZE,
-                    color: Color::BLACK,
-                    background: Color::from([0.; 4]),
-                },
-                color: Color::WHITE,
-                border: Border::default(),
+                    ..Default::default()
+                }),
+                ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.5},
                 tag: Some(State::Options),
-                text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.5},
+                text: Some(TextSprite {
                     text: String::from("Options"),
                     font: *assets.fonts.get("button_font").unwrap(),
-                    font_size: BUTTON_TEXT_FONT_SIZE,
-                    color: Color::BLACK,
-                    background: Color::from([0.; 4]),
-                },
-                color: Color::WHITE,
-                border: Border::default(),
+                    ..Default::default()
+                }),
+                ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.7},
                 tag: Some(State::Quit),
-                text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.7},
+                text: Some(TextSprite {
                     text: String::from("Quit"),
                     font: *assets.fonts.get("button_font").unwrap(),
-                    font_size: BUTTON_TEXT_FONT_SIZE,
-                    color: Color::BLACK,
-                    background: Color::from([0.; 4]),
-                },
-                color: Color::WHITE,
-                border: Border::default(),
+                    ..Default::default()
+                }),
+                ..Default::default()
             }),
         ];
 
@@ -397,7 +385,7 @@ impl Scene for MainMenuScene {
                         };
                     }
                 },
-                None => (),
+                None => return,
             }
         }
 
@@ -425,58 +413,43 @@ impl PauseMenuScene {
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.2},
                 tag: Some(State::Play),
-                text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.2},
+                text: Some(TextSprite {
                     text: String::from("Continue"),
                     font: *assets.fonts.get("button_font").unwrap(),
-                    font_size: BUTTON_TEXT_FONT_SIZE,
-                    color: Color::BLACK,
-                    background: Color::from([0.; 4]),
-                },
-                color: Color::WHITE,
-                border: Border::default(),
+                    ..Default::default()
+                }),
+                ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.4},
                 tag: Some(State::New),
-                text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.4},
+                text: Some(TextSprite {
                     text: String::from("New Game"),
                     font: *assets.fonts.get("button_font").unwrap(),
-                    font_size: BUTTON_TEXT_FONT_SIZE,
-                    color: Color::BLACK,
-                    background: Color::from([0.; 4]),
-                },
-                color: Color::WHITE,
-                border: Border::default(),
+                    ..Default::default()
+                }),
+                ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.6},
                 tag: Some(State::Options),
-                text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.6},
+                text: Some(TextSprite {
                     text: String::from("Options"),
                     font: *assets.fonts.get("button_font").unwrap(),
-                    font_size: BUTTON_TEXT_FONT_SIZE,
-                    color: Color::BLACK,
-                    background: Color::from([0.; 4]),
-                },
-                color: Color::WHITE,
-                border: Border::default(),
+                    ..Default::default()
+                }),
+                ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.8},
-                tag: Some(State::Quit),
-                text: TextSprite {
+                tag: Some(State::MainMenu),
+                text: Some(TextSprite {
                     pos: Point2 { x: 0.5, y: 0.8},
-                    text: String::from("Quit"),
+                    text: String::from("Main Menu"),
                     font: *assets.fonts.get("button_font").unwrap(),
-                    font_size: BUTTON_TEXT_FONT_SIZE,
-                    color: Color::BLACK,
-                    background: Color::from([0.; 4]),
-                },
-                color: Color::WHITE,
-                border: Border::default(),
+                    ..Default::default()
+                }),
+                ..Default::default()
             }),
         ];
 
@@ -541,7 +514,7 @@ impl Scene for PauseMenuScene {
                         };
                     }
                 },
-                None => (),
+                None => return,
             }
         }
 
@@ -569,38 +542,29 @@ impl DeadScene {
             Box::new(TextSprite {
                 pos: Point2 { x: 0.5, y: 0.3},
                 text: String::from("YOU DIED"),
-                font: Font::default(),
                 font_size: BUTTON_TEXT_FONT_SIZE * 2.,
                 color: Color::RED,
-                background: Color::from([0.; 4]),
+                ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.5},
                 tag: Some(State::New),
-                text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.5},
+                text: Some(TextSprite {
                     text: String::from("Try Again"),
                     font: *assets.fonts.get("button_font").unwrap(),
-                    font_size: BUTTON_TEXT_FONT_SIZE,
-                    color: Color::BLACK,
-                    background: Color::from([0.; 4]),
-                },
-                color: Color::WHITE,
-                border: Border::default(),
+                    ..Default::default()
+                }),
+                ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.7},
                 tag: Some(State::Quit),
-                text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.7},
+                text: Some(TextSprite {
                     text: String::from("Quit"),
                     font: *assets.fonts.get("button_font").unwrap(),
-                    font_size: BUTTON_TEXT_FONT_SIZE,
-                    color: Color::BLACK,
-                    background: Color::from([0.; 4]),
-                },
-                color: Color::WHITE,
-                border: Border::default(),
+                    ..Default::default()
+                }),
+                ..Default::default()
             }),
         ];
 
@@ -654,7 +618,7 @@ impl Scene for DeadScene {
                         };
                     }
                 },
-                None => (),
+                None => return,
             }
         }
 
@@ -682,39 +646,30 @@ impl OptionsScene {
             Box::new(TextSprite {
                 pos: Point2 { x: 0.5, y: 0.2},
                 text: String::from("OPTIONS"),
-                font: Font::default(),
                 font_size: BUTTON_TEXT_FONT_SIZE * 2.,
                 color: Color::RED,
-                background: Color::from([0.; 4]),
+                ..Default::default()
             }),
             Box::new(CheckBox {
                 pos: Point2 { x: 0.3, y: 0.4 },
-                width: 0.1,
-                height: 0.1,
-                checked: false,
-                color: Color::BLACK,
+                ..Default::default()
             }),
             Box::new(TextSprite {
                 pos: Point2 { x: 0.6, y: 0.4},
                 text: String::from("Fullscreen"),
-                font: Font::default(),
-                font_size: BUTTON_TEXT_FONT_SIZE,
                 color: Color::BLUE,
                 background: Color::from([1.; 4]),
+                ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.8},
                 tag: None,
-                text: TextSprite {
-                    pos: Point2 { x: 0.5, y: 0.8},
+                text: Some(TextSprite {
                     text: String::from("Back"),
                     font: *assets.fonts.get("button_font").unwrap(),
-                    font_size: BUTTON_TEXT_FONT_SIZE,
-                    color: Color::BLACK,
-                    background: Color::from([0.; 4]),
-                },
-                color: Color::WHITE,
-                border: Border::default(),
+                    ..Default::default()
+                }),
+                ..Default::default()
             }),
         ];
 
@@ -792,7 +747,7 @@ impl Scene for OptionsScene {
                         return;
                     }
                 },
-                None => (),
+                None => return,
             }
         }
 
