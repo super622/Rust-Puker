@@ -32,6 +32,31 @@ pub struct Player {
     pub afterlock_cooldown: f32,
 }
 
+impl Default for Player {
+    fn default() -> Self {
+        Self {
+            props: ActorProps {
+                pos: Vec2::new(DEFAULT_SCREEN_WIDTH / 2., DEFAULT_SCREEN_HEIGHT / 2.).into(),
+                scale: Vec2::splat(PLAYER_SCALE),
+                translation: Vec2::ZERO,
+                forward: Vec2::ZERO,
+                velocity: Vec2::ZERO,
+            },
+            speed: PLAYER_SPEED,
+            health: PLAYER_HEALTH,
+            max_health: PLAYER_HEALTH,
+            state: ActorState::Base,
+            shoot_rate: PLAYER_SHOOT_RATE,
+            shoot_range: PLAYER_SHOOT_RANGE,
+            shoot_timeout: PLAYER_SHOOT_TIMEOUT,
+            damage: PLAYER_DAMAGE,
+            damaged_cooldown: 0.,
+            animation_cooldown: 0.,
+            afterlock_cooldown: PLAYER_AFTERLOCK_COOLDOWN,
+        }
+    }
+}
+
 impl Actor for Player {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);

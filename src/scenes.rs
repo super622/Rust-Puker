@@ -38,26 +38,7 @@ impl PlayScene {
         let (sw, sh) = (config.borrow().screen_width, config.borrow().screen_height);
 
         let config = Rc::clone(config);
-        let player = Player {
-            props: ActorProps {
-                pos: Vec2::new(sw / 2., sh / 2.).into(),
-                scale: Vec2::splat(PLAYER_SCALE),
-                translation: Vec2::ZERO,
-                forward: Vec2::ZERO,
-                velocity: Vec2::ZERO,
-            },
-            speed: PLAYER_SPEED,
-            health: PLAYER_HEALTH,
-            max_health: PLAYER_HEALTH,
-            state: ActorState::Base,
-            shoot_rate: PLAYER_SHOOT_RATE,
-            shoot_range: PLAYER_SHOOT_RANGE,
-            shoot_timeout: PLAYER_SHOOT_TIMEOUT,
-            damage: PLAYER_DAMAGE,
-            damaged_cooldown: 0.,
-            animation_cooldown: 0.,
-            afterlock_cooldown: PLAYER_AFTERLOCK_COOLDOWN,
-        };
+        let player = Player::default();
         let dungeon = Dungeon::generate_dungeon((sw, sh), 1);
         let cur_room = Dungeon::get_start_room_coords();
         let overlay = Overlay::new(&player, &dungeon, cur_room);
