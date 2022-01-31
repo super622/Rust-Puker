@@ -189,33 +189,7 @@ pub trait Scene {
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
 
-    fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {
-        let (sw, sh, ww, wh);
-        {
-            match self.get_conf() {
-                Some(conf) => {
-                    sw = conf.screen_width;
-                    sh = conf.screen_height;
-                    ww = conf.window_width;
-                    wh = conf.window_height;
-                },
-                None => return,
-            }
-        }
-
-        match self.get_ui_elements() {
-            Some(ue) => {
-                for e in ue.iter() {
-                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        if b.mouse_overlap(_ctx, sw, sh, ww, wh) {
-                            input::mouse::set_cursor_type(_ctx, input::mouse::CursorIcon::Hand);
-                        }
-                    }
-                }
-            },
-            None => (),
-        }
-    }
+    fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {}
 
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { None }
 
@@ -302,6 +276,14 @@ pub trait UIElement {
         let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
         Rect::new(tl.x, tl.y, w, h).contains(get_mouse_screen_coords(input::mouse::position(ctx), sw, sh, ww, wh))
     }
+
+    // fn get_action(&self) -> Some(&dyn Fn(_ctx: &mut Context, _conf: &mut Config)) { None }
+
+//     fn act(&mut self, _ctx: &mut Context, _conf: &mut Config) { 
+//         match self.get_action() {
+//             Some(a) => a()
+//         }
+//     }
 
     fn as_any(&self) -> &dyn Any;
     

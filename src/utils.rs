@@ -122,6 +122,18 @@ pub struct ActorProps {
     pub velocity: Vec2,
 }
 
+impl Default for ActorProps {
+    fn default() -> Self {
+        Self {
+            pos: Vec2::ZERO.into(),
+            scale: Vec2::ONE,
+            translation: Vec2::ZERO,
+            forward: Vec2::ZERO,
+            velocity: Vec2::ZERO,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Copy, Default)]
 pub struct Vec2Wrap(pub Vec2);
 
@@ -332,4 +344,16 @@ pub fn room_coords_to_pos(i: usize, j: usize, sw: f32, sh: f32) -> Vec2 {
 
 pub fn invert_color(c: &Color) -> Color {
     Color::from_rgb_u32(!c.to_rgb_u32())
+}
+
+pub fn change_scene(conf: &mut Config, new_state: Option<State>) {
+    let cur = conf.current_state;
+    let prev = conf.previous_state;
+
+    match new_state {
+        Some(s) => conf.current_state = s,
+        None => conf.current_state = prev,
+    }
+
+    conf.previous_state = cur;
 }

@@ -133,6 +133,12 @@ impl Default for Button {
     }
 }
 
+// impl Button {
+//     fn clicked() -> bool {
+        
+//     }
+// }
+
 impl UIElement for Button {
     fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
 
@@ -142,12 +148,9 @@ impl UIElement for Button {
         let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
         let tl = self.top_left(ctx, sw, sh);
 
-        // let (tw, th);
         let mut text = None;
         if let Some(t) = &self.text {
             text = Some(t.clone());
-            // tw = t.width(ctx, sh) as f32;
-            // th = t.height(ctx, sh) as f32;
         }
 
         let rect = Rect::new(tl.x, tl.y, w, h);

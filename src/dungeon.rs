@@ -207,18 +207,9 @@ impl Room {
                         props: ActorProps {
                             pos: Room::get_entity_pos(sw, sh, rw, rh, i).into(),
                             scale: Vec2::splat(ENEMY_SCALE),
-                            translation: Vec2::ZERO,
-                            forward: Vec2::ZERO,
-                            velocity: Vec2::ZERO,
+                            ..Default::default()
                         },
-                        health: ENEMY_HEALTH,
-                        damage: ENEMY_DAMAGE,
-                        state: ActorState::Base,
-                        shoot_rate: ENEMY_SHOOT_RATE,
-                        shoot_range: ENEMY_SHOOT_RANGE,
-                        shoot_timeout: ENEMY_SHOOT_TIMEOUT,
-                        animation_cooldown: 0.,
-                        afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
+                        ..Default::default()
                     }));
                 },
                 'b' => {
@@ -226,16 +217,9 @@ impl Room {
                         props: ActorProps {
                             pos: Room::get_entity_pos(sw, sh, rw, rh, i).into(),
                             scale: Vec2::splat(ENEMY_SCALE),
-                            translation: Vec2::ZERO,
-                            forward: Vec2::ZERO,
-                            velocity: Vec2::ZERO,
+                            ..Default::default()
                         },
-                        speed: ENEMY_SPEED,
-                        health: ENEMY_HEALTH,
-                        damage: ENEMY_DAMAGE,
-                        state: ActorState::Base,
-                        animation_cooldown: 0.,
-                        afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
+                        ..Default::default()
                     }));
                 },
                 's' => {
@@ -243,17 +227,9 @@ impl Room {
                         props: ActorProps {
                             pos: Room::get_entity_pos(sw, sh, rw, rh, i).into(),
                             scale: Vec2::new(ENEMY_SCALE, ENEMY_SCALE * 0.5),
-                            translation: Vec2::ZERO,
-                            forward: Vec2::ZERO,
-                            velocity: Vec2::ZERO,
+                            ..Default::default()
                         },
-                        speed: ENEMY_SPEED * 0.5,
-                        health: ENEMY_HEALTH * 1.5,
-                        damage: ENEMY_DAMAGE,
-                        state: ActorState::Base,
-                        animation_cooldown: 0.,
-                        afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
-                        change_direction_cooldown: ENEMY_WANDERER_CHANGE_DIRECTION_COOLDOWN,
+                        ..Default::default()
                     }));
                 },
                 'B' => {
@@ -261,21 +237,9 @@ impl Room {
                         props: ActorProps {
                             pos: Room::get_entity_pos(sw, sh, rw, rh, i).into(),
                             scale: Vec2::splat(ENEMY_SCALE * 2.),
-                            translation: Vec2::ZERO,
-                            forward: Vec2::ZERO,
-                            velocity: Vec2::ZERO,
+                            ..Default::default()
                         },
-                        speed: ENEMY_SPEED * 0.5,
-                        health: BOSS_HEALTH,
-                        max_health: BOSS_HEALTH,
-                        damage: ENEMY_DAMAGE * 2.,
-                        shoot_rate: ENEMY_SHOOT_RATE,
-                        shoot_range: ENEMY_SHOOT_RANGE,
-                        shoot_timeout: ENEMY_SHOOT_TIMEOUT,
-                        state: ActorState::Base,
-                        animation_cooldown: 0.,
-                        afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
-                        change_direction_cooldown: ENEMY_WANDERER_CHANGE_DIRECTION_COOLDOWN,
+                        ..Default::default()
                     }));
                 },
                 _ => (),

@@ -31,6 +31,22 @@ pub struct EnemyMask {
     pub afterlock_cooldown: f32,
 }
 
+impl Default for EnemyMask {
+    fn default() -> Self {
+        Self {
+            props: ActorProps::default(),
+            health: ENEMY_HEALTH,
+            damage: ENEMY_DAMAGE,
+            state: ActorState::Base,
+            shoot_rate: ENEMY_SHOOT_RATE,
+            shoot_range: ENEMY_SHOOT_RANGE,
+            shoot_timeout: ENEMY_SHOOT_TIMEOUT,
+            animation_cooldown: 0.,
+            afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
+        }
+    }
+}
+
 impl Actor for EnemyMask {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
@@ -174,6 +190,20 @@ pub struct EnemyBlueGuy {
     pub afterlock_cooldown: f32,
 }
 
+impl Default for EnemyBlueGuy {
+    fn default() -> Self {
+        Self {
+            props: ActorProps::default(),
+            speed: ENEMY_SPEED,
+            health: ENEMY_HEALTH,
+            damage: ENEMY_DAMAGE,
+            state: ActorState::Base,
+            animation_cooldown: 0.,
+            afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
+        }
+    }
+}
+
 impl Actor for EnemyBlueGuy {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
@@ -289,6 +319,21 @@ pub struct EnemySlime {
     pub afterlock_cooldown: f32,
     pub change_direction_cooldown: f32,
 }
+
+impl Default for EnemySlime {
+    fn default() -> Self {
+        Self {
+            props: ActorProps::default(),
+            speed: ENEMY_SPEED * 0.5,
+            health: ENEMY_HEALTH * 1.5,
+            damage: ENEMY_DAMAGE,
+            state: ActorState::Base,
+            animation_cooldown: 0.,
+            afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
+            change_direction_cooldown: ENEMY_WANDERER_CHANGE_DIRECTION_COOLDOWN,
+        }
+    }
+}
     
 impl Actor for EnemySlime {
     fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
@@ -400,6 +445,25 @@ pub struct BossWeirdBall {
     pub animation_cooldown: f32,
     pub afterlock_cooldown: f32,
     pub change_direction_cooldown: f32,
+}
+
+impl Default for BossWeirdBall {
+    fn default() -> Self {
+        Self {
+            props: ActorProps::default(),
+            speed: ENEMY_SPEED * 0.5,
+            health: BOSS_HEALTH,
+            max_health: BOSS_HEALTH,
+            damage: ENEMY_DAMAGE * 2.,
+            shoot_rate: ENEMY_SHOOT_RATE,
+            shoot_range: ENEMY_SHOOT_RANGE,
+            shoot_timeout: ENEMY_SHOOT_TIMEOUT,
+            state: ActorState::Base,
+            animation_cooldown: 0.,
+            afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
+            change_direction_cooldown: ENEMY_WANDERER_CHANGE_DIRECTION_COOLDOWN,
+        }
+    }
 }
 
 impl Actor for BossWeirdBall {
