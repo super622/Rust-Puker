@@ -351,28 +351,6 @@ impl Scene for MainMenuScene {
         Ok(())
     }
 
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        let cur = self.config.borrow().current_state;
-        let prev = self.config.borrow().previous_state;
-
-        if _button == MouseButton::Left {
-            let result = self.get_clicked(_ctx);
-            match result {
-                Some(e) => {
-                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        match b.tag {
-                            Some(t) => self.config.borrow_mut().current_state = t,
-                            None => self.config.borrow_mut().current_state = prev,
-                        };
-                    }
-                },
-                None => return,
-            }
-        }
-
-        self.config.borrow_mut().previous_state = cur;
-    }
-
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
 
     fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
@@ -480,28 +458,6 @@ impl Scene for PauseMenuScene {
         self.config.borrow_mut().previous_state = cur;
     }
 
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        let cur = self.config.borrow().current_state;
-        let prev = self.config.borrow().previous_state;
-
-        if _button == MouseButton::Left {
-            let result = self.get_clicked(_ctx);
-            match result {
-                Some(e) => {
-                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        match b.tag {
-                            Some(t) => self.config.borrow_mut().current_state = t,
-                            None => self.config.borrow_mut().current_state = prev,
-                        };
-                    }
-                },
-                None => return,
-            }
-        }
-
-        self.config.borrow_mut().previous_state = cur;
-    }
-
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
 
     fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
@@ -582,28 +538,6 @@ impl Scene for DeadScene {
         }
 
         Ok(())
-    }
-
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        let cur = self.config.borrow().current_state;
-        let prev = self.config.borrow().previous_state;
-
-        if _button == MouseButton::Left {
-            let result = self.get_clicked(_ctx);
-            match result {
-                Some(e) => {
-                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        match b.tag {
-                            Some(t) => self.config.borrow_mut().current_state = t,
-                            None => self.config.borrow_mut().current_state = prev,
-                        };
-                    }
-                },
-                None => return,
-            }
-        }
-
-        self.config.borrow_mut().previous_state = cur;
     }
 
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
@@ -732,18 +666,13 @@ impl Scene for OptionsScene {
     fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        let cur = self.config.borrow().current_state;
-        let prev = self.config.borrow().previous_state;
-
         if _button == MouseButton::Left {
             let result = self.get_clicked_mut(_ctx);
             match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        match b.tag {
-                            Some(t) => self.config.borrow_mut().current_state = t,
-                            None => self.config.borrow_mut().current_state = prev,
-                        };
+                        let tag = b.tag.clone();
+                        change_scene(&mut self.get_conf_mut().unwrap(), tag);
                     }
                     else if let Some(c) = e.as_any_mut().downcast_mut::<CheckBox>() {
                         let _ = match c.checked {
@@ -752,13 +681,10 @@ impl Scene for OptionsScene {
                         };
                         c.checked = !c.checked;
                     }
-                    return;
                 },
-                None => return,
+                None => (),
             }
         }
-
-        self.config.borrow_mut().previous_state = cur;
     }
 
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }

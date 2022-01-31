@@ -19,7 +19,7 @@ use crate::{
     dungeon::{Dungeon, RoomState},
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TextSprite {
     pub pos: Point2<f32>,
     pub text: String,
@@ -93,6 +93,7 @@ impl UIElement for TextSprite {
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
+#[derive(Debug, Clone)]
 pub struct Border {
     pub stroke: f32,
     pub radius: f32,
@@ -109,6 +110,7 @@ impl Default for Border {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Button {
     pub pos: Point2<f32>,
     pub width: f32,
@@ -132,12 +134,6 @@ impl Default for Button {
         }
     }
 }
-
-// impl Button {
-//     fn clicked() -> bool {
-        
-//     }
-// }
 
 impl UIElement for Button {
     fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }

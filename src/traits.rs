@@ -187,7 +187,20 @@ pub trait Scene {
 
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
+    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        if _button == MouseButton::Left {
+            let result = self.get_clicked(_ctx);
+            match result {
+                Some(e) => {
+                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
+                        let tag = b.tag.clone();
+                        change_scene(&mut self.get_conf_mut().unwrap(), tag);
+                    }
+                },
+                None => return,
+            }
+        }
+    }
 
     fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {}
 
@@ -276,14 +289,6 @@ pub trait UIElement {
         let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
         Rect::new(tl.x, tl.y, w, h).contains(get_mouse_screen_coords(input::mouse::position(ctx), sw, sh, ww, wh))
     }
-
-    // fn get_action(&self) -> Some(&dyn Fn(_ctx: &mut Context, _conf: &mut Config)) { None }
-
-//     fn act(&mut self, _ctx: &mut Context, _conf: &mut Config) { 
-//         match self.get_action() {
-//             Some(a) => a()
-//         }
-//     }
 
     fn as_any(&self) -> &dyn Any;
     
