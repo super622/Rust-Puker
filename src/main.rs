@@ -6,46 +6,52 @@ use ggez::{
     input,
     timer,
     Context, ContextBuilder, GameResult,
-    audio::SoundSource,
 };
-use std::{cell::RefCell, collections::HashMap, env, path, rc::Rc};
-
-use puker::{assets::*, consts::*, scenes::*, traits::*, utils::*};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    env,
+    path,
+    rc::Rc
+};
+use puker::{
+    assets::*,
+    consts::*,
+    scenes::*,
+    traits::*,
+    utils::*,
+};
 
 struct MainState {
     config: Rc<RefCell<Config>>,
     scenes: HashMap<State, Box<dyn Scene>>,
-    assets: Assets,
 }
 
 impl MainState {
     fn new(ctx: &mut Context, conf: &Conf) -> GameResult<MainState> {
-        let mut assets = Assets::new(ctx)?;
         let config = Rc::new(RefCell::new(Config {
+            assets: Assets::new(ctx)?,
             screen_width: conf.window_mode.width,
             screen_height: conf.window_mode.height,
             window_width: conf.window_mode.width,
             window_height: conf.window_mode.height,
-            volume: 0.5,
+            volume: 0.3,
             draw_bcircle_model: true,
             draw_bbox_stationary: false,
             current_state: State::MainMenu,
             previous_state: State::MainMenu,
         }));
         let mut scenes = HashMap::<State, Box<dyn Scene>>::new();
-        scenes.insert(State::PauseMenu, Box::new(PauseMenuScene::new(&config, &assets)));
-        scenes.insert(State::MainMenu, Box::new(MainMenuScene::new(&config, &assets)));
-        scenes.insert(State::Dead, Box::new(DeadScene::new(&config, &assets)));
-        scenes.insert(State::Options, Box::new(OptionsScene::new(&config, &assets)));
-              
-        for (_, s) in assets.audio.iter_mut() {
-            s.set_volume(0.3);
-        }
+        scenes.insert(State::PauseMenu, Box::new(PauseMenuScene::new(&config)));
+        scenes.insert(State::MainMenu, Box::new(MainMenuScene::new(&config)));
+        scenes.insert(State::Dead, Box::new(DeadScene::new(&config)));
+        scenes.insert(State::Options, Box::new(OptionsScene::new(&config)));
+
+        change_volume(&mut config.borrow_mut(), 0.);
 
         let s = MainState {
             config,
             scenes,
-            assets,
         };
 
         Ok(s)
@@ -69,7 +75,7 @@ impl EventHandler for MainState {
             self.scenes
                 .get_mut(&scene)
                 .unwrap()
-                .update(ctx, &mut self.assets, delta_time)?;
+                .update(ctx, delta_time)?;
         }
 
         Ok(())
@@ -83,7 +89,7 @@ impl EventHandler for MainState {
         match scene {
             State::PauseMenu | State::Dead | State::Options => {
                 match self.scenes.get_mut(&State::Play) {
-                    Some(s) => s.draw(ctx, &mut self.assets)?,
+                    Some(s) => s.draw(ctx)?,
                     None => (),
                 }
             },
@@ -93,7 +99,7 @@ impl EventHandler for MainState {
         self.scenes
             .get_mut(&scene)
             .unwrap()
-            .draw(ctx, &mut self.assets)?;
+            .draw(ctx)?;
 
         graphics::present(ctx)?;
         Ok(())
@@ -153,6 +159,21 @@ impl EventHandler for MainState {
             State::MainMenu => { self.scenes.remove(&State::Play); },
             _ => (),
         }
+    }
+
+    fn mouse_button_up_event(
+        &mut self,
+        _ctx: &mut Context,
+        _button: MouseButton,
+        _x: f32,
+        _y: f32,
+    ) {
+        let scene = self.config.borrow().current_state;
+
+        self.scenes
+            .get_mut(&scene)
+            .unwrap()
+            .mouse_button_up_event(_ctx, _button, _x, _y);
     }
 
     fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {

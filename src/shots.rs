@@ -4,7 +4,6 @@ use ggez::{
     Context,
 };
 use crate::{
-    assets::*,
     utils::*,
     traits::*,
 };
@@ -30,23 +29,23 @@ pub struct Shot {
 }
 
 impl Actor for Shot {
-    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+    fn update(&mut self, _ctx: &mut Context, _conf: &mut Config, _delta_time: f32) -> GameResult {
         self.props.velocity = (self.props.velocity + self.props.translation * 100. * _delta_time).clamp_length_max(self.speed);
         self.props.pos.0 += self.props.velocity;
 
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("shot_puke_base").unwrap().dimensions()) * f32::min(self.damage, 1.5))
+            .scale(self.scale_to_screen(sw, sh, conf.assets.sprites.get("shot_puke_base").unwrap().dimensions()) * f32::min(self.damage, 1.5))
             .offset([0.5, 0.5]);
 
         match self.tag {
-            ShotTag::Player => graphics::draw(ctx, assets.sprites.get("shot_puke_base").unwrap(), draw_params)?,
-            ShotTag::Enemy => graphics::draw(ctx, assets.sprites.get("shot_blood_base").unwrap(), draw_params)?,
+            ShotTag::Player => graphics::draw(ctx, conf.assets.sprites.get("shot_puke_base").unwrap(), draw_params)?,
+            ShotTag::Enemy => graphics::draw(ctx, conf.assets.sprites.get("shot_blood_base").unwrap(), draw_params)?,
         }
 
         if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }

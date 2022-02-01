@@ -6,7 +6,6 @@ use ggez::{
 };
 use crate::{
     utils::*,
-    assets::*,
     consts::*,
     traits::*,
     shots::*,
@@ -58,7 +57,7 @@ impl Default for Player {
 }
 
 impl Actor for Player {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, conf: &mut Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
 
         if self.afterlock_cooldown == 0. {
@@ -73,34 +72,34 @@ impl Actor for Player {
 
         if self.animation_cooldown == 0. { self.state = ActorState::Base; }
         if self.health <= 0. {
-            assets.audio.get_mut("player_death_sound").unwrap().play(ctx)?; 
+            conf.assets.audio.get_mut("player_death_sound").unwrap().play(ctx)?; 
             self.state = ActorState::Dead;
         }
 
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("player_base").unwrap().dimensions()))
+            .scale(self.scale_to_screen(sw, sh, conf.assets.sprites.get("player_base").unwrap().dimensions()))
             .offset([0.5, 0.5]);
 
         match self.state {
             ActorState::Shoot => {
-                if self.props.forward == Vec2::X { graphics::draw(ctx, assets.sprites.get("player_shoot_east").unwrap(), draw_params)?; }
-                else if self.props.forward == -Vec2::X { graphics::draw(ctx, assets.sprites.get("player_shoot_west").unwrap(), draw_params)?; }
-                else if self.props.forward == -Vec2::Y { graphics::draw(ctx, assets.sprites.get("player_shoot_north").unwrap(), draw_params)?; }
-                else if self.props.forward == Vec2::Y { graphics::draw(ctx, assets.sprites.get("player_shoot_south").unwrap(), draw_params)?; }
-                else { graphics::draw(ctx, assets.sprites.get("player_base").unwrap(), draw_params)?; }
+                if self.props.forward == Vec2::X { graphics::draw(ctx, conf.assets.sprites.get("player_shoot_east").unwrap(), draw_params)?; }
+                else if self.props.forward == -Vec2::X { graphics::draw(ctx, conf.assets.sprites.get("player_shoot_west").unwrap(), draw_params)?; }
+                else if self.props.forward == -Vec2::Y { graphics::draw(ctx, conf.assets.sprites.get("player_shoot_north").unwrap(), draw_params)?; }
+                else if self.props.forward == Vec2::Y { graphics::draw(ctx, conf.assets.sprites.get("player_shoot_south").unwrap(), draw_params)?; }
+                else { graphics::draw(ctx, conf.assets.sprites.get("player_base").unwrap(), draw_params)?; }
             },
             ActorState::Damaged => {
-                assets.audio.get_mut("player_damaged_sound").unwrap().play(ctx)?;
-                graphics::draw(ctx, assets.sprites.get("player_damaged").unwrap(), draw_params.color(Color::RED))?;
+                conf.assets.audio.get_mut("player_damaged_sound").unwrap().play(ctx)?;
+                graphics::draw(ctx, conf.assets.sprites.get("player_damaged").unwrap(), draw_params.color(Color::RED))?;
             },
-            ActorState::Dead => graphics::draw(ctx, assets.sprites.get("player_dead").unwrap(), draw_params)?,
-            _ => graphics::draw(ctx, assets.sprites.get("player_base").unwrap(), draw_params)?,
+            ActorState::Dead => graphics::draw(ctx, conf.assets.sprites.get("player_dead").unwrap(), draw_params)?,
+            _ => graphics::draw(ctx, conf.assets.sprites.get("player_base").unwrap(), draw_params)?,
         }
 
         if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }

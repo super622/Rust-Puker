@@ -6,7 +6,6 @@ use ggez::{
     event::{KeyCode, MouseButton},
     input::{self, keyboard, mouse},
     audio::{SoundSource},
-    conf::FullscreenType,
 };
 use glam::f32::{Vec2};
 use std::{
@@ -17,7 +16,6 @@ use std::{
 use crate::{
     player::*,
     shots::*,
-    assets::*,
     utils::*,
     dungeon::*,
     consts::*,
@@ -161,7 +159,7 @@ impl PlayScene {
         Ok(())
     }
 
-    fn handle_shot_collisions(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
+    fn handle_shot_collisions(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
         let room = self.dungeon.get_room_mut(self.cur_room)?.unwrap();
 
@@ -171,7 +169,7 @@ impl PlayScene {
                     for enemy in room.enemies.iter_mut() {
                         let (mut vel1, mut vel2) = (Vec2::ZERO, Vec2::ZERO);
                         if dynamic_circle_vs_circle(&s.get_bcircle(sw, sh), &s.get_velocity(), &enemy.get_bcircle(sw, sh), &enemy.get_velocity(), &mut vel1, &mut vel2, _delta_time) {
-                            let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
+                            let _ = self.config.borrow_mut().assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                             enemy.damage(s.damage);
                             enemy.set_velocity(enemy.get_velocity() + vel2);
                             return false;
@@ -180,7 +178,7 @@ impl PlayScene {
                 },
                 ShotTag::Enemy => {
                     if circle_vs_circle(&s.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
-                        let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
+                        let _ = self.config.borrow_mut().assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                         self.player.damage(s.damage);
                         return false;
                     }
@@ -193,7 +191,7 @@ impl PlayScene {
                 match obst.get_tag() {
                     BlockTag::Hatch(_) | BlockTag::Spikes => (),
                     _ => if dynamic_circle_vs_rect(s.get_bcircle(sw, sh), &s.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, _delta_time) {
-                        let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
+                        let _ = self.config.borrow_mut().assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                         return false;
                     },
                 }
@@ -204,7 +202,7 @@ impl PlayScene {
         Ok(())
     }
 
-    fn handle_environment_collisions(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult {
+    fn handle_environment_collisions(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
         let room = self.dungeon.get_room_mut(self.cur_room)?.unwrap();
 
@@ -217,7 +215,7 @@ impl PlayScene {
 
         for d in room.drops.iter_mut() {
             if circle_vs_circle(&d.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
-                if !d.affect_player(ctx, assets, &mut self.player)? {
+                if !d.affect_player(ctx, &mut self.config.borrow_mut(), &mut self.player)? {
                     resolve_environment_collision(d, &mut self.player, sw, sh, _delta_time);
                 }
             }
@@ -228,22 +226,22 @@ impl PlayScene {
 }
 
 impl Scene for PlayScene {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, delta_time: f32) -> GameResult {
         self.handle_input(ctx)?;
 
         self.handle_block_collisions(delta_time)?;
 
-        self.handle_environment_collisions(ctx, assets, delta_time)?;
+        self.handle_environment_collisions(ctx, delta_time)?;
 
-        self.handle_shot_collisions(ctx, assets, delta_time)?;
+        self.handle_shot_collisions(ctx, delta_time)?;
 
         self.dungeon.update_rooms_state(self.cur_room)?;
-        self.dungeon.get_room_mut(self.cur_room)?.unwrap().update(ctx, assets, &self.config.borrow(), &self.player, delta_time)?;
+        self.dungeon.get_room_mut(self.cur_room)?.unwrap().update(ctx, &mut self.config.borrow_mut(), &self.player, delta_time)?;
 
-        self.player.update(ctx, assets, &self.config.borrow(), delta_time)?;
+        self.player.update(ctx, &mut self.config.borrow_mut(), delta_time)?;
 
         self.overlay.update_vars(&self.player, &self.dungeon, self.cur_room);
-        self.overlay.update(ctx, &self.config.borrow())?;
+        self.overlay.update(ctx, &mut self.config.borrow_mut())?;
 
         match self.player.state {
             ActorState::Dead => self.config.borrow_mut().current_state = State::Dead,
@@ -253,12 +251,12 @@ impl Scene for PlayScene {
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
-        self.dungeon.get_room(self.cur_room)?.unwrap().draw(ctx, assets, &self.config.borrow())?;
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        self.dungeon.get_room(self.cur_room)?.unwrap().draw(ctx, &mut self.config.borrow_mut())?;
 
-        self.player.draw(ctx, assets, &self.config.borrow())?;
+        self.player.draw(ctx, &mut self.config.borrow_mut())?;
 
-        self.overlay.draw(ctx, assets, &self.config.borrow())?;
+        self.overlay.draw(ctx, &mut self.config.borrow_mut())?;
 
         Ok(())
     }
@@ -285,35 +283,35 @@ pub struct MainMenuScene {
 }
 
 impl MainMenuScene {
-    pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
+    pub fn new(config: &Rc<RefCell<Config>>) -> Self {
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.3},
-                tag: Some(State::New),
+                tag: ButtonTag::ChangeState(Some(State::New)),
                 text: Some(TextSprite {
                     text: String::from("Play"),
-                    font: *assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.5},
-                tag: Some(State::Options),
+                tag: ButtonTag::ChangeState(Some(State::Options)),
                 text: Some(TextSprite {
                     text: String::from("Options"),
-                    font: *assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.7},
-                tag: Some(State::Quit),
+                tag: ButtonTag::ChangeState(Some(State::Quit)),
                 text: Some(TextSprite {
                     text: String::from("Quit"),
-                    font: *assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -328,24 +326,24 @@ impl MainMenuScene {
 }
 
 impl Scene for MainMenuScene {
-    fn update(&mut self, ctx: &mut Context, _assets: &mut Assets, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
-            e.update(ctx, &self.config.borrow())?;
+            e.update(ctx, &mut self.config.borrow_mut())?;
         }
 
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
-        let logo_rect = assets.sprites.get("puker_logo").unwrap().dimensions();
+        let logo_rect = self.config.borrow().assets.sprites.get("puker_logo").unwrap().dimensions();
         let draw_param = DrawParam::default()
             .scale([sw / logo_rect.w, sh / logo_rect.h]);
 
-        graphics::draw(ctx, assets.sprites.get("puker_logo").unwrap(), draw_param)?;
+        graphics::draw(ctx, self.config.borrow().assets.sprites.get("puker_logo").unwrap(), draw_param)?;
 
         for e in self.ui_elements.iter_mut() {
-            e.draw(ctx, assets, &self.config.borrow())?;
+            e.draw(ctx, &mut self.config.borrow_mut())?;
         }
 
         Ok(())
@@ -366,46 +364,46 @@ pub struct PauseMenuScene {
 }
 
 impl PauseMenuScene {
-    pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
+    pub fn new(config: &Rc<RefCell<Config>>) -> Self {
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.2},
-                tag: Some(State::Play),
+                tag: ButtonTag::ChangeState(Some(State::Play)),
                 text: Some(TextSprite {
                     text: String::from("Continue"),
-                    font: *assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.4},
-                tag: Some(State::New),
+                tag: ButtonTag::ChangeState(Some(State::New)),
                 text: Some(TextSprite {
                     text: String::from("New Game"),
-                    font: *assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.6},
-                tag: Some(State::Options),
+                tag: ButtonTag::ChangeState(Some(State::Options)),
                 text: Some(TextSprite {
                     text: String::from("Options"),
-                    font: *assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.8},
-                tag: Some(State::MainMenu),
+                tag: ButtonTag::ChangeState(Some(State::MainMenu)),
                 text: Some(TextSprite {
                     pos: Point2 { x: 0.5, y: 0.8},
                     text: String::from("Main Menu"),
-                    font: *assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -420,15 +418,15 @@ impl PauseMenuScene {
 }
 
 impl Scene for PauseMenuScene {
-    fn update(&mut self, ctx: &mut Context, _assets: &mut Assets, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
-            e.update(ctx, &self.config.borrow())?;
+            e.update(ctx, &mut self.config.borrow_mut())?;
         }
 
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
 
         let curtain = Mesh::new_rectangle(
@@ -441,7 +439,7 @@ impl Scene for PauseMenuScene {
         graphics::draw(ctx, &curtain, DrawParam::default())?;
 
         for e in self.ui_elements.iter_mut() {
-            e.draw(ctx, assets, &self.config.borrow())?;
+            e.draw(ctx, &mut self.config.borrow_mut())?;
         }
 
         Ok(())
@@ -473,7 +471,7 @@ pub struct DeadScene {
 }
 
 impl DeadScene {
-    pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
+    pub fn new(config: &Rc<RefCell<Config>>) -> Self {
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(TextSprite {
@@ -485,20 +483,20 @@ impl DeadScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.5},
-                tag: Some(State::New),
+                tag: ButtonTag::ChangeState(Some(State::New)),
                 text: Some(TextSprite {
                     text: String::from("Try Again"),
-                    font: *assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.7},
-                tag: Some(State::Quit),
+                tag: ButtonTag::ChangeState(Some(State::Quit)),
                 text: Some(TextSprite {
                     text: String::from("Quit"),
-                    font: *assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -513,15 +511,15 @@ impl DeadScene {
 }
 
 impl Scene for DeadScene {
-    fn update(&mut self, ctx: &mut Context, _assets: &mut Assets, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
-            e.update(ctx, &self.config.borrow())?;
+            e.update(ctx, &mut self.config.borrow_mut())?;
         }
 
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
 
         let curtain = Mesh::new_rectangle(
@@ -534,7 +532,7 @@ impl Scene for DeadScene {
         graphics::draw(ctx, &curtain, DrawParam::default())?;
 
         for e in self.ui_elements.iter_mut() {
-            e.draw(ctx, assets, &self.config.borrow())?;
+            e.draw(ctx, &mut self.config.borrow_mut())?;
         }
 
         Ok(())
@@ -555,7 +553,7 @@ pub struct OptionsScene {
 }
 
 impl OptionsScene {
-    pub fn new(config: &Rc<RefCell<Config>>, assets: &Assets) -> Self {
+    pub fn new(config: &Rc<RefCell<Config>>) -> Self {
         let config = Rc::clone(config);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(TextSprite {
@@ -578,10 +576,10 @@ impl OptionsScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.8},
-                tag: None,
+                tag: ButtonTag::ChangeState(None),
                 text: Some(TextSprite {
                     text: String::from("Back"),
-                    font: *assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -592,22 +590,6 @@ impl OptionsScene {
                 border: Border {
                     stroke: 3.,
                     radius: 0.,
-                    ..Default::default()
-                },
-                decrease_button: Button {
-                    text: Some(TextSprite {
-                        text: String::from("<<"),
-                        font: *assets.fonts.get("button_font").unwrap(),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
-                increase_button: Button {
-                    text: Some(TextSprite {
-                        text: String::from(">>"),
-                        font: *assets.fonts.get("button_font").unwrap(),
-                        ..Default::default()
-                    }),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -622,15 +604,15 @@ impl OptionsScene {
 }
 
 impl Scene for OptionsScene {
-    fn update(&mut self, ctx: &mut Context, _assets: &mut Assets, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
         for e in self.ui_elements.iter_mut() {
-            e.update(ctx, &self.config.borrow())?;
+            e.update(ctx, &mut self.config.borrow_mut())?;
         }
 
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
 
         let curtain = Mesh::new_rectangle(
@@ -643,7 +625,7 @@ impl Scene for OptionsScene {
         graphics::draw(ctx, &curtain, DrawParam::default())?;
 
         for e in self.ui_elements.iter_mut() {
-            e.draw(ctx, assets, &self.config.borrow())?;
+            e.draw(ctx, &mut self.config.borrow_mut())?;
         }
 
         Ok(())
@@ -665,27 +647,19 @@ impl Scene for OptionsScene {
 
     fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
 
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        if _button == MouseButton::Left {
-            let result = self.get_clicked_mut(_ctx);
-            match result {
-                Some(e) => {
-                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        let tag = b.tag.clone();
-                        change_scene(&mut self.get_conf_mut().unwrap(), tag);
-                    }
-                    else if let Some(c) = e.as_any_mut().downcast_mut::<CheckBox>() {
-                        let _ = match c.checked {
-                            true => graphics::set_fullscreen(_ctx, FullscreenType::Windowed),
-                            false => graphics::set_fullscreen(_ctx, FullscreenType::True),
-                        };
-                        c.checked = !c.checked;
-                    }
-                },
-                None => (),
-            }
-        }
-    }
+    // fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {
+        // if mouse::button_pressed(MouseButton::Left) {
+        //     let result = self.get_clicked_mut(_ctx);
+        //     match result {
+        //         Some(e) => {
+        //             if let Some(s) = e.as_any().downcast_ref::<Slider>() {
+        //                 s.onclick();
+        //             }
+        //         },
+        //         None => (),
+        //     }
+        // }
+    // }
 
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
 

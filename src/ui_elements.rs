@@ -11,7 +11,6 @@ use std::{
 use glam::f32::Vec2;
 
 use crate::{
-    assets::*,
     utils::*,
     traits::*,
     consts::*,
@@ -55,9 +54,9 @@ impl Default for TextSprite {
 }
 
 impl UIElement for TextSprite {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
+    fn update(&mut self, _ctx: &mut Context, _conf: &mut Config) -> GameResult { Ok(()) }
 
-    fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let text = self.get_text(sh);
         let (tw, th) = (text.dimensions(ctx).w, text.dimensions(ctx).h); 
@@ -82,10 +81,10 @@ impl UIElement for TextSprite {
 
     fn height(&self, ctx: &mut Context, sh: f32) -> f32 { self.get_text(sh).height(ctx) as f32 }
 
-    fn top_left(&self, ctx: &mut Context, sw: f32, sh: f32) -> Point2<f32> {
+    fn top_left(&self, ctx: &mut Context, sw: f32, sh: f32) -> Vec2 {
         let pos = self.pos(sw, sh);
         let (w, h) = (self.width(ctx, sh), self.height(ctx, sh));
-        Point2 { x: pos.x - w / 2., y: pos.y - h / 2. }
+        Vec2::new(pos.x - w / 2., pos.y - h / 2.)
     }
         
     fn as_any(&self) -> &dyn Any { self }
@@ -111,11 +110,18 @@ impl Default for Border {
 }
 
 #[derive(Debug, Clone)]
+pub enum ButtonTag {
+    Blank,
+    ChangeState(Option<State>),
+    ChangeVolume(i8),
+}
+
+#[derive(Debug, Clone)]
 pub struct Button {
     pub pos: Point2<f32>,
     pub width: f32,
     pub height: f32,
-    pub tag: Option<State>,
+    pub tag: ButtonTag,
     pub text: Option<TextSprite>,
     pub color: Color,
     pub border: Border,
@@ -127,7 +133,7 @@ impl Default for Button {
             pos: Point2 { x: 0.5, y: 0.5 },
             width: 0.3,
             height: 0.1,
-            tag: None,
+            tag: ButtonTag::Blank,
             text: None,
             color: Color::WHITE,
             border: Border::default(),
@@ -136,12 +142,13 @@ impl Default for Button {
 }
 
 impl UIElement for Button {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
+    fn update(&mut self, _ctx: &mut Context, _conf: &mut Config) -> GameResult { Ok(()) }
 
-    fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let (ww, wh) = (conf.window_width, conf.window_height);
         let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
+        let (mx, my) = (mouse::position(ctx).x, mouse::position(ctx).y);
         let tl = self.top_left(ctx, sw, sh);
 
         let mut text = None;
@@ -150,7 +157,7 @@ impl UIElement for Button {
         }
 
         let rect = Rect::new(tl.x, tl.y, w, h);
-        let color = match self.mouse_overlap(ctx, sw, sh, ww, wh) {
+        let color = match self.mouse_overlap(ctx, mx, my, sw, sh, ww, wh) {
             true => {
                 mouse::set_cursor_type(ctx, mouse::CursorIcon::Hand);
                 if let Some(t) = &mut text { t.color = invert_color(&t.color); }
@@ -167,7 +174,7 @@ impl UIElement for Button {
         graphics::draw(ctx, &btn, DrawParam::default())?;
         if let Some(t) = &mut text { 
             t.pos = self.pos;
-            t.draw(ctx, _assets, conf)?; 
+            t.draw(ctx, conf)?; 
         }
 
         Ok(())
@@ -193,9 +200,9 @@ pub struct Minimap {
 }
 
 impl UIElement for Minimap {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
+    fn update(&mut self, _ctx: &mut Context, _conf: &mut Config) -> GameResult { Ok(()) }
 
-    fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let (mw, mh) = (self.width(ctx, sw), self.height(ctx, sh));
         let pos = self.pos(sw, sh);
@@ -257,12 +264,12 @@ pub struct HealthBar {
 }
 
 impl UIElement for HealthBar {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
+    fn update(&mut self, _ctx: &mut Context, _conf: &mut Config) -> GameResult { Ok(()) }
 
-    fn draw(&mut self, ctx: &mut Context, assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let pos = self.pos(sw, sh);
-        let img_dims = assets.sprites.get("heart_full").unwrap().dimensions();
+        let img_dims = conf.assets.sprites.get("heart_full").unwrap().dimensions();
         let img_width = self.width(ctx, sw) / self.max_health;
 
         for i in 1..=(self.max_health as i32) {
@@ -275,9 +282,9 @@ impl UIElement for HealthBar {
 
             let dif = self.health - index;
 
-            if dif >= 0. { graphics::draw(ctx, assets.sprites.get("heart_full").unwrap(), draw_params)?; }
-            else if dif >= -0.5 { graphics::draw(ctx, assets.sprites.get("heart_half").unwrap(), draw_params)?; }
-            else { graphics::draw(ctx, assets.sprites.get("heart_empty").unwrap(), draw_params)?; }
+            if dif >= 0. { graphics::draw(ctx, conf.assets.sprites.get("heart_full").unwrap(), draw_params)?; }
+            else if dif >= -0.5 { graphics::draw(ctx, conf.assets.sprites.get("heart_half").unwrap(), draw_params)?; }
+            else { graphics::draw(ctx, conf.assets.sprites.get("heart_empty").unwrap(), draw_params)?; }
         }
 
         Ok(())
@@ -350,14 +357,14 @@ impl Overlay {
 }
 
 impl UIElement for Overlay {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult {
+    fn update(&mut self, _ctx: &mut Context, _conf: &mut Config) -> GameResult {
         for e in self.ui_elements.iter_mut() { e.update(_ctx, _conf)?; }
 
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context, _assets: &Assets, _conf: &Config) -> GameResult {
-        for e in self.ui_elements.iter_mut() { e.draw(ctx, _assets, _conf)?; }
+    fn draw(&mut self, ctx: &mut Context, _conf: &mut Config) -> GameResult {
+        for e in self.ui_elements.iter_mut() { e.draw(ctx, _conf)?; }
 
         Ok(())
     }
@@ -394,9 +401,9 @@ impl Default for CheckBox {
 }
 
 impl UIElement for CheckBox {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { Ok(()) }
+    fn update(&mut self, _ctx: &mut Context, _conf: &mut Config) -> GameResult { Ok(()) }
 
-    fn draw(&mut self, ctx: &mut Context, _assets: &Assets, conf: &Config) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
         let tl = self.top_left(ctx, sw, sh);
@@ -446,6 +453,7 @@ pub struct Slider {
     pub decrease_button: Button,
     pub increase_button: Button,
     pub slider_button: Button,
+    pub last_mx: f32,
 }
 
 impl Default for Slider {
@@ -459,48 +467,82 @@ impl Default for Slider {
             steps: 100.,
             value: 50.,
             border: Border::default(),
-            decrease_button: Button::default(),
-            increase_button: Button::default(),
+            decrease_button: Button {
+                tag: ButtonTag::ChangeVolume(-1),
+                text: Some(TextSprite {
+                    text: String::from("<<"),
+                    font_size: BUTTON_TEXT_FONT_SIZE * 0.5,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },                
+            increase_button: Button {
+                tag: ButtonTag::ChangeVolume(1),
+                text: Some(TextSprite {
+                    text: String::from(">>"),
+                    font_size: BUTTON_TEXT_FONT_SIZE * 0.5,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },                
             slider_button: Button::default(),
+            last_mx: 0.,
         }
     }
 }
 
 impl Slider {
-    pub fn increase(&mut self) {
-        self.value = (self.value + (self.upper - self.lower) / self.steps).clamp(self.lower, self.upper);
+    pub fn get_step(&self) -> f32 {
+        (self.upper - self.lower) / self.steps
     }
 
-    pub fn decrease(&mut self) {
-        self.value = (self.value - (self.upper - self.lower) / self.steps).clamp(self.lower, self.upper);
+    pub fn get_step_in_pixels(&self, sw: f32) -> f32 {
+        (self.upper - self.lower) / self.steps * self.width * sw
     }
 
-    pub fn get_step_in_pixels(&self, sw: f32) -> f32 { (self.lower - self.upper) / self.steps * self.width * sw }
+    pub fn get_clicked(&self, ctx: &mut Context, mx: f32, my: f32, sw: f32, sh: f32, ww: f32, hh: f32) -> Option<ButtonTag> {
+        if self.decrease_button.mouse_overlap(ctx, mx, my, sw, sh, ww, hh) {
+            Some(self.decrease_button.tag.clone())
+        }
+        else if self.increase_button.mouse_overlap(ctx, mx, my, sw, sh, ww, hh) {
+            Some(self.increase_button.tag.clone())
+        }
+        else if self.slider_button.mouse_overlap(ctx, mx, my, sw, sh, ww, hh) {
+            Some(self.slider_button.tag.clone())
+        }
+        else {
+            None
+        }
+    }
 }
 
 impl UIElement for Slider {
-    fn update(&mut self, _ctx: &mut Context, _conf: &Config) -> GameResult { 
+    fn update(&mut self, _ctx: &mut Context, _conf: &mut Config) -> GameResult { 
         let (sw, sh) = (_conf.screen_width, _conf.screen_height);
         let tl = self.top_left(_ctx, sw, sh);
         let prop = self.value / (self.upper - self.lower);
 
         self.slider_button = Button {
-            pos: Point2 { x: (tl.x + self.width(_ctx, sw) * prop) / sw, y: self.pos.y },
+            // pos: Point2 { x: (tl.x + self.width(_ctx, sw) * prop + self.width(_ctx, sw)) / sw, y: self.pos.y },
+            pos: Point2 { x: self.pos.x - self.width * 0.5 + self.width * prop - self.width * 0.1 / 2., y: self.pos.y },
             width: self.width * 0.1,
             height: self.height,
+            tag: self.slider_button.tag.clone(),
             ..Default::default()
         };
         self.decrease_button = Button {
-            pos: Point2 { x: self.pos.x - self.width / 2. - self.slider_button.width / 2., y: self.pos.y },
+            pos: Point2 { x: self.pos.x - self.width / 2. + self.width * 0.1 / 2., y: self.pos.y },
             width: self.width * 0.1,
             height: self.height,
+            tag: self.decrease_button.tag.clone(),
             text: self.decrease_button.text.clone(),
             ..Default::default()
         };
         self.increase_button = Button {
-            pos: Point2 { x: self.pos.x + self.width / 2. + self.slider_button.width / 2., y: self.pos.y },
+            pos: Point2 { x: self.pos.x + self.width / 2. - self.width * 0.1 / 2., y: self.pos.y },
             width: self.width * 0.1,
             height: self.height,
+            tag: self.increase_button.tag.clone(),
             text: self.increase_button.text.clone(),
             ..Default::default()
         };
@@ -508,10 +550,10 @@ impl UIElement for Slider {
         Ok(()) 
     }
 
-    fn draw(&mut self, _ctx: &mut Context, _assets: &Assets, _conf: &Config) -> GameResult {
+    fn draw(&mut self, _ctx: &mut Context, _conf: &mut Config) -> GameResult {
         let (sw, sh) = (_conf.screen_width, _conf.screen_height);
-        let (w, h) = (self.width(_ctx, sw), self.height(_ctx, sh));
-        let tl = self.top_left(_ctx, sw, sh);
+        let (w, h) = (self.width(_ctx, sw) * 0.7, self.height(_ctx, sh));
+        let tl = self.top_left(_ctx, sw, sh) + Vec2::X * self.width(_ctx, sw) * 0.15;
 
         let ruler = MeshBuilder::new()
             .rectangle(DrawMode::fill(), Rect::new(tl.x, tl.y, w, h), Color::RED)?
@@ -519,10 +561,10 @@ impl UIElement for Slider {
             .rounded_rectangle(DrawMode::stroke(self.border.stroke), Rect::new(tl.x, tl.y, w, h), self.border.radius, self.border.color)?
             .build(_ctx)?;
 
+        self.decrease_button.draw(_ctx, _conf)?;
+        self.increase_button.draw(_ctx, _conf)?;
         graphics::draw(_ctx, &ruler, DrawParam::default())?;
-        self.decrease_button.draw(_ctx, _assets, _conf)?;
-        self.increase_button.draw(_ctx, _assets, _conf)?;
-        self.slider_button.draw(_ctx, _assets, _conf)?;
+        self.slider_button.draw(_ctx, _conf)?;
 
         Ok(())
     }

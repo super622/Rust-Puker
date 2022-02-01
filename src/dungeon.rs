@@ -5,7 +5,6 @@ use ggez::{
     audio::SoundSource,
 };
 use crate::{
-    assets::*,
     enemies::*,
     utils::*,
     consts::*,
@@ -54,21 +53,21 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn update(&mut self, ctx: &mut Context, assets: &mut Assets, conf: &Config, _player: &Player, _delta_time: f32) -> GameResult {
+    pub fn update(&mut self, ctx: &mut Context, conf: &mut Config, _player: &Player, _delta_time: f32) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let target_grid = &self.get_target_distance_grid(_player.get_pos(), sw, sh);
 
         for shot in self.shots.iter_mut() {
-            shot.update(ctx, assets, conf, _delta_time)?;
+            shot.update(ctx, conf, _delta_time)?;
         }
 
         for enemy in self.enemies.iter_mut() {
             enemy.act(sw, sh, target_grid, &self.obstacles, &mut self.shots, _player)?;
-            enemy.update(ctx, assets, conf, _delta_time)?;
+            enemy.update(ctx, conf, _delta_time)?;
         }
 
         for drop in self.drops.iter_mut() {
-            drop.update(ctx, assets, conf, _delta_time)?;
+            drop.update(ctx, conf, _delta_time)?;
         }
 
         let dead_enemies = self.enemies.iter()
@@ -83,7 +82,7 @@ impl Room {
             .map(|s| s.0).collect::<Vec<_>>();
         for (i,d) in dead_shots.iter().enumerate() { 
             self.shots.remove(d - i); 
-            let _ = assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
+            let _ = conf.assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
         }
 
         let dead_drops = self.drops.iter()
@@ -99,7 +98,7 @@ impl Room {
                 RoomTag::Mob | RoomTag::Boss => {
                     self.generate_collectable(sw, sh);
                     self.tag = RoomTag::Empty;
-                    let _ = assets.audio.get_mut("door_open_sound").unwrap().play(ctx);
+                    let _ = conf.assets.audio.get_mut("door_open_sound").unwrap().play(ctx);
                     for door in self.doors.iter() {
                         let block = self.obstacles[*door].as_any_mut().downcast_mut::<Block>().unwrap();
                         block.tag = match block.tag {
@@ -118,7 +117,7 @@ impl Room {
                 block.tag = match block.tag {
                     BlockTag::Door { dir, connects_to, is_open } => {
                         if is_open {
-                            let _ = assets.audio.get_mut("door_close_sound").unwrap().play(ctx);
+                            let _ = conf.assets.audio.get_mut("door_close_sound").unwrap().play(ctx);
                             BlockTag::Door { dir, connects_to, is_open: !is_open }
                         }
                         else { BlockTag::Door { dir, connects_to, is_open } }
@@ -132,20 +131,20 @@ impl Room {
         Ok(())
     }
     
-    pub fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+    pub fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let draw_params = DrawParam::default()
-            .scale(Room::get_room_scale(sw, sh, assets.sprites.get("floor").unwrap().dimensions()));
+            .scale(Room::get_room_scale(sw, sh, conf.assets.sprites.get("floor").unwrap().dimensions()));
         
-        graphics::draw(ctx, assets.sprites.get("floor").unwrap(), draw_params)?;
+        graphics::draw(ctx, conf.assets.sprites.get("floor").unwrap(), draw_params)?;
 
-        for obst in self.obstacles.iter() { obst.draw(ctx, assets, conf)?; }
+        for obst in self.obstacles.iter() { obst.draw(ctx, conf)?; }
 
-        for drop in self.drops.iter() { drop.draw(ctx, assets, conf)?; }
+        for drop in self.drops.iter() { drop.draw(ctx, conf)?; }
 
-        for shot in self.shots.iter() { shot.draw(ctx, assets, conf)?; }
+        for shot in self.shots.iter() { shot.draw(ctx, conf)?; }
 
-        for enemy in self.enemies.iter() { enemy.draw(ctx, assets, conf)?; }
+        for enemy in self.enemies.iter() { enemy.draw(ctx, conf)?; }
 
         Ok(())
     }
@@ -555,9 +554,9 @@ pub enum BlockTag {
 }
 
 impl Stationary for Block {
-    fn update(&mut self, _conf: &Config, _delta_time: f32) -> GameResult { Ok(()) }
+    fn update(&mut self, _conf: &mut Config, _delta_time: f32) -> GameResult { Ok(()) }
 
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
 
         let mut rotation = 0.;
@@ -571,17 +570,17 @@ impl Stationary for Block {
                 };
 
                 match is_open {
-                    true => assets.sprites.get("door_open").unwrap(),
-                    false => assets.sprites.get("door_closed").unwrap(),    
+                    true => conf.assets.sprites.get("door_open").unwrap(),
+                    false => conf.assets.sprites.get("door_closed").unwrap(),    
                 }
             },
-            BlockTag::Wall => assets.sprites.get("wall").unwrap(),
-            BlockTag::Stone => assets.sprites.get("stone").unwrap(),
-            BlockTag::Spikes => assets.sprites.get("spikes").unwrap(),
+            BlockTag::Wall => conf.assets.sprites.get("wall").unwrap(),
+            BlockTag::Stone => conf.assets.sprites.get("stone").unwrap(),
+            BlockTag::Spikes => conf.assets.sprites.get("spikes").unwrap(),
             BlockTag::Hatch(is_open) => {
                 match is_open {
-                    true => assets.sprites.get("hatch_open").unwrap(),
-                    false => assets.sprites.get("hatch_closed").unwrap(),
+                    true => conf.assets.sprites.get("hatch_open").unwrap(),
+                    false => conf.assets.sprites.get("hatch_closed").unwrap(),
                 }
             },
         };

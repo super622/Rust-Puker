@@ -5,6 +5,7 @@ use ggez::{
     mint::{Point2},
     event::{KeyCode, MouseButton},
     input,
+    conf::FullscreenType,
 };
 use std::{
     any::Any,
@@ -12,20 +13,19 @@ use std::{
 };
 use glam::f32::Vec2;
 use crate::{
-    assets::*,
     consts::*,
     utils::*,
     player::*,
     shots::Shot,
     dungeon::BlockTag,
-    ui_elements::Button,
+    ui_elements::*,
 };
 use rand::{thread_rng, Rng};
 
 pub trait Actor: std::fmt::Debug {
-    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _config: &Config, _delta_time: f32) -> GameResult;
+    fn update(&mut self, _ctx: &mut Context, _config: &mut Config, _delta_time: f32) -> GameResult;
 
-    fn draw(&self, _ctx: &mut Context, _assets: &mut Assets, _config: &Config) -> GameResult;
+    fn draw(&self, _ctx: &mut Context, _config: &mut Config) -> GameResult;
 
     fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
         let (sw, sh) = screen;
@@ -118,9 +118,9 @@ pub trait Actor: std::fmt::Debug {
 }
 
 pub trait Stationary: std::fmt::Debug {
-    fn update(&mut self, _config: &Config, _delta_time: f32) -> GameResult;
+    fn update(&mut self, _config: &mut Config, _delta_time: f32) -> GameResult;
 
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, _config: &Config) -> GameResult;
+    fn draw(&self, ctx: &mut Context, _config: &mut Config) -> GameResult;
 
     fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
         let (sw, sh) = screen;
@@ -179,22 +179,78 @@ pub trait Stationary: std::fmt::Debug {
 }
 
 pub trait Scene {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _delta_time: f32) -> GameResult;
+    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult;
 
-    fn draw(&mut self, ctx: &mut Context, assets: &mut Assets) -> GameResult;
+    fn draw(&mut self, ctx: &mut Context) -> GameResult;
 
     fn key_down_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods, _repeat: bool) {}
 
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let (sw, sh) = (self.get_conf().unwrap().screen_width, self.get_conf().unwrap().screen_height);
+        let (ww, wh) = (self.get_conf().unwrap().window_width, self.get_conf().unwrap().window_height);
+
         if _button == MouseButton::Left {
-            let result = self.get_clicked(_ctx);
+            let result = self.get_clicked(_ctx, _x, _y);
             match result {
                 Some(e) => {
                     if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        let tag = b.tag.clone();
-                        change_scene(&mut self.get_conf_mut().unwrap(), tag);
+                        match b.tag.clone() {
+                            ButtonTag::ChangeState(s) => change_scene(&mut self.get_conf_mut().unwrap(), s), 
+                            _ => (),
+                        }
+                    }
+                    else if let Some(s) = e.as_any().downcast_ref::<Slider>() {
+                        let step = s.get_step();
+
+                        match s.get_clicked(_ctx, _x, _y, sw, sh, ww, wh).clone() {
+                            Some(b_tag) => match b_tag {
+                                ButtonTag::ChangeVolume(sign) => {
+                                    change_volume(&mut self.get_conf_mut().unwrap(), sign as f32 * step);
+                                },
+                                _ => (),
+                            }
+                            None => (),
+                        }
+                    }
+                    else if let Some(c) = e.as_any().downcast_ref::<CheckBox>() {
+                        let _ = match c.checked {
+                            true => graphics::set_fullscreen(_ctx, FullscreenType::Windowed),
+                            false => graphics::set_fullscreen(_ctx, FullscreenType::True),
+                        };
+                    }
+                },
+                None => return,
+            }
+        }
+    }
+
+    fn mouse_button_up_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let (sw, sh) = (self.get_conf().unwrap().screen_width, self.get_conf().unwrap().screen_height);
+        let (ww, wh) = (self.get_conf().unwrap().window_width, self.get_conf().unwrap().window_height);
+
+        if _button == MouseButton::Left {
+            let result = self.get_clicked(_ctx, _x, _y);
+            match result {
+                Some(e) => {
+                    if let Some(s) = e.as_any().downcast_ref::<Slider>() {
+                        let step = s.get_step();
+
+                        match s.get_clicked(_ctx, _x, _y, sw, sh, ww, wh).clone() {
+                            Some(b_tag) => match b_tag {
+                                ButtonTag::Blank => (),
+                                // ButtonTag::ChangeVolume(sign) => change_volume(&mut self.get_conf_mut().unwrap(), sign as f32 * step),
+                                _ => (),
+                            }
+                            None => (),
+                        }
+                    }
+                    else if let Some(c) = e.as_any().downcast_ref::<CheckBox>() {
+                        let _ = match c.checked {
+                            true => graphics::set_fullscreen(_ctx, FullscreenType::Windowed),
+                            false => graphics::set_fullscreen(_ctx, FullscreenType::True),
+                        };
                     }
                 },
                 None => return,
@@ -212,7 +268,7 @@ pub trait Scene {
 
     fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { None }
 
-    fn get_clicked(&self, ctx: &mut Context) -> Option<&dyn UIElement> {
+    fn get_clicked(&self, ctx: &mut Context, mx: f32, my: f32) -> Option<&dyn UIElement> {
         let (sw, sh, ww, wh);
         {
             match self.get_conf() {
@@ -229,7 +285,7 @@ pub trait Scene {
         match self.get_ui_elements() {
             Some(ue) => {
                 for e in ue.iter() {
-                    if e.mouse_overlap(ctx, sw, sh, ww, wh) {
+                    if e.mouse_overlap(ctx, mx, my, sw, sh, ww, wh) {
                         return Some(&**e);
                     }
                 }
@@ -239,7 +295,7 @@ pub trait Scene {
         }
     }
 
-    fn get_clicked_mut(&mut self, ctx: &mut Context) -> Option<&mut dyn UIElement> {
+    fn get_clicked_mut(&mut self, ctx: &mut Context, mx: f32, my: f32) -> Option<&mut dyn UIElement> {
         let (sw, sh, ww, wh);
         {
             match self.get_conf() {
@@ -256,7 +312,7 @@ pub trait Scene {
         match self.get_ui_elements_mut() {
             Some(ue) => {
                 for e in ue.iter_mut() {
-                    if e.mouse_overlap(ctx, sw, sh, ww, wh) {
+                    if e.mouse_overlap(ctx, mx, my, sw, sh, ww, wh) {
                         return Some(&mut **e);
                     }
                 }
@@ -268,9 +324,9 @@ pub trait Scene {
 }
 
 pub trait UIElement {
-    fn update(&mut self, ctx: &mut Context, _conf: &Config) -> GameResult;
+    fn update(&mut self, ctx: &mut Context, _conf: &mut Config) -> GameResult;
 
-    fn draw(&mut self, ctx: &mut Context, _assets: &Assets, _conf: &Config) -> GameResult;
+    fn draw(&mut self, ctx: &mut Context, _conf: &mut Config) -> GameResult;
 
     fn pos(&self, sw: f32, sh: f32) -> Point2<f32>;
 
@@ -278,16 +334,16 @@ pub trait UIElement {
 
     fn height(&self, ctx: &mut Context, sh: f32) -> f32;
 
-    fn top_left(&self, ctx: &mut Context, sw: f32, sh: f32) -> Point2<f32> {
+    fn top_left(&self, ctx: &mut Context, sw: f32, sh: f32) -> Vec2 {
         let pos = self.pos(sw, sh);
         let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
-        Point2 { x: pos.x - w / 2., y: pos.y - h / 2. }
+        Vec2::new(pos.x - w / 2., pos.y - h / 2.)
     }
         
-    fn mouse_overlap(&self, ctx: &mut Context, sw: f32, sh: f32, ww: f32, wh: f32) -> bool {
+    fn mouse_overlap(&self, ctx: &mut Context, mx: f32, my: f32, sw: f32, sh: f32, ww: f32, wh: f32) -> bool {
         let tl = self.top_left(ctx, sw, sh);
         let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
-        Rect::new(tl.x, tl.y, w, h).contains(get_mouse_screen_coords(input::mouse::position(ctx), sw, sh, ww, wh))
+        Rect::new(tl.x, tl.y, w, h).contains(get_mouse_screen_coords(mx, my, sw, sh, ww, wh))
     }
 
     fn as_any(&self) -> &dyn Any;

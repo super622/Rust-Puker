@@ -2,6 +2,7 @@ use ggez::{
     mint::Point2,
     graphics::{Rect, Color},
     GameError,
+    audio::SoundSource,
 };
 use glam::f32::*;
 use std::{
@@ -11,9 +12,11 @@ use std::{
 use crate::{
     traits::*,
     consts::*,
+    assets::*,
 };
 
 pub struct Config {
+    pub assets: Assets,
     pub screen_width: f32,
     pub screen_height: f32,
     pub window_width: f32,
@@ -305,7 +308,9 @@ pub fn dynamic_circle_vs_circle(c1: &(Vec2Wrap, f32), c1_vel: &Vec2, c2: &(Vec2W
 pub fn mouse_relative_forward(target: Vec2, mouse: Point2<f32>, conf: &Config) -> Vec2 {
     let (sw, sh) = (conf.screen_width, conf.screen_height);
     let (ww, wh) = (conf.window_width, conf.window_height);
-    let m = get_mouse_screen_coords(mouse, sw, sh, ww, wh);
+    let (mx, my) = (mouse.x, mouse.y);
+
+    let m = get_mouse_screen_coords(mx, my, sw, sh, ww, wh);
 
     let dx = m.x - target.x;
     let dy = m.y - target.y;
@@ -316,8 +321,8 @@ pub fn mouse_relative_forward(target: Vec2, mouse: Point2<f32>, conf: &Config) -
     Vec2::new(0., f32::signum(dy))
 }
 
-pub fn get_mouse_screen_coords(m: Point2<f32>, sw: f32, sh: f32, ww: f32, wh: f32) -> Vec2 {
-    Vec2::new(m.x * sw / ww, m.y * sh / wh)
+pub fn get_mouse_screen_coords(mx: f32, my: f32, sw: f32, sh: f32, ww: f32, wh: f32) -> Vec2 {
+    Vec2::new(mx * sw / ww, my * sh / wh)
 }
 
 pub fn resolve_environment_collision(e1: &mut dyn Actor, e2: &mut dyn Actor, sw: f32, sh: f32, _delta_time: f32) {
@@ -356,4 +361,12 @@ pub fn change_scene(conf: &mut Config, new_state: Option<State>) {
     }
 
     conf.previous_state = cur;
+}
+
+pub fn change_volume(conf: &mut Config, change: f32) {
+    conf.volume = (conf.volume + change * 0.01).clamp(0., 1.);
+    for (_, s) in conf.assets.audio.iter_mut() {
+        s.set_volume(conf.volume);
+    }
+    println!("{:?}", conf.volume);
 }

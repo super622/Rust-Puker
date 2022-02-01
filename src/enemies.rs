@@ -6,7 +6,6 @@ use ggez::{
 };
 use crate::{
     utils::*,
-    assets::*,
     consts::*,
     traits::*,
     shots::*,
@@ -48,7 +47,7 @@ impl Default for EnemyMask {
 }
 
 impl Actor for EnemyMask {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, conf: &mut Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
 
         self.velocity_lerp(_delta_time, 0., 5., 0.);
@@ -59,14 +58,14 @@ impl Actor for EnemyMask {
 
         if self.animation_cooldown == 0. { self.state = ActorState::Base; }
         if self.health <= 0. {
-            assets.audio.get_mut("enemy_death_sound").unwrap().play(ctx)?; 
+            conf.assets.audio.get_mut("enemy_death_sound").unwrap().play(ctx)?; 
             self.state = ActorState::Dead;
         }
 
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
 
         let tremble: f32 = (thread_rng().gen::<f32>() * 2. - 1.) * 0.1;
@@ -74,12 +73,12 @@ impl Actor for EnemyMask {
 
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("enemy_mask_base").unwrap().dimensions()))
+            .scale(self.scale_to_screen(sw, sh, conf.assets.sprites.get("enemy_mask_base").unwrap().dimensions()))
             .offset([0.5 + tremble, 0.5 + tremble * sign]);
 
         match self.state {
-            ActorState::Damaged => graphics::draw(ctx, assets.sprites.get("enemy_mask_base").unwrap(), draw_params.color(Color::RED))?,
-            _ => graphics::draw(ctx, assets.sprites.get("enemy_mask_base").unwrap(), draw_params)?,
+            ActorState::Damaged => graphics::draw(ctx, conf.assets.sprites.get("enemy_mask_base").unwrap(), draw_params.color(Color::RED))?,
+            _ => graphics::draw(ctx, conf.assets.sprites.get("enemy_mask_base").unwrap(), draw_params)?,
         }
 
         if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }
@@ -205,7 +204,7 @@ impl Default for EnemyBlueGuy {
 }
 
 impl Actor for EnemyBlueGuy {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, conf: &mut Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
         
         self.velocity_lerp(_delta_time, self.speed, 10., 20.);
@@ -215,27 +214,27 @@ impl Actor for EnemyBlueGuy {
 
         if self.animation_cooldown == 0. { self.state = ActorState::Base; }
         if self.health <= 0. {
-            assets.audio.get_mut("enemy_death_sound").unwrap().play(ctx)?; 
+            conf.assets.audio.get_mut("enemy_death_sound").unwrap().play(ctx)?; 
             self.state = ActorState::Dead;
         }
 
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let mut angle = self.props.forward.angle_between(Vec2::Y + self.props.pos.0 - self.props.pos.0);
         if angle.is_nan() { angle = 0.; }
 
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
-            .scale(self.scale_to_screen(sw, sh, assets.sprites.get("enemy_blue_guy_base").unwrap().dimensions()))
+            .scale(self.scale_to_screen(sw, sh, conf.assets.sprites.get("enemy_blue_guy_base").unwrap().dimensions()))
             .rotation(-angle)
             .offset([0.5, 0.5]);
 
         match self.state {
-            ActorState::Damaged => graphics::draw(ctx, assets.sprites.get("enemy_blue_guy_base").unwrap(), draw_params.color(Color::RED))?,
-            _ => graphics::draw(ctx, assets.sprites.get("enemy_blue_guy_base").unwrap(), draw_params)?,
+            ActorState::Damaged => graphics::draw(ctx, conf.assets.sprites.get("enemy_blue_guy_base").unwrap(), draw_params.color(Color::RED))?,
+            _ => graphics::draw(ctx, conf.assets.sprites.get("enemy_blue_guy_base").unwrap(), draw_params)?,
         }
 
         if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }
@@ -336,7 +335,7 @@ impl Default for EnemySlime {
 }
     
 impl Actor for EnemySlime {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, conf: &mut Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
         self.change_direction_cooldown = f32::max(0., self.change_direction_cooldown - _delta_time);
 
@@ -347,21 +346,21 @@ impl Actor for EnemySlime {
 
         if self.animation_cooldown == 0. { self.state = ActorState::Base; }
         if self.health <= 0. {
-            assets.audio.get_mut("enemy_death_sound").unwrap().play(ctx)?; 
+            conf.assets.audio.get_mut("enemy_death_sound").unwrap().play(ctx)?; 
             self.state = ActorState::Dead;
         }
 
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
 
         let sprite = match self.props.forward {
-            v if v == -Vec2::Y => assets.sprites.get("enemy_slime_north").unwrap(),
-            v if v == Vec2::X => assets.sprites.get("enemy_slime_east").unwrap(),
-            v if v == -Vec2::X => assets.sprites.get("enemy_slime_west").unwrap(),
-            _ => assets.sprites.get("enemy_slime_south").unwrap(),
+            v if v == -Vec2::Y => conf.assets.sprites.get("enemy_slime_north").unwrap(),
+            v if v == Vec2::X => conf.assets.sprites.get("enemy_slime_east").unwrap(),
+            v if v == -Vec2::X => conf.assets.sprites.get("enemy_slime_west").unwrap(),
+            _ => conf.assets.sprites.get("enemy_slime_south").unwrap(),
         };
 
         let draw_params = DrawParam::default()
@@ -467,7 +466,7 @@ impl Default for BossWeirdBall {
 }
 
 impl Actor for BossWeirdBall {
-    fn update(&mut self, ctx: &mut Context, assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+    fn update(&mut self, ctx: &mut Context, conf: &mut Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
         self.change_direction_cooldown = f32::max(0., self.change_direction_cooldown - _delta_time);
         self.shoot_timeout = f32::max(0., self.shoot_timeout - _delta_time);
@@ -478,24 +477,24 @@ impl Actor for BossWeirdBall {
 
         if self.animation_cooldown == 0. { self.state = ActorState::Base; }
         if self.health <= 0. {
-            assets.audio.get_mut("boss_death_sound").unwrap().play(ctx)?; 
+            conf.assets.audio.get_mut("boss_death_sound").unwrap().play(ctx)?; 
             self.state = ActorState::Dead;
         }
 
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
 
         let sprite = match self.state {
             ActorState::Shoot => { 
                 match self.props.forward.x as i32 {
-                    1 => assets.sprites.get("boss_weird_ball_shoot_cardinals").unwrap(),
-                    _ => assets.sprites.get("boss_weird_ball_shoot_diagonals").unwrap(),
+                    1 => conf.assets.sprites.get("boss_weird_ball_shoot_cardinals").unwrap(),
+                    _ => conf.assets.sprites.get("boss_weird_ball_shoot_diagonals").unwrap(),
                 }
             },
-            _ => assets.sprites.get("boss_weird_ball_base").unwrap(),
+            _ => conf.assets.sprites.get("boss_weird_ball_base").unwrap(),
         };
 
         let draw_params = DrawParam::default()

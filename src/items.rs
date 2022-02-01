@@ -1,5 +1,4 @@
 use crate::{
-    assets::*,
     player::*,
     traits::*,
     utils::*,
@@ -36,7 +35,7 @@ pub struct Collectable {
 }
 
 impl Actor for Collectable {
-    fn update(&mut self, _ctx: &mut Context, _assets: &mut Assets, _conf: &Config, _delta_time: f32) -> GameResult {
+    fn update(&mut self, _ctx: &mut Context, _conf: &mut Config, _delta_time: f32) -> GameResult {
         self.velocity_lerp(_delta_time, 0., 2., 0.);
 
         self.props.pos.0 += self.props.velocity;
@@ -44,20 +43,20 @@ impl Actor for Collectable {
         Ok(())
     }
 
-    fn draw(&self, ctx: &mut Context, assets: &mut Assets, conf: &Config) -> GameResult {
+    fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
 
         let sprite = match self.tag {
             CollectableTag::RedHeart(a) => {
                 if a == 1. {
-                    assets.sprites.get("heart_full_collectable").unwrap()
+                    conf.assets.sprites.get("heart_full_collectable").unwrap()
                 } else {
-                    assets.sprites.get("heart_half_collectable").unwrap()
+                    conf.assets.sprites.get("heart_half_collectable").unwrap()
                 }
             },
-            CollectableTag::SpeedBoost(_) => assets.sprites.get("speed_boost").unwrap(),
-            CollectableTag::ShootRateBoost(_) => assets.sprites.get("shoot_rate_boost").unwrap(),
-            CollectableTag::DamageBoost(_) => assets.sprites.get("damage_boost").unwrap(),
+            CollectableTag::SpeedBoost(_) => conf.assets.sprites.get("speed_boost").unwrap(),
+            CollectableTag::ShootRateBoost(_) => conf.assets.sprites.get("shoot_rate_boost").unwrap(),
+            CollectableTag::DamageBoost(_) => conf.assets.sprites.get("damage_boost").unwrap(),
             _ => unreachable!(),
         };
 
@@ -105,7 +104,7 @@ impl Actor for Collectable {
 }
 
 impl Collectable {
-    pub fn affect_player(&mut self, ctx: &mut Context, assets: &mut Assets, player: &mut Player) -> GameResult<bool> {
+    pub fn affect_player(&mut self, ctx: &mut Context, conf: &mut Config, player: &mut Player) -> GameResult<bool> {
         let result = match self.tag {
             CollectableTag::RedHeart(h) => {
                 if player.health < player.max_health {
@@ -130,8 +129,8 @@ impl Collectable {
 
         if result { 
             match self.tag {
-                CollectableTag::RedHeart(_) => assets.audio.get_mut("heal_sound").unwrap().play(ctx)?,
-                _ => assets.audio.get_mut("power_up_sound").unwrap().play(ctx)?,
+                CollectableTag::RedHeart(_) => conf.assets.audio.get_mut("heal_sound").unwrap().play(ctx)?,
+                _ => conf.assets.audio.get_mut("power_up_sound").unwrap().play(ctx)?,
             }
             self.tag = CollectableTag::Consumed; 
         }
