@@ -1,5 +1,5 @@
 use ggez::{
-    conf::{Conf, ModuleConf, WindowMode, WindowSetup},
+    conf::{Conf, ModuleConf, WindowMode, WindowSetup, FullscreenType},
     event::{self, EventHandler, KeyCode, MouseButton},
     filesystem,
     graphics,
@@ -35,6 +35,7 @@ impl MainState {
             screen_height: conf.window_mode.height,
             window_width: conf.window_mode.width,
             window_height: conf.window_mode.height,
+            window_mode: FullscreenType::Windowed,
             volume: 0.3,
             draw_bcircle_model: true,
             draw_bbox_stationary: false,

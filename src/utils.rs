@@ -3,6 +3,7 @@ use ggez::{
     graphics::{Rect, Color},
     GameError,
     audio::SoundSource,
+    conf::FullscreenType,
 };
 use glam::f32::*;
 use std::{
@@ -21,6 +22,7 @@ pub struct Config {
     pub screen_height: f32,
     pub window_width: f32,
     pub window_height: f32,
+    pub window_mode: FullscreenType,
     pub volume: f32,
     pub draw_bcircle_model: bool,
     pub draw_bbox_stationary: bool,
@@ -368,5 +370,4 @@ pub fn change_volume(conf: &mut Config, change: f32) {
     for (_, s) in conf.assets.audio.iter_mut() {
         s.set_volume(conf.volume);
     }
-    println!("{:?}", conf.volume);
 }

@@ -6,6 +6,7 @@ use ggez::{
     event::{KeyCode, MouseButton},
     input::{self, keyboard, mouse},
     audio::{SoundSource},
+    conf::FullscreenType,
 };
 use glam::f32::{Vec2};
 use std::{
@@ -240,8 +241,7 @@ impl Scene for PlayScene {
 
         self.player.update(ctx, &mut self.config.borrow_mut(), delta_time)?;
 
-        self.overlay.update_vars(&self.player, &self.dungeon, self.cur_room);
-        self.overlay.update(ctx, &mut self.config.borrow_mut())?;
+        self.update_ui_vars(ctx)?;
 
         match self.player.state {
             ActorState::Dead => self.config.borrow_mut().current_state = State::Dead,
@@ -275,6 +275,13 @@ impl Scene for PlayScene {
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
 
     fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
+
+    fn update_ui_vars(&mut self, ctx: &mut Context) -> GameResult {
+        self.overlay.update_vars(&self.player, &self.dungeon, self.cur_room);
+        self.overlay.update(ctx, &mut self.config.borrow_mut())?;
+
+        Ok(())
+    }
 }
 
 pub struct MainMenuScene {
@@ -288,7 +295,8 @@ impl MainMenuScene {
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.3},
-                tag: ButtonTag::ChangeState(Some(State::New)),
+                action: ButtonAction::ChangeState(Some(State::New)),
+                tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Play"),
                     font: *config.borrow().assets.fonts.get("button_font").unwrap(),
@@ -298,7 +306,8 @@ impl MainMenuScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.5},
-                tag: ButtonTag::ChangeState(Some(State::Options)),
+                action: ButtonAction::ChangeState(Some(State::Options)),
+                tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Options"),
                     font: *config.borrow().assets.fonts.get("button_font").unwrap(),
@@ -308,7 +317,8 @@ impl MainMenuScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.7},
-                tag: ButtonTag::ChangeState(Some(State::Quit)),
+                action: ButtonAction::ChangeState(Some(State::Quit)),
+                tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Quit"),
                     font: *config.borrow().assets.fonts.get("button_font").unwrap(),
@@ -356,6 +366,24 @@ impl Scene for MainMenuScene {
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
 
     fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
+
+    fn mouse_button_down_event(&mut self, ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+        let (ww, wh) = (self.config.borrow().window_width, self.config.borrow().window_height);
+
+        if _button == MouseButton::Left {
+            for e in self.ui_elements.iter() {
+                if e.mouse_overlap(ctx, _x, _y, sw, sh, ww, wh) {
+                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
+                        match b.action.clone() {
+                            ButtonAction::ChangeState(s) => change_scene(&mut self.config.borrow_mut(), s), 
+                            _ => (),
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub struct PauseMenuScene {
@@ -369,7 +397,8 @@ impl PauseMenuScene {
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.2},
-                tag: ButtonTag::ChangeState(Some(State::Play)),
+                action: ButtonAction::ChangeState(Some(State::Play)),
+                tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Continue"),
                     font: *config.borrow().assets.fonts.get("button_font").unwrap(),
@@ -379,7 +408,8 @@ impl PauseMenuScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.4},
-                tag: ButtonTag::ChangeState(Some(State::New)),
+                action: ButtonAction::ChangeState(Some(State::New)),
+                tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("New Game"),
                     font: *config.borrow().assets.fonts.get("button_font").unwrap(),
@@ -389,7 +419,8 @@ impl PauseMenuScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.6},
-                tag: ButtonTag::ChangeState(Some(State::Options)),
+                action: ButtonAction::ChangeState(Some(State::Options)),
+                tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Options"),
                     font: *config.borrow().assets.fonts.get("button_font").unwrap(),
@@ -399,7 +430,8 @@ impl PauseMenuScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.8},
-                tag: ButtonTag::ChangeState(Some(State::MainMenu)),
+                action: ButtonAction::ChangeState(Some(State::MainMenu)),
+                tag: UIElementTag::State,
                 text: Some(TextSprite {
                     pos: Point2 { x: 0.5, y: 0.8},
                     text: String::from("Main Menu"),
@@ -463,6 +495,24 @@ impl Scene for PauseMenuScene {
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
 
     fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
+
+    fn mouse_button_down_event(&mut self, ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+        let (ww, wh) = (self.config.borrow().window_width, self.config.borrow().window_height);
+
+        if _button == MouseButton::Left {
+            for e in self.ui_elements.iter() {
+                if e.mouse_overlap(ctx, _x, _y, sw, sh, ww, wh) {
+                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
+                        match b.action.clone() {
+                            ButtonAction::ChangeState(s) => change_scene(&mut self.config.borrow_mut(), s), 
+                            _ => (),
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub struct DeadScene {
@@ -483,7 +533,8 @@ impl DeadScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.5},
-                tag: ButtonTag::ChangeState(Some(State::New)),
+                action: ButtonAction::ChangeState(Some(State::New)),
+                tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Try Again"),
                     font: *config.borrow().assets.fonts.get("button_font").unwrap(),
@@ -493,7 +544,8 @@ impl DeadScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.7},
-                tag: ButtonTag::ChangeState(Some(State::Quit)),
+                action: ButtonAction::ChangeState(Some(State::Quit)),
+                tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Quit"),
                     font: *config.borrow().assets.fonts.get("button_font").unwrap(),
@@ -545,6 +597,24 @@ impl Scene for DeadScene {
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
 
     fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
+
+    fn mouse_button_down_event(&mut self, ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+        let (ww, wh) = (self.config.borrow().window_width, self.config.borrow().window_height);
+
+        if _button == MouseButton::Left {
+            for e in self.ui_elements.iter() {
+                if e.mouse_overlap(ctx, _x, _y, sw, sh, ww, wh) {
+                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
+                        match b.action.clone() {
+                            ButtonAction::ChangeState(s) => change_scene(&mut self.config.borrow_mut(), s), 
+                            _ => (),
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub struct OptionsScene {
@@ -565,6 +635,7 @@ impl OptionsScene {
             }),
             Box::new(CheckBox {
                 pos: Point2 { x: 0.3, y: 0.4 },
+                tag: UIElementTag::WindowMode,
                 ..Default::default()
             }),
             Box::new(TextSprite {
@@ -576,7 +647,8 @@ impl OptionsScene {
             }),
             Box::new(Button {
                 pos: Point2 { x: 0.5, y: 0.8},
-                tag: ButtonTag::ChangeState(None),
+                action: ButtonAction::ChangeState(None),
+                tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Back"),
                     font: *config.borrow().assets.fonts.get("button_font").unwrap(),
@@ -584,12 +656,40 @@ impl OptionsScene {
                 }),
                 ..Default::default()
             }),
+            Box::new(TextSprite {
+                pos: Point2 { x: 0.7, y: 0.6},
+                text: String::from("Volume"),
+                color: Color::BLUE,
+                background: Color::from([1.; 4]),
+                ..Default::default()
+            }),
             Box::new(Slider {
-                pos: Point2 { x: 0.5, y: 0.6 },
+                pos: Point2 { x: 0.3, y: 0.6 },
                 value: config.borrow().volume * 100.,
+                tag: UIElementTag::Volume,
                 border: Border {
                     stroke: 3.,
                     radius: 0.,
+                    ..Default::default()
+                },
+                decrease_button: Button {
+                    action: ButtonAction::ChangeVolume(-1),
+                    tag: UIElementTag::Volume,
+                    text: Some(TextSprite {
+                        text: String::from("<<"),
+                        font_size: BUTTON_TEXT_FONT_SIZE * 0.5,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+                increase_button: Button {
+                    action: ButtonAction::ChangeVolume(1),
+                    tag: UIElementTag::Volume,
+                    text: Some(TextSprite {
+                        text: String::from(">>"),
+                        font_size: BUTTON_TEXT_FONT_SIZE * 0.5,
+                        ..Default::default()
+                    }),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -608,6 +708,8 @@ impl Scene for OptionsScene {
         for e in self.ui_elements.iter_mut() {
             e.update(ctx, &mut self.config.borrow_mut())?;
         }
+
+        self.update_ui_vars(ctx)?;
 
         Ok(())
     }
@@ -643,25 +745,116 @@ impl Scene for OptionsScene {
         self.config.borrow_mut().previous_state = cur;
     }
 
+    fn mouse_button_down_event(&mut self, ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+        let (ww, wh) = (self.config.borrow().window_width, self.config.borrow().window_height);
+        let overlapped = self.get_overlapped_idx(ctx, _x, _y);
+
+        if _button == MouseButton::Left {
+            match overlapped {
+                Some(i) => {
+                    if let Some(b) = self.ui_elements[i].as_any_mut().downcast_mut::<Button>() {
+                        b.clicked = true;
+                        match b.action.clone() {
+                            ButtonAction::ChangeState(s) => change_scene(&mut self.config.borrow_mut(), s), 
+                            _ => (),
+                        }
+                    }
+                    else if let Some(s) = self.ui_elements[i].as_any_mut().downcast_mut::<Slider>() {
+                        let step = s.get_step();
+                        s.last_mx = _x;
+
+                        match s.get_overlapped_mut(ctx, _x, _y, sw, sh, ww, wh) {
+                            Some(b) => {
+                                b.clicked = true;
+                                match b.action {
+                                    ButtonAction::ChangeVolume(sign) => change_volume(&mut self.config.borrow_mut(), (sign as f32) * step),
+                                    _ => (),
+                                };
+                            },
+                            None => (),
+                        }
+                    }
+                    else if let Some(c) = self.ui_elements[i].as_any().downcast_ref::<CheckBox>() {
+                        let _ = match c.checked {
+                            true => {
+                                self.config.borrow_mut().window_mode = FullscreenType::Windowed;
+                                graphics::set_fullscreen(ctx, FullscreenType::Windowed)
+                            }
+                            false => {
+                                self.config.borrow_mut().window_mode = FullscreenType::True;
+                                graphics::set_fullscreen(ctx, FullscreenType::True)
+                            }
+                        };
+                    }
+                },
+                None => (),
+            }
+        }
+    }
+
+    fn mouse_button_up_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        if _button == MouseButton::Left {
+            for e in self.ui_elements.iter_mut() {
+                if let Some(b) = e.as_any_mut().downcast_mut::<Button>() {
+                    b.clicked = false;
+                }
+                else if let Some(s) = e.as_any_mut().downcast_mut::<Slider>() {
+                    s.slider_button.clicked = false;
+                    s.increase_button.clicked = false;
+                    s.decrease_button.clicked = false;
+                }
+            }
+        }
+    }
+
+    fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+        let (ww, wh) = (self.config.borrow().window_width, self.config.borrow().window_height);
+        let mouse = get_mouse_screen_coords(_x, _y, sw, sh, ww, wh);
+
+        if mouse::button_pressed(_ctx, MouseButton::Left) {
+            for e in self.ui_elements.iter_mut() {
+                if let Some(s) = e.as_any_mut().downcast_mut::<Slider>() {
+                    let dc = mouse.x - s.last_mx; 
+                    let step = s.get_step_in_pixels(sw);
+
+                    if s.slider_button.clicked && dc.abs() > step {
+                        let steps = s.get_step() * dc.abs() / step;
+                        s.last_mx = mouse.x;
+                        match s.tag {
+                            UIElementTag::Volume => change_volume(&mut self.config.borrow_mut(), dc.signum() * steps),
+                            _ => (),
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
 
     fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
 
-    // fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {
-        // if mouse::button_pressed(MouseButton::Left) {
-        //     let result = self.get_clicked_mut(_ctx);
-        //     match result {
-        //         Some(e) => {
-        //             if let Some(s) = e.as_any().downcast_ref::<Slider>() {
-        //                 s.onclick();
-        //             }
-        //         },
-        //         None => (),
-        //     }
-        // }
-    // }
-
     fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
 
     fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
+
+    fn update_ui_vars(&mut self, _ctx: &mut Context) -> GameResult {
+        for el in self.ui_elements.iter_mut() {
+            if let Some(e) = el.as_any_mut().downcast_mut::<Slider>() {
+                match e.tag {
+                    UIElementTag::Volume => e.value = self.config.borrow().volume * 100.,
+                    _ => (),
+                }
+            }
+            else if let Some(e) = el.as_any_mut().downcast_mut::<CheckBox>() {
+                match e.tag {
+                    UIElementTag::WindowMode => e.checked = self.config.borrow().window_mode == FullscreenType::True,
+                    _ => (),
+                }
+            }
+        }
+        Ok(())
+    }
 }

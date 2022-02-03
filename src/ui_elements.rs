@@ -9,7 +9,6 @@ use std::{
     any::Any,
 };
 use glam::f32::Vec2;
-
 use crate::{
     utils::*,
     traits::*,
@@ -19,8 +18,18 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
+pub enum UIElementTag {
+    Blank,
+    WindowMode,
+    Volume,
+    State,
+    Text,
+}
+
+#[derive(Debug, Clone)]
 pub struct TextSprite {
     pub pos: Point2<f32>,
+    pub tag: UIElementTag,
     pub text: String,
     pub font: Font,
     pub font_size: f32,
@@ -44,6 +53,7 @@ impl Default for TextSprite {
     fn default() -> Self {
         Self {
             pos: Point2 { x: 0.5, y: 0.5 },
+            tag: UIElementTag::Text,
             text: String::from(""),
             font: Font::default(),
             font_size: BUTTON_TEXT_FONT_SIZE,
@@ -110,7 +120,7 @@ impl Default for Border {
 }
 
 #[derive(Debug, Clone)]
-pub enum ButtonTag {
+pub enum ButtonAction {
     Blank,
     ChangeState(Option<State>),
     ChangeVolume(i8),
@@ -121,10 +131,12 @@ pub struct Button {
     pub pos: Point2<f32>,
     pub width: f32,
     pub height: f32,
-    pub tag: ButtonTag,
+    pub action: ButtonAction,
+    pub tag: UIElementTag,
     pub text: Option<TextSprite>,
     pub color: Color,
     pub border: Border,
+    pub clicked: bool,
 }
 
 impl Default for Button {
@@ -133,10 +145,12 @@ impl Default for Button {
             pos: Point2 { x: 0.5, y: 0.5 },
             width: 0.3,
             height: 0.1,
-            tag: ButtonTag::Blank,
+            action: ButtonAction::Blank,
+            tag: UIElementTag::Blank,
             text: None,
             color: Color::WHITE,
             border: Border::default(),
+            clicked: false,
         }
     }
 }
@@ -157,7 +171,7 @@ impl UIElement for Button {
         }
 
         let rect = Rect::new(tl.x, tl.y, w, h);
-        let color = match self.mouse_overlap(ctx, mx, my, sw, sh, ww, wh) {
+        let mut color = match self.mouse_overlap(ctx, mx, my, sw, sh, ww, wh) {
             true => {
                 mouse::set_cursor_type(ctx, mouse::CursorIcon::Hand);
                 if let Some(t) = &mut text { t.color = invert_color(&t.color); }
@@ -165,6 +179,7 @@ impl UIElement for Button {
             },
             _ => self.color,
         };
+        if self.clicked { color = Color::MAGENTA }
 
         let btn = MeshBuilder::new()
             .rounded_rectangle(DrawMode::fill(), rect, self.border.radius, color)?
@@ -384,6 +399,7 @@ pub struct CheckBox {
     pub pos: Point2<f32>,
     pub width: f32,
     pub height: f32,
+    pub tag: UIElementTag,
     pub checked: bool,
     pub color: Color,
 }
@@ -394,6 +410,7 @@ impl Default for CheckBox {
             pos: Point2 { x: 0.5, y: 0.5 },
             width: 0.1,
             height: 0.1,
+            tag: UIElementTag::Blank,
             checked: false,
             color: Color::BLACK,
         }
@@ -443,6 +460,7 @@ pub struct Slider {
     pub pos: Point2<f32>,
     pub width: f32,
     pub height: f32,
+    pub tag: UIElementTag,
     pub lower: f32,
     pub upper: f32,
     pub steps: f32,
@@ -462,13 +480,13 @@ impl Default for Slider {
             pos: Point2 { x: 0.5, y: 0.5 },
             width: 0.4,
             height: 0.1,
+            tag: UIElementTag::Blank,
             lower: 0.,
             upper: 100.,
             steps: 100.,
             value: 50.,
             border: Border::default(),
             decrease_button: Button {
-                tag: ButtonTag::ChangeVolume(-1),
                 text: Some(TextSprite {
                     text: String::from("<<"),
                     font_size: BUTTON_TEXT_FONT_SIZE * 0.5,
@@ -477,7 +495,6 @@ impl Default for Slider {
                 ..Default::default()
             },                
             increase_button: Button {
-                tag: ButtonTag::ChangeVolume(1),
                 text: Some(TextSprite {
                     text: String::from(">>"),
                     font_size: BUTTON_TEXT_FONT_SIZE * 0.5,
@@ -497,18 +514,18 @@ impl Slider {
     }
 
     pub fn get_step_in_pixels(&self, sw: f32) -> f32 {
-        (self.upper - self.lower) / self.steps * self.width * sw
+        self.width * sw * 0.7 / self.steps 
     }
 
-    pub fn get_clicked(&self, ctx: &mut Context, mx: f32, my: f32, sw: f32, sh: f32, ww: f32, hh: f32) -> Option<ButtonTag> {
+    pub fn get_overlapped_mut(&mut self, ctx: &mut Context, mx: f32, my: f32, sw: f32, sh: f32, ww: f32, hh: f32) -> Option<&mut Button> {
         if self.decrease_button.mouse_overlap(ctx, mx, my, sw, sh, ww, hh) {
-            Some(self.decrease_button.tag.clone())
+            Some(&mut self.decrease_button)
         }
         else if self.increase_button.mouse_overlap(ctx, mx, my, sw, sh, ww, hh) {
-            Some(self.increase_button.tag.clone())
+            Some(&mut self.increase_button)
         }
         else if self.slider_button.mouse_overlap(ctx, mx, my, sw, sh, ww, hh) {
-            Some(self.slider_button.tag.clone())
+            Some(&mut self.slider_button)
         }
         else {
             None
@@ -520,32 +537,23 @@ impl UIElement for Slider {
     fn update(&mut self, _ctx: &mut Context, _conf: &mut Config) -> GameResult { 
         let (sw, sh) = (_conf.screen_width, _conf.screen_height);
         let tl = self.top_left(_ctx, sw, sh);
-        let prop = self.value / (self.upper - self.lower);
+        let step = self.get_step_in_pixels(sw);
+        let lower = tl.x + self.width(_ctx, sw) * 0.15;
+        let upper = tl.x + self.upper * step + self.width(_ctx, sw) * 0.15;
 
-        self.slider_button = Button {
-            // pos: Point2 { x: (tl.x + self.width(_ctx, sw) * prop + self.width(_ctx, sw)) / sw, y: self.pos.y },
-            pos: Point2 { x: self.pos.x - self.width * 0.5 + self.width * prop - self.width * 0.1 / 2., y: self.pos.y },
-            width: self.width * 0.1,
-            height: self.height,
-            tag: self.slider_button.tag.clone(),
-            ..Default::default()
-        };
-        self.decrease_button = Button {
-            pos: Point2 { x: self.pos.x - self.width / 2. + self.width * 0.1 / 2., y: self.pos.y },
-            width: self.width * 0.1,
-            height: self.height,
-            tag: self.decrease_button.tag.clone(),
-            text: self.decrease_button.text.clone(),
-            ..Default::default()
-        };
-        self.increase_button = Button {
-            pos: Point2 { x: self.pos.x + self.width / 2. - self.width * 0.1 / 2., y: self.pos.y },
-            width: self.width * 0.1,
-            height: self.height,
-            tag: self.increase_button.tag.clone(),
-            text: self.increase_button.text.clone(),
-            ..Default::default()
-        };
+        self.last_mx = self.last_mx.clamp(lower, upper);
+
+        self.slider_button.pos = Point2 { x: (lower + step * self.value) / sw, y: self.pos.y };
+        self.slider_button.width = self.width * 0.1;
+        self.slider_button.height = self.height;
+
+        self.decrease_button.pos = Point2 { x: self.pos.x - self.width / 2. + self.width * 0.1 / 2., y: self.pos.y }; 
+        self.decrease_button.width = self.width * 0.1;
+        self.decrease_button.height = self.height;
+
+        self.increase_button.pos = Point2 { x: self.pos.x + self.width / 2. - self.width * 0.1 / 2., y: self.pos.y }; 
+        self.increase_button.width = self.width * 0.1;
+        self.increase_button.height = self.height;
 
         Ok(()) 
     }
@@ -557,13 +565,13 @@ impl UIElement for Slider {
 
         let ruler = MeshBuilder::new()
             .rectangle(DrawMode::fill(), Rect::new(tl.x, tl.y, w, h), Color::RED)?
-            .rectangle(DrawMode::fill(), Rect::new(tl.x, tl.y, w * self.value / (self.upper - self.lower), h), Color::GREEN)?
+            .rectangle(DrawMode::fill(), Rect::new(tl.x, tl.y, w * self.value / 100., h), Color::GREEN)?
             .rounded_rectangle(DrawMode::stroke(self.border.stroke), Rect::new(tl.x, tl.y, w, h), self.border.radius, self.border.color)?
             .build(_ctx)?;
 
+        graphics::draw(_ctx, &ruler, DrawParam::default())?;
         self.decrease_button.draw(_ctx, _conf)?;
         self.increase_button.draw(_ctx, _conf)?;
-        graphics::draw(_ctx, &ruler, DrawParam::default())?;
         self.slider_button.draw(_ctx, _conf)?;
 
         Ok(())

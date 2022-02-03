@@ -5,7 +5,6 @@ use ggez::{
     mint::{Point2},
     event::{KeyCode, MouseButton},
     input,
-    conf::FullscreenType,
 };
 use std::{
     any::Any,
@@ -18,7 +17,6 @@ use crate::{
     player::*,
     shots::Shot,
     dungeon::BlockTag,
-    ui_elements::*,
 };
 use rand::{thread_rng, Rng};
 
@@ -187,76 +185,9 @@ pub trait Scene {
 
     fn key_up_event(&mut self, _ctx: &mut Context, _keycode: KeyCode, _keymod: input::keyboard::KeyMods) {}
 
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        let (sw, sh) = (self.get_conf().unwrap().screen_width, self.get_conf().unwrap().screen_height);
-        let (ww, wh) = (self.get_conf().unwrap().window_width, self.get_conf().unwrap().window_height);
+    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
 
-        if _button == MouseButton::Left {
-            let result = self.get_clicked(_ctx, _x, _y);
-            match result {
-                Some(e) => {
-                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
-                        match b.tag.clone() {
-                            ButtonTag::ChangeState(s) => change_scene(&mut self.get_conf_mut().unwrap(), s), 
-                            _ => (),
-                        }
-                    }
-                    else if let Some(s) = e.as_any().downcast_ref::<Slider>() {
-                        let step = s.get_step();
-
-                        match s.get_clicked(_ctx, _x, _y, sw, sh, ww, wh).clone() {
-                            Some(b_tag) => match b_tag {
-                                ButtonTag::ChangeVolume(sign) => {
-                                    change_volume(&mut self.get_conf_mut().unwrap(), sign as f32 * step);
-                                },
-                                _ => (),
-                            }
-                            None => (),
-                        }
-                    }
-                    else if let Some(c) = e.as_any().downcast_ref::<CheckBox>() {
-                        let _ = match c.checked {
-                            true => graphics::set_fullscreen(_ctx, FullscreenType::Windowed),
-                            false => graphics::set_fullscreen(_ctx, FullscreenType::True),
-                        };
-                    }
-                },
-                None => return,
-            }
-        }
-    }
-
-    fn mouse_button_up_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
-        let (sw, sh) = (self.get_conf().unwrap().screen_width, self.get_conf().unwrap().screen_height);
-        let (ww, wh) = (self.get_conf().unwrap().window_width, self.get_conf().unwrap().window_height);
-
-        if _button == MouseButton::Left {
-            let result = self.get_clicked(_ctx, _x, _y);
-            match result {
-                Some(e) => {
-                    if let Some(s) = e.as_any().downcast_ref::<Slider>() {
-                        let step = s.get_step();
-
-                        match s.get_clicked(_ctx, _x, _y, sw, sh, ww, wh).clone() {
-                            Some(b_tag) => match b_tag {
-                                ButtonTag::Blank => (),
-                                // ButtonTag::ChangeVolume(sign) => change_volume(&mut self.get_conf_mut().unwrap(), sign as f32 * step),
-                                _ => (),
-                            }
-                            None => (),
-                        }
-                    }
-                    else if let Some(c) = e.as_any().downcast_ref::<CheckBox>() {
-                        let _ = match c.checked {
-                            true => graphics::set_fullscreen(_ctx, FullscreenType::Windowed),
-                            false => graphics::set_fullscreen(_ctx, FullscreenType::True),
-                        };
-                    }
-                },
-                None => return,
-            }
-        }
-    }
+    fn mouse_button_up_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {}
 
     fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {}
 
@@ -264,63 +195,29 @@ pub trait Scene {
 
     fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { None }  
 
-    fn get_conf(&self) -> Option<Ref<Config>> { None }
-
-    fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { None }
-
-    fn get_clicked(&self, ctx: &mut Context, mx: f32, my: f32) -> Option<&dyn UIElement> {
-        let (sw, sh, ww, wh);
-        {
-            match self.get_conf() {
-                Some(conf) => {
-                    sw = conf.screen_width;
-                    sh = conf.screen_height;
-                    ww = conf.window_width;
-                    wh = conf.window_height;
-                },
-                None => return None,
-            }
-        }
+    fn get_overlapped_idx(&self, ctx: &mut Context, mx: f32, my: f32) -> Option<usize> {
+        let conf = &self.get_conf().unwrap();
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
+        let (ww, wh) = (conf.window_width, conf.window_height);
 
         match self.get_ui_elements() {
             Some(ue) => {
-                for e in ue.iter() {
+                for (i, e) in ue.iter().enumerate() {
                     if e.mouse_overlap(ctx, mx, my, sw, sh, ww, wh) {
-                        return Some(&**e);
+                        return Some(i);
                     }
                 }
                 None
             },
-            None => None
+            None => None,
         }
     }
 
-    fn get_clicked_mut(&mut self, ctx: &mut Context, mx: f32, my: f32) -> Option<&mut dyn UIElement> {
-        let (sw, sh, ww, wh);
-        {
-            match self.get_conf() {
-                Some(conf) => {
-                    sw = conf.screen_width;
-                    sh = conf.screen_height;
-                    ww = conf.window_width;
-                    wh = conf.window_height;
-                },
-                None => return None,
-            }
-        }
+    fn update_ui_vars(&mut self, _ctx: &mut Context) -> GameResult { Ok(()) }
 
-        match self.get_ui_elements_mut() {
-            Some(ue) => {
-                for e in ue.iter_mut() {
-                    if e.mouse_overlap(ctx, mx, my, sw, sh, ww, wh) {
-                        return Some(&mut **e);
-                    }
-                }
-                None
-            },
-            None => None
-        }
-    }
+    fn get_conf(&self) -> Option<Ref<Config>> { None }
+
+    fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { None }
 }
 
 pub trait UIElement {
