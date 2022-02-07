@@ -15,6 +15,7 @@ use crate::{
     consts::*,
     player::*,
     dungeon::{Dungeon, RoomState},
+    items::*,
 };
 
 #[derive(Debug, Clone)]
@@ -284,22 +285,88 @@ impl UIElement for HealthBar {
     fn draw(&mut self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let pos = self.pos(sw, sh);
-        let img_dims = conf.assets.sprites.get("heart_full").unwrap().dimensions();
-        let img_width = self.width(ctx, sw) / self.max_health;
 
         for i in 1..=(self.max_health as i32) {
             let index = i as f32;
+            let dif = self.health - index;
+            let sprite;
+            if dif >= 0. { sprite = conf.assets.sprites.get("heart_full").unwrap(); }
+            else if dif >= -0.5 { sprite = conf.assets.sprites.get("heart_half").unwrap(); }
+            else { sprite = conf.assets.sprites.get("heart_empty").unwrap(); }
+
+            let img_dims = sprite.dimensions();
+            let img_width = self.width(ctx, sw) / self.max_health;
 
             let draw_params = DrawParam::default()
                 .dest([pos.x + index * img_width * 1.1, pos.y])
                 .scale([img_width / img_dims.w, self.height(ctx, sh) / img_dims.h])
                 .offset([0.5, 0.5]);
 
-            let dif = self.health - index;
 
-            if dif >= 0. { graphics::draw(ctx, conf.assets.sprites.get("heart_full").unwrap(), draw_params)?; }
-            else if dif >= -0.5 { graphics::draw(ctx, conf.assets.sprites.get("heart_half").unwrap(), draw_params)?; }
-            else { graphics::draw(ctx, conf.assets.sprites.get("heart_empty").unwrap(), draw_params)?; }
+            graphics::draw(ctx, sprite, draw_params)?;
+        }
+
+        Ok(())
+    }
+
+    fn pos(&self, sw: f32, sh: f32) -> Point2<f32> { Point2 { x: sw * self.pos.x, y: sh * self.pos.y } }
+
+    fn width(&self, _ctx: &mut Context, sw: f32) -> f32 { sw * self.width }
+
+    fn height(&self, _ctx: &mut Context, sh: f32) -> f32 { sh * self.height }
+
+    fn as_any(&self) -> &dyn Any { self }
+    
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+}
+
+pub struct ItemHolder {
+    pub pos: Point2<f32>,
+    pub width: f32,
+    pub height: f32,
+    pub item_tag: Option<ItemTag>,
+    pub charge: f32,
+    pub border: Border,
+}
+
+impl UIElement for ItemHolder {
+    fn update(&mut self, _ctx: &mut Context, _conf: &mut Config) -> GameResult { Ok(()) }
+
+    fn draw(&mut self, ctx: &mut Context, conf: &mut Config) -> GameResult {
+        let (sw, sh) = (conf.screen_width, conf.screen_height);
+        let (w, h) = (self.width(ctx, sw), self.height(ctx, sh));
+        let tl = self.top_left(ctx, sw, sh);
+
+        let sprite = match self.item_tag {
+            Some(tag) => match tag {
+                ItemTag::Passive(p) => match p {
+                    ItemPassive::IncreaseMaxHealth(_) => conf.assets.sprites.get("poop_item"),
+                },
+                ItemTag::Active(a) => match a {
+                    ItemActive::Heal(_) => conf.assets.sprites.get("heart_item"),
+                },
+            },
+            None => None,
+        };
+        let holder = MeshBuilder::new()
+            .rectangle(DrawMode::fill(), Rect::new(tl.x, tl.y, w, h), Color::new(0.2, 0.2, 0.2, 1.0))?
+            .rounded_rectangle(DrawMode::stroke(self.border.stroke * 2.), Rect::new(tl.x, tl.y, w, h), self.border.radius, self.border.color)?
+            .build(ctx)?;
+
+        graphics::draw(ctx, &holder, DrawParam::default())?;
+        if let Some(s) = sprite { 
+            let dims = s.dimensions();
+
+            let mut draw_params = DrawParam::default()
+                .dest(self.pos(sw, sh))
+                .scale([w / dims.w, h / dims.h])
+                .offset([0.5, 0.5]);
+
+            if self.charge < ITEM_COOLDOWN {
+                draw_params = draw_params.color(Color::new(1., 1., 1., 0.3));
+            }
+
+            graphics::draw(ctx, s, draw_params)?; 
         }
 
         Ok(())
@@ -328,6 +395,20 @@ impl Overlay {
         let pos = Point2 { x: 0., y: 0.};
         let (width, height) = (1.0, 1.0);
         let ui_elements: Vec<Box<dyn UIElement>> = vec![
+            Box::new(ItemHolder {
+                pos: Point2 { x: ITEM_HOLDER_POS.0, y: ITEM_HOLDER_POS.1 },
+                width: ITEM_HOLDER_SCALE,
+                height: ITEM_HOLDER_SCALE,
+                item_tag: match player.item {
+                    Some(i) => Some(i.tag),
+                    None => None,
+                },
+                charge: match player.item {
+                    Some(i) => ITEM_COOLDOWN - i.cooldown,
+                    None => 0.,
+                },
+                border: Border::default(),
+            }),
             Box::new(HealthBar {
                 pos: Point2 { x: HEALTH_BAR_POS.0, y: HEALTH_BAR_POS.1 },
                 width: HEALTH_BAR_SCALE.0,
@@ -366,6 +447,18 @@ impl Overlay {
                         else { RoomState::Undiscovered }
                     }).collect()
                 }).collect();
+            }
+            else if let Some(i) = e.as_any_mut().downcast_mut::<ItemHolder>() {
+                match player.item {
+                    Some(item) => {
+                        i.item_tag = Some(item.tag);
+                        i.charge = ITEM_COOLDOWN - item.cooldown;
+                    },
+                    None => {
+                        i.item_tag = None;
+                        i.charge = 0.;
+                    }
+                };
             }
         }
     }

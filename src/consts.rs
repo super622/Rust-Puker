@@ -6,7 +6,10 @@ pub const DEFAULT_SCREEN_HEIGHT: f32 = 720.;
 pub const BUTTON_TEXT_FONT_SIZE: f32 = 0.1;
 
 pub const HEALTH_BAR_SCALE: (f32, f32) = (0.15, 0.05);
-pub const HEALTH_BAR_POS: (f32, f32) = (0.02, 0.05);
+pub const HEALTH_BAR_POS: (f32, f32) = (0.1, 0.05);
+
+pub const ITEM_HOLDER_SCALE: f32 = 0.1;
+pub const ITEM_HOLDER_POS: (f32, f32) = (0.05, 0.05);
 
 pub const MINIMAP_SCALE: f32 = 0.2;
 pub const MINIMAP_POS: (f32, f32) = (1. - MINIMAP_SCALE, 0.);

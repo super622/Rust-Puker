@@ -68,6 +68,7 @@ impl Assets {
         audio.insert("power_up_sound".to_string(), audio::Source::new(ctx, "/audio/power_up_sound.mp3")?);
         audio.insert("heal_sound".to_string(), audio::Source::new(ctx, "/audio/heal_sound.mp3")?);
         audio.insert("boss_death_sound".to_string(), audio::Source::new(ctx, "/audio/boss_death_sound.mp3")?);
+        audio.insert("wow_sound".to_string(), audio::Source::new(ctx, "/audio/wow_sound.mp3")?);
 
         Ok(Self {
             sprites,

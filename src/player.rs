@@ -185,8 +185,11 @@ impl Player {
     }
 
     pub fn use_item(&mut self, _ctx: &mut Context, _conf: &mut Config) {
-        match self.item {
-            Some(mut i) => i.activate(_ctx, _conf, self),
+        match self.item.take() {
+            Some(mut i) => {
+                i.activate(_ctx, _conf, self);
+                self.item = Some(i);
+            },
             None => ()
         }
     }

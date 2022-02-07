@@ -174,7 +174,6 @@ impl Item {
     pub fn activate(&mut self, _ctx: &mut Context, _conf: &mut Config, player: &mut Player) {
         if self.cooldown > 0. { return; } 
         self.cooldown = ITEM_COOLDOWN;
-        println!("{:?}", self.cooldown);
 
         match self.tag {
             ItemTag::Active(a) => match a {
@@ -183,5 +182,4 @@ impl Item {
             _ => (),
         }
     }
-
 }

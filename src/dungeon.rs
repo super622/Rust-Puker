@@ -53,7 +53,7 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn update(&mut self, ctx: &mut Context, conf: &mut Config, _player: &Player, _delta_time: f32) -> GameResult {
+    pub fn update(&mut self, ctx: &mut Context, conf: &mut Config, _player: &mut Player, _delta_time: f32) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
         let target_grid = &self.get_target_distance_grid(_player.get_pos(), sw, sh);
 
@@ -107,7 +107,7 @@ impl Room {
                             _ => unreachable!(),
                         }
                     }
-                    if let Some(mut i) = _player.item {
+                    if let Some(i) = &mut _player.item {
                         i.cooldown = f32::max(i.cooldown - 1., 0.);
                     }
                 },
@@ -453,15 +453,15 @@ impl Dungeon {
             if j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] != 0 { doors[2] = Some(((i, j + 1), Direction::East)); }
             if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] != 0 { doors[3] = Some(((i + 1, j), Direction::South)); }
 
-            let mut tag = RoomTag::Item;
+            let tag;
             if (i, j) == Dungeon::get_start_room_coords() { tag = RoomTag::Start; }
-            // else if let Some(s) = special_rooms.pop() { tag = s; }
-            // else { 
-            //     tag = match thread_rng().gen_bool(0.8) {
-            //         true => RoomTag::Mob, 
-            //         false => RoomTag::Empty, 
-            //     };
-            // }
+            else if let Some(s) = special_rooms.pop() { tag = s; }
+            else { 
+                tag = match thread_rng().gen_bool(0.8) {
+                    true => RoomTag::Mob, 
+                    false => RoomTag::Empty, 
+                };
+            }
 
             grid_rooms[i][j] = Some(Room::generate_room(screen, (i, j), doors, tag));
         }
@@ -547,7 +547,7 @@ impl Dungeon {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Block {
     pub pos: Vec2Wrap,
     pub scale: Vec2,

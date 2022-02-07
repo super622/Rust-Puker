@@ -143,6 +143,7 @@ impl PlayScene {
                                 let temp = Some(item); 
                                 obst.tag = BlockTag::Pedestal(self.player.item);
                                 self.player.item = temp;
+                                self.config.borrow_mut().assets.audio.get_mut("wow_sound").unwrap().play(ctx)?;
                             }
                         }
 
@@ -256,7 +257,7 @@ impl Scene for PlayScene {
         self.handle_shot_collisions(ctx, delta_time)?;
 
         self.dungeon.update_rooms_state(self.cur_room)?;
-        self.dungeon.get_room_mut(self.cur_room)?.unwrap().update(ctx, &mut self.config.borrow_mut(), &self.player, delta_time)?;
+        self.dungeon.get_room_mut(self.cur_room)?.unwrap().update(ctx, &mut self.config.borrow_mut(), &mut self.player, delta_time)?;
 
         self.player.update(ctx, &mut self.config.borrow_mut(), delta_time)?;
 
