@@ -47,7 +47,7 @@ impl Default for Player {
             state: ActorState::Base,
             shoot_rate: PLAYER_SHOOT_RATE,
             shoot_range: PLAYER_SHOOT_RANGE,
-            shoot_timeout: PLAYER_SHOOT_TIMEOUT,
+            shoot_timeout: 0.,
             damage: PLAYER_DAMAGE,
             damaged_cooldown: 0.,
             animation_cooldown: 0.,

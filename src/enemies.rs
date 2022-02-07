@@ -39,7 +39,7 @@ impl Default for EnemyMask {
             state: ActorState::Base,
             shoot_rate: ENEMY_SHOOT_RATE,
             shoot_range: ENEMY_SHOOT_RANGE,
-            shoot_timeout: ENEMY_SHOOT_TIMEOUT,
+            shoot_timeout: 0.,
             animation_cooldown: 0.,
             afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
         }
@@ -456,7 +456,7 @@ impl Default for BossWeirdBall {
             damage: ENEMY_DAMAGE * 2.,
             shoot_rate: ENEMY_SHOOT_RATE,
             shoot_range: ENEMY_SHOOT_RANGE,
-            shoot_timeout: ENEMY_SHOOT_TIMEOUT,
+            shoot_timeout: 0.,
             state: ActorState::Base,
             animation_cooldown: 0.,
             afterlock_cooldown: ENEMY_AFTERLOCK_COOLDOWN,
