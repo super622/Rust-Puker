@@ -9,6 +9,7 @@ use crate::{
     consts::*,
     traits::*,
     shots::*,
+    items::Item,
 };
 use glam::f32::{Vec2};
 use std::{
@@ -29,6 +30,7 @@ pub struct Player {
     pub damaged_cooldown: f32,
     pub animation_cooldown: f32,
     pub afterlock_cooldown: f32,
+    pub item: Option<Item>,
 }
 
 impl Default for Player {
@@ -52,6 +54,7 @@ impl Default for Player {
             damaged_cooldown: 0.,
             animation_cooldown: 0.,
             afterlock_cooldown: PLAYER_AFTERLOCK_COOLDOWN,
+            item: None,
         }
     }
 }
@@ -179,5 +182,12 @@ impl Player {
         shots.push(shot);
 
         Ok(())
+    }
+
+    pub fn use_item(&mut self, _ctx: &mut Context, _conf: &mut Config) {
+        match self.item {
+            Some(mut i) => i.activate(_ctx, _conf, self),
+            None => ()
+        }
     }
 }

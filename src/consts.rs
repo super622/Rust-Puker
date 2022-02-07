@@ -1,3 +1,5 @@
+use crate::items::{ItemPassive, ItemActive, ItemTag};
+
 pub const DEFAULT_SCREEN_WIDTH: f32 = 1280.;
 pub const DEFAULT_SCREEN_HEIGHT: f32 = 720.;
 
@@ -37,6 +39,15 @@ pub const SHOT_SCALE: f32 = 0.3;
 
 pub const COLLECTABLE_SCALE: f32 = 0.4;
 
+pub const ITEM_COOLDOWN: f32 = 3.;
+pub const ITEM_SCALE: f32 = 0.6;
+pub const ITEM_POOL_PASSIVE: &[ItemTag] = &[
+    ItemTag::Passive(ItemPassive::IncreaseMaxHealth(1.)),
+];
+pub const ITEM_POOL_ACTIVE: &[ItemTag] = &[
+    ItemTag::Active(ItemActive::Heal(1.)),
+];
+
 pub const ANIMATION_COOLDOWN: f32 = 0.5;
 
 pub const DUNGEON_GRID_ROWS: usize = 8;
@@ -66,7 +77,7 @@ pub const ROOM_LAYOUTS_ITEM: &[&str] = &[
 #v           v#
 #      v      #
 #             #
-d    v i v    d
+d    v p v    d
 #             #
 #      v      #
 #v           v#

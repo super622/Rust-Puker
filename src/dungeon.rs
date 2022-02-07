@@ -107,6 +107,9 @@ impl Room {
                             _ => unreachable!(),
                         }
                     }
+                    if let Some(mut i) = _player.item {
+                        i.cooldown = f32::max(i.cooldown - 1., 0.);
+                    }
                 },
                 _ => (),
             }
@@ -171,7 +174,7 @@ impl Room {
 
         for (i, c) in layout.chars().enumerate() {
             match c {
-                '#'|'.'|'v'|'d'|'h' => {
+                '#'|'.'|'v'|'d'|'h'|'p' => {
                     if c != 'v' { grid[i / ROOM_WIDTH as usize][i % ROOM_WIDTH as usize] = i32::MIN; }
 
                     obstacles.push(Box::new(Block {
@@ -197,6 +200,7 @@ impl Room {
                                 doors.push(obstacles.len());
                                 BlockTag::Hatch(false)
                             },
+                            'p' => BlockTag::Pedestal(Some(Room::generate_item())),
                             _ => unreachable!(),
                         },
                     }));
@@ -367,6 +371,16 @@ impl Room {
             });
         }
     }
+
+    fn generate_item() -> Item {
+        Item {
+            tag: match thread_rng().gen_bool(0.5) {
+                true => ITEM_POOL_ACTIVE[thread_rng().gen_range(0..ITEM_POOL_ACTIVE.len())],
+                false => ITEM_POOL_PASSIVE[thread_rng().gen_range(0..ITEM_POOL_PASSIVE.len())],
+            },
+            cooldown: 0.,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -439,15 +453,15 @@ impl Dungeon {
             if j < DUNGEON_GRID_COLS - 1 && grid[i][j + 1] != 0 { doors[2] = Some(((i, j + 1), Direction::East)); }
             if i < DUNGEON_GRID_ROWS - 1 && grid[i + 1][j] != 0 { doors[3] = Some(((i + 1, j), Direction::South)); }
 
-            let tag;
+            let mut tag = RoomTag::Item;
             if (i, j) == Dungeon::get_start_room_coords() { tag = RoomTag::Start; }
-            else if let Some(s) = special_rooms.pop() { tag = s; }
-            else { 
-                tag = match thread_rng().gen_bool(0.8) {
-                    true => RoomTag::Mob, 
-                    false => RoomTag::Empty, 
-                };
-            }
+            // else if let Some(s) = special_rooms.pop() { tag = s; }
+            // else { 
+            //     tag = match thread_rng().gen_bool(0.8) {
+            //         true => RoomTag::Mob, 
+            //         false => RoomTag::Empty, 
+            //     };
+            // }
 
             grid_rooms[i][j] = Some(Room::generate_room(screen, (i, j), doors, tag));
         }
@@ -551,6 +565,7 @@ pub enum BlockTag {
     Stone,
     Spikes,
     Hatch(bool),
+    Pedestal(Option<Item>),
 }
 
 impl Stationary for Block {
@@ -583,6 +598,7 @@ impl Stationary for Block {
                     false => conf.assets.sprites.get("hatch_closed").unwrap(),
                 }
             },
+            BlockTag::Pedestal(_) => conf.assets.sprites.get("item_pedestal").unwrap(),
         };
 
         let draw_params = DrawParam::default()
@@ -592,6 +608,18 @@ impl Stationary for Block {
             .offset([0.5, 0.5]);
 
         graphics::draw(ctx, sprite, draw_params)?;
+        if let BlockTag::Pedestal(Some(i)) = self.tag {
+            let item_sprite = match i.tag {
+                ItemTag::Passive(p) => match p {
+                    ItemPassive::IncreaseMaxHealth(_) => conf.assets.sprites.get("poop_item").unwrap(),
+                },
+                ItemTag::Active(a) => match a {
+                    ItemActive::Heal(_) => conf.assets.sprites.get("heart_item").unwrap(),
+                },
+            };
+
+            graphics::draw(ctx, item_sprite, draw_params.scale(self.scale_to_screen(sw, sh, item_sprite.dimensions()) * ITEM_SCALE))?;
+        };
 
         if conf.draw_bbox_stationary { self.draw_bbox(ctx, (sw, sh))?; }
 
@@ -604,13 +632,9 @@ impl Stationary for Block {
 
     fn get_tag(&self) -> BlockTag { self.tag }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+    fn as_any(&self) -> &dyn Any { self }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 #[cfg(test)]

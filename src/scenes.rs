@@ -22,6 +22,7 @@ use crate::{
     consts::*,
     traits::*,
     ui_elements::*,
+    items::*,
 };
 
 pub struct PlayScene {
@@ -88,21 +89,24 @@ impl PlayScene {
             self.player.props.forward = mouse_relative_forward(self.player.props.pos.0, mouse::position(ctx), &self.config.borrow());
             self.player.shoot(&mut room.shots)?;
         }
+        if keyboard::is_key_pressed(ctx, KeyCode::Space) {
+            self.player.use_item(ctx, &mut self.config.borrow_mut());
+        }
 
         Ok(())
     }
 
-    fn handle_block_collisions(&mut self, delta_time: f32) -> GameResult {
+    fn handle_block_collisions(&mut self, ctx: &mut Context, delta_time: f32) -> GameResult {
         let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
         let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
         let mut ct = 0.;
         let room = self.dungeon.get_room_mut(self.cur_room)?.unwrap();
         let mut next_level = false;
 
-        for o in room.obstacles.iter() {
-            let obst = o.as_any().downcast_ref::<Block>().unwrap();
+        for o in room.obstacles.iter_mut() {
+            let obst = o.as_any_mut().downcast_mut::<Block>().unwrap();
 
-            if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+            if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 match obst.tag {
                     BlockTag::Door { is_open, dir, connects_to } => {
                         if is_open {
@@ -122,12 +126,27 @@ impl PlayScene {
                         else { self.player.props.pos.0 -= cn.normalize() * ct; }
                     },
                     BlockTag::Spikes => {
-                        if o.get_bbox(sw, sh).contains(self.player.props.pos) { self.player.damage(1.); }
+                        if obst.get_bbox(sw, sh).contains(self.player.props.pos) { self.player.damage(1.); }
                     },
                     BlockTag::Hatch(is_open) => {
                         if is_open {
                             next_level = true;
                         }
+                    },
+                    BlockTag::Pedestal(Some(mut item)) => {
+                        match item.tag {
+                            ItemTag::Passive(_) => {
+                                item.affect_player(ctx, &mut self.config.borrow_mut(), &mut self.player);
+                                obst.tag = BlockTag::Pedestal(None);
+                            },
+                            ItemTag::Active(_) => {
+                                let temp = Some(item); 
+                                obst.tag = BlockTag::Pedestal(self.player.item);
+                                self.player.item = temp;
+                            }
+                        }
+
+                        self.player.props.pos.0 -= cn.normalize() * ct;
                     },
                     _ => self.player.props.pos.0 -= cn.normalize() * ct,
                 }
@@ -230,7 +249,7 @@ impl Scene for PlayScene {
     fn update(&mut self, ctx: &mut Context, delta_time: f32) -> GameResult {
         self.handle_input(ctx)?;
 
-        self.handle_block_collisions(delta_time)?;
+        self.handle_block_collisions(ctx, delta_time)?;
 
         self.handle_environment_collisions(ctx, delta_time)?;
 

@@ -138,3 +138,50 @@ impl Collectable {
         Ok(result)
     }
 }
+
+#[derive(Debug, Copy, Clone)]
+pub enum ItemPassive {
+    IncreaseMaxHealth(f32),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum ItemActive {
+    Heal(f32),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum ItemTag {
+    Passive(ItemPassive),
+    Active(ItemActive),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Item {
+    pub tag: ItemTag,
+    pub cooldown: f32,
+}
+
+impl Item {
+    pub fn affect_player(&mut self, _ctx: &mut Context, _conf: &mut Config, player: &mut Player) {
+        match self.tag {
+            ItemTag::Passive(p) => match p {
+                ItemPassive::IncreaseMaxHealth(x) => player.max_health += x,
+            },
+            _ => (),
+        }
+    }
+    
+    pub fn activate(&mut self, _ctx: &mut Context, _conf: &mut Config, player: &mut Player) {
+        if self.cooldown > 0. { return; } 
+        self.cooldown = ITEM_COOLDOWN;
+        println!("{:?}", self.cooldown);
+
+        match self.tag {
+            ItemTag::Active(a) => match a {
+                ItemActive::Heal(x) => player.health = (player.health + x).clamp(0., player.max_health),
+            },
+            _ => (),
+        }
+    }
+
+}

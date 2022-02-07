@@ -21,9 +21,9 @@ use crate::{
 use rand::{thread_rng, Rng};
 
 pub trait Actor: std::fmt::Debug {
-    fn update(&mut self, _ctx: &mut Context, _config: &mut Config, _delta_time: f32) -> GameResult;
+    fn update(&mut self, _ctx: &mut Context, _config: &mut Config, _delta_time: f32) -> GameResult { Ok(()) }
 
-    fn draw(&self, _ctx: &mut Context, _config: &mut Config) -> GameResult;
+    fn draw(&self, _ctx: &mut Context, _config: &mut Config) -> GameResult { Ok(()) }
 
     fn draw_bbox(&self, ctx: &mut Context, screen: (f32, f32)) -> GameResult {
         let (sw, sh) = screen;

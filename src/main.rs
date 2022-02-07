@@ -225,7 +225,7 @@ fn main() -> GameResult {
     }
 
     let state = MainState::new(&mut ctx, &conf)?;
-    graphics::set_window_icon(&mut ctx, Some("/images/player_base.png"))?;
+    graphics::set_window_icon(&mut ctx, Some("/sprites/player_base.png"))?;
 
     event::run(ctx, event_loop, state)
 }
