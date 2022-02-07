@@ -61,7 +61,7 @@ impl Actor for Player {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
 
         if self.afterlock_cooldown == 0. {
-            self.velocity_lerp(_delta_time, self.speed, 20., 40.);
+            self.velocity_lerp(_delta_time, self.speed, 1., 40.);
         }
 
         self.props.pos.0 += self.props.velocity;
