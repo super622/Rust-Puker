@@ -38,15 +38,19 @@ impl Actor for Shot {
 
     fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
+
+        let sprite = match self.tag {
+            ShotTag::Player => conf.assets.sprites.get("shot_puke_base").unwrap(),
+            ShotTag::Enemy => conf.assets.sprites.get("shot_blood_base").unwrap(),
+        };
+
         let draw_params = DrawParam::default()
             .dest(self.props.pos)
-            .scale(self.scale_to_screen(sw, sh, conf.assets.sprites.get("shot_puke_base").unwrap().dimensions()) * f32::min(self.damage, 1.5))
+            .scale(self.scale_to_screen(sw, sh, sprite.dimensions()) * self.damage.clamp(1., 1.5))
             .offset([0.5, 0.5]);
 
-        match self.tag {
-            ShotTag::Player => graphics::draw(ctx, conf.assets.sprites.get("shot_puke_base").unwrap(), draw_params)?,
-            ShotTag::Enemy => graphics::draw(ctx, conf.assets.sprites.get("shot_blood_base").unwrap(), draw_params)?,
-        }
+
+        graphics::draw(ctx, sprite, draw_params)?;
 
         if conf.draw_bcircle_model { self.draw_bcircle(ctx, (sw, sh))?; }
 

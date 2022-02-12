@@ -218,6 +218,10 @@ pub trait Scene {
     fn get_conf(&self) -> Option<Ref<Config>> { None }
 
     fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { None }
+
+    fn as_any(&self) -> &dyn Any;
+    
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 pub trait UIElement {

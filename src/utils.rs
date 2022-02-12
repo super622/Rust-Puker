@@ -28,6 +28,7 @@ pub struct Config {
     pub draw_bbox_stationary: bool,
     pub current_state: State,
     pub previous_state: State,
+    pub level: usize,
 }
 
 #[derive(Clone, Copy, Hash, Debug)]
@@ -39,6 +40,7 @@ pub enum State {
     Options,
     Quit,
     Dead,
+    Transition,
 }
 
 impl Display for State {

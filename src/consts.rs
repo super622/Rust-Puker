@@ -3,6 +3,8 @@ use crate::items::{ItemPassive, ItemActive, ItemTag};
 pub const DEFAULT_SCREEN_WIDTH: f32 = 1280.;
 pub const DEFAULT_SCREEN_HEIGHT: f32 = 720.;
 
+pub const TRANSITION_SCENE_COOLDOWN: f32 = 3.;
+
 pub const BUTTON_TEXT_FONT_SIZE: f32 = 0.1;
 
 pub const HEALTH_BAR_SCALE: (f32, f32) = (0.15, 0.05);

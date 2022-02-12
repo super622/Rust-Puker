@@ -12,6 +12,7 @@ use glam::f32::{Vec2};
 use std::{
     rc::Rc,
     cell::{RefCell, Ref, RefMut},
+    any::Any,
 };
 
 use crate::{
@@ -131,6 +132,8 @@ impl PlayScene {
                     BlockTag::Hatch(is_open) => {
                         if is_open {
                             next_level = true;
+                            self.config.borrow_mut().level += 1;
+                            self.config.borrow_mut().current_state = State::Transition;
                         }
                     },
                     BlockTag::Pedestal(Some(mut item)) => {
@@ -302,6 +305,10 @@ impl Scene for PlayScene {
 
         Ok(())
     }
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 pub struct MainMenuScene {
@@ -404,6 +411,10 @@ impl Scene for MainMenuScene {
             }
         }
     }
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 pub struct PauseMenuScene {
@@ -533,6 +544,10 @@ impl Scene for PauseMenuScene {
             }
         }
     }
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 pub struct DeadScene {
@@ -635,6 +650,10 @@ impl Scene for DeadScene {
             }
         }
     }
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 pub struct OptionsScene {
@@ -877,4 +896,96 @@ impl Scene for OptionsScene {
         }
         Ok(())
     }
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+}
+
+pub struct LevelTransitionScene {
+    config: Rc<RefCell<Config>>,
+    ui_elements: Vec<Box<dyn UIElement>>,
+    cooldown: f32,
+    level: usize,
+}
+
+impl LevelTransitionScene {
+    pub fn new(config: &Rc<RefCell<Config>>) -> Self {
+        let config = Rc::clone(config);
+        let ui_elements: Vec<Box<dyn UIElement>> = vec![
+            Box::new(TextSprite {
+                pos: Point2 { x: 0.5, y: 0.2},
+                font_size: BUTTON_TEXT_FONT_SIZE * 2.,
+                color: Color::RED,
+                ..Default::default()
+            }),
+        ];
+        let cooldown = TRANSITION_SCENE_COOLDOWN;
+
+        Self {
+            config,
+            ui_elements,
+            cooldown,
+            level: 0,
+        }
+    }
+}
+
+impl Scene for LevelTransitionScene {
+    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
+        for e in self.ui_elements.iter_mut() {
+            e.update(ctx, &mut self.config.borrow_mut())?;
+        }
+
+        self.ui_elements[0].as_any_mut().downcast_mut::<TextSprite>().unwrap().text = format!("LEVEL {}", self.level);
+
+        self.update_ui_vars(ctx)?;
+
+        self.cooldown = f32::max(self.cooldown - _delta_time, 0.);
+
+        if self.cooldown == 0. {
+            self.config.borrow_mut().current_state = State::Play;    
+        }
+
+        Ok(())
+    }
+
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+
+        let curtain = Mesh::new_rectangle(
+            ctx,
+            DrawMode::fill(),
+            Rect::new(0., 0., sw, sh),
+            [0.1, 0.2, 0.3, self.cooldown / TRANSITION_SCENE_COOLDOWN].into()
+        )?;
+
+        graphics::draw(ctx, &curtain, DrawParam::default())?;
+
+        for e in self.ui_elements.iter_mut() {
+            e.draw(ctx, &mut self.config.borrow_mut())?;
+        }
+
+        Ok(())
+    }
+
+    fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
+
+    fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
+
+    fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
+
+    fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
+
+    fn update_ui_vars(&mut self, _ctx: &mut Context) -> GameResult {
+        if self.level < self.config.borrow().level {
+            self.level = self.config.borrow().level;
+            self.cooldown = TRANSITION_SCENE_COOLDOWN;
+        }
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }

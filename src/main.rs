@@ -37,16 +37,18 @@ impl MainState {
             window_height: conf.window_mode.height,
             window_mode: FullscreenType::Windowed,
             volume: 0.3,
-            draw_bcircle_model: true,
+            draw_bcircle_model: false,
             draw_bbox_stationary: false,
             current_state: State::MainMenu,
             previous_state: State::MainMenu,
+            level: 0,
         }));
         let mut scenes = HashMap::<State, Box<dyn Scene>>::new();
         scenes.insert(State::PauseMenu, Box::new(PauseMenuScene::new(&config)));
         scenes.insert(State::MainMenu, Box::new(MainMenuScene::new(&config)));
         scenes.insert(State::Dead, Box::new(DeadScene::new(&config)));
         scenes.insert(State::Options, Box::new(OptionsScene::new(&config)));
+        scenes.insert(State::Transition, Box::new(LevelTransitionScene::new(&config)));
 
         change_volume(&mut config.borrow_mut(), 0.);
 
@@ -88,7 +90,7 @@ impl EventHandler for MainState {
         let scene = self.config.borrow().current_state;
 
         match scene {
-            State::PauseMenu | State::Dead | State::Options => {
+            State::PauseMenu | State::Dead | State::Options | State::Transition => {
                 match self.scenes.get_mut(&State::Play) {
                     Some(s) => s.draw(ctx)?,
                     None => (),
@@ -154,7 +156,10 @@ impl EventHandler for MainState {
         match scene {
             State::New => {
                 self.scenes.insert(State::Play, Box::new(PlayScene::new(&self.config)));
-                self.config.borrow_mut().current_state = State::Play;
+                self.scenes.insert(State::Transition, Box::new(LevelTransitionScene::new(&self.config)));
+                let mut conf = self.config.borrow_mut();
+                conf.current_state = State::Transition;
+                conf.level = 1;
             }
             State::Quit => ggez::event::quit(_ctx),
             State::MainMenu => { self.scenes.remove(&State::Play); },
