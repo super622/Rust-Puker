@@ -326,7 +326,7 @@ impl MainMenuScene {
                 tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Play"),
-                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -337,7 +337,7 @@ impl MainMenuScene {
                 tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Options"),
-                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -348,7 +348,7 @@ impl MainMenuScene {
                 tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Quit"),
-                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -432,7 +432,7 @@ impl PauseMenuScene {
                 tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Continue"),
-                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -443,7 +443,7 @@ impl PauseMenuScene {
                 tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("New Game"),
-                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -454,7 +454,7 @@ impl PauseMenuScene {
                 tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Options"),
-                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -466,7 +466,7 @@ impl PauseMenuScene {
                 text: Some(TextSprite {
                     pos: Point2 { x: 0.5, y: 0.8},
                     text: String::from("Main Menu"),
-                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -572,7 +572,7 @@ impl DeadScene {
                 tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Try Again"),
-                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -583,7 +583,7 @@ impl DeadScene {
                 tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Quit"),
-                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -690,7 +690,7 @@ impl OptionsScene {
                 tag: UIElementTag::State,
                 text: Some(TextSprite {
                     text: String::from("Back"),
-                    font: *config.borrow().assets.fonts.get("button_font").unwrap(),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
                     ..Default::default()
                 }),
                 ..Default::default()
