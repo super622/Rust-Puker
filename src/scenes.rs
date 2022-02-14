@@ -107,7 +107,7 @@ impl PlayScene {
         for o in room.obstacles.iter_mut() {
             let obst = o.as_any_mut().downcast_mut::<Block>().unwrap();
 
-            if dynamic_circle_vs_rect(self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+            if dynamic_circle_vs_rect(&self.player.get_bcircle(sw, sh), &self.player.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                 match obst.tag {
                     BlockTag::Door { is_open, dir, connects_to } => {
                         if is_open {
@@ -137,6 +137,7 @@ impl PlayScene {
                         }
                     },
                     BlockTag::Pedestal(Some(mut item)) => {
+                        self.config.borrow_mut().assets.audio.get_mut("wow_sound").unwrap().play(ctx)?;
                         match item.tag {
                             ItemTag::Passive(_) => {
                                 item.affect_player(ctx, &mut self.config.borrow_mut(), &mut self.player);
@@ -146,7 +147,6 @@ impl PlayScene {
                                 let temp = Some(item); 
                                 obst.tag = BlockTag::Pedestal(self.player.item);
                                 self.player.item = temp;
-                                self.config.borrow_mut().assets.audio.get_mut("wow_sound").unwrap().play(ctx)?;
                             }
                         }
 
@@ -160,13 +160,13 @@ impl PlayScene {
                 BlockTag::Hatch(_) => (),
                 _ => {
                     for e in room.enemies.iter_mut() {
-                        if dynamic_circle_vs_rect(e.get_bcircle(sw, sh), &e.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+                        if dynamic_circle_vs_rect(&e.get_bcircle(sw, sh), &e.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                             e.set_pos(e.get_pos() - cn.normalize() * ct);
                         }
                     }
 
                     for d in room.drops.iter_mut() {
-                        if dynamic_circle_vs_rect(d.get_bcircle(sw, sh), &d.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
+                        if dynamic_circle_vs_rect(&d.get_bcircle(sw, sh), &d.get_velocity(), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, delta_time) {
                             d.set_velocity(d.get_velocity() - cn.normalize() * ct);
                         }
                     }
@@ -214,7 +214,7 @@ impl PlayScene {
                 let mut ct = 0.;
                 match obst.get_tag() {
                     BlockTag::Hatch(_) | BlockTag::Spikes => (),
-                    _ => if dynamic_circle_vs_rect(s.get_bcircle(sw, sh), &s.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, _delta_time) {
+                    _ => if dynamic_circle_vs_rect(&s.get_bcircle(sw, sh), &s.get_velocity(), &obst.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct, _delta_time) {
                         let _ = self.config.borrow_mut().assets.audio.get_mut("bubble_pop_sound").unwrap().play(ctx);
                         return false;
                     },

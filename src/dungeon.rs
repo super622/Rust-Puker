@@ -164,13 +164,15 @@ impl Room {
         coords + dims / 2.
     }
 
-    fn parse_layout(sw: f32, sh: f32, rw: f32, rh: f32, layout: &str, door_connects: &[Option<((usize, usize), Direction)>; 4]) -> (Vec<Box<dyn Stationary>>, Vec<Box<dyn Actor>>, Vec<usize>, [[i32; ROOM_WIDTH]; ROOM_HEIGHT]) {
+    fn parse_layout(sw: f32, sh: f32, rw: f32, rh: f32, layout: &str, door_connects: &[Option<((usize, usize), Direction)>; 4], level: usize) -> (Vec<Box<dyn Stationary>>, Vec<Box<dyn Actor>>, Vec<usize>, [[i32; ROOM_WIDTH]; ROOM_HEIGHT]) {
         let mut doors: Vec<usize> = Vec::new();
         let mut obstacles: Vec<Box<dyn Stationary>> = Vec::new(); 
         let mut enemies: Vec<Box<dyn Actor>> = Vec::new();
         let mut grid = [[0; ROOM_WIDTH]; ROOM_HEIGHT];
 
         let mut door_index = 0_usize;
+
+        let enemy_damage_amplifier = (level as f32 / ENEMY_DAMAGE).clamp(0.5, 3.);
 
         for (i, c) in layout.chars().enumerate() {
             match c {
@@ -212,6 +214,7 @@ impl Room {
                             scale: Vec2::splat(ENEMY_SCALE),
                             ..Default::default()
                         },
+                        damage: ENEMY_DAMAGE * enemy_damage_amplifier,
                         ..Default::default()
                     }));
                 },
@@ -222,6 +225,7 @@ impl Room {
                             scale: Vec2::splat(ENEMY_SCALE),
                             ..Default::default()
                         },
+                        damage: ENEMY_DAMAGE * enemy_damage_amplifier,
                         ..Default::default()
                     }));
                 },
@@ -232,6 +236,7 @@ impl Room {
                             scale: Vec2::new(ENEMY_SCALE, ENEMY_SCALE * 0.5),
                             ..Default::default()
                         },
+                        damage: ENEMY_DAMAGE * enemy_damage_amplifier,
                         ..Default::default()
                     }));
                 },
@@ -242,6 +247,7 @@ impl Room {
                             scale: Vec2::splat(ENEMY_SCALE * 2.),
                             ..Default::default()
                         },
+                        damage: ENEMY_DAMAGE * 2. * enemy_damage_amplifier,
                         ..Default::default()
                     }));
                 },
@@ -252,7 +258,7 @@ impl Room {
         (obstacles, enemies, doors, grid)
     }
 
-    fn generate_room(screen: (f32, f32), dungeon_coords: (usize, usize), door_connects: [Option<((usize, usize), Direction)>; 4], tag: RoomTag) -> Room {
+    fn generate_room(screen: (f32, f32), dungeon_coords: (usize, usize), door_connects: [Option<((usize, usize), Direction)>; 4], tag: RoomTag, level: usize) -> Room {
         let (sw, sh) = screen;
         
         let state = RoomState::Undiscovered;
@@ -282,7 +288,7 @@ impl Room {
         });
         layout = layout.trim().split('\n').map(|l| l.trim()).collect::<String>();
 
-        let (obstacles, enemies, doors, grid) = Room::parse_layout(sw, sh, width, height, &layout, &door_connects);
+        let (obstacles, enemies, doors, grid) = Room::parse_layout(sw, sh, width, height, &layout, &door_connects, level);
 
         Room {
             tag,
@@ -463,7 +469,7 @@ impl Dungeon {
                 };
             }
 
-            grid_rooms[i][j] = Some(Room::generate_room(screen, (i, j), doors, tag));
+            grid_rooms[i][j] = Some(Room::generate_room(screen, (i, j), doors, tag, level));
         }
 
         Dungeon {
