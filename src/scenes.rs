@@ -115,10 +115,10 @@ impl PlayScene {
                                 self.cur_room = connects_to;
                                 let (di, dj) = pos_to_room_coords(obst.get_pos(), sw, sh);
                                 self.player.props.pos.0 = match dir {
-                                        Direction::North => room_coords_to_pos(ROOM_HEIGHT - di - 1, dj + 1, sw, sh),
-                                        Direction::South => room_coords_to_pos(ROOM_HEIGHT - di + 1, dj + 1, sw, sh),
-                                        Direction::West => room_coords_to_pos(di + 1, ROOM_WIDTH - dj - 1, sw, sh),
-                                        Direction::East => room_coords_to_pos(di + 1, ROOM_WIDTH - dj + 1, sw, sh),
+                                        Direction::North => room_coords_to_pos(ROOM_HEIGHT - di - 2, dj, sw, sh),
+                                        Direction::South => room_coords_to_pos(ROOM_HEIGHT - di, dj, sw, sh),
+                                        Direction::West => room_coords_to_pos(di, ROOM_WIDTH - dj - 2, sw, sh),
+                                        Direction::East => room_coords_to_pos(di, ROOM_WIDTH - dj, sw, sh),
                                 };
                                 self.player.props.velocity = Vec2::ZERO;
                                 self.player.afterlock_cooldown = PLAYER_AFTERLOCK_COOLDOWN;

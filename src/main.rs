@@ -63,8 +63,6 @@ impl MainState {
 
 impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
-        const DESIRED_FPS: u32 = 60;
-
         while timer::check_update_time(ctx, DESIRED_FPS) {
             let delta_time = 1.0 / (DESIRED_FPS as f32);
 

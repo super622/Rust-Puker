@@ -21,7 +21,7 @@ use std::{
 use rand::{thread_rng, Rng};
 use glam::f32::Vec2;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RoomTag {
     Start,
     Empty,
@@ -136,10 +136,15 @@ impl Room {
     
     pub fn draw(&self, ctx: &mut Context, conf: &mut Config) -> GameResult {
         let (sw, sh) = (conf.screen_width, conf.screen_height);
+        let scale = Vec2::from(Room::get_room_scale(sw, sh, conf.assets.sprites.get("floor").unwrap().dimensions()));
         let draw_params = DrawParam::default()
-            .scale(Room::get_room_scale(sw, sh, conf.assets.sprites.get("floor").unwrap().dimensions()));
+            .scale(scale);
         
         graphics::draw(ctx, conf.assets.sprites.get("floor").unwrap(), draw_params)?;
+
+        if self.tag == RoomTag::Start {
+            graphics::draw(ctx, conf.assets.sprites.get("instructions").unwrap(), draw_params.scale(scale * 0.7).offset([-0.2, -0.2]))?;
+        }
 
         for obst in self.obstacles.iter() { obst.draw(ctx, conf)?; }
 

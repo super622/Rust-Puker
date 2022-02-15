@@ -2,6 +2,7 @@ use crate::items::{ItemPassive, ItemActive, ItemTag};
 
 pub const DEFAULT_SCREEN_WIDTH: f32 = 1280.;
 pub const DEFAULT_SCREEN_HEIGHT: f32 = 720.;
+pub const DESIRED_FPS: u32 = 60;
 
 pub const TRANSITION_SCENE_COOLDOWN: f32 = 3.;
 
