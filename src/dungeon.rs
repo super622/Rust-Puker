@@ -30,7 +30,7 @@ pub enum RoomTag {
     Item,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RoomState {
     Undiscovered,
     Discovered,
@@ -524,7 +524,7 @@ impl Dungeon {
         Ok(())
     }
 
-    fn check_dungeon_consistency(grid: &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS], rooms_len: usize) -> bool {
+    pub fn check_dungeon_consistency(grid: &[[usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS], rooms_len: usize) -> bool {
         let mut checked = vec![false; rooms_len];
         let mut q = VecDeque::<(usize, usize)>::new();
         q.push_back(Dungeon::get_start_room_coords());
@@ -646,33 +646,4 @@ impl Stationary for Block {
     fn as_any(&self) -> &dyn Any { self }
 
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
-}
-
-#[cfg(test)]
-mod unit_test_dungeon {
-    use super::*;
-
-    #[test]
-    fn test_dungeon_consistency_checker() {
-        let grid_bad = [[0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 3, 1, 2, 0, 0],
-                        [0, 0, 0, 0, 4, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0],];
-
-        let grid_good = [[0, 0, 0, 0, 0, 0, 0, 0, 0],
-                         [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                         [0, 0, 0, 0, 0, 5, 0, 0, 0],
-                         [0, 0, 0, 0, 3, 1, 2, 0, 0],
-                         [0, 0, 0, 0, 4, 0, 6, 7, 0],
-                         [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                         [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                         [0, 0, 0, 0, 0, 0, 0, 0, 0],];
-
-        assert!(!Dungeon::check_dungeon_consistency(&grid_bad, 7));
-        assert!(Dungeon::check_dungeon_consistency(&grid_good, 7));
-    }
 }
