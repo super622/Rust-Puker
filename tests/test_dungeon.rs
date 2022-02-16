@@ -2,6 +2,7 @@ use puker::{
     dungeon::*,
     consts::*,
 };
+use glam::f32::Vec2;
 
 const SCREEN: (f32, f32) = (DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT);
 
@@ -79,7 +80,20 @@ fn test_dungeon_state_update() {
     if let Some(r) = dungeon.get_room((i, j + 1)).unwrap() { assert_eq!(RoomState::Discovered, r.state); }
 }
 
-// #[test]
-// fn test_room_target_distance_grid {
-    
-// }
+#[test]
+fn test_room_target_distance_grid() {
+    let dungeon = Dungeon::generate_dungeon(SCREEN, 1);
+    let grid = dungeon.get_room((3, 5)).unwrap().unwrap().get_target_distance_grid(Vec2::new(SCREEN.0 / 2., SCREEN.1 / 2.), SCREEN.0, SCREEN.1);
+
+    let (mut i, mut j) = (1, 1);
+
+    loop {
+        if grid[i + 1][j] > grid[i][j] { i += 1; continue }
+        if grid[i - 1][j] > grid[i][j] { i -= 1; continue }
+        if grid[i][j + 1] > grid[i][j] { j += 1; continue }
+        if grid[i][j - 1] > grid[i][j] { j -= 1; continue }
+        break
+    }
+
+    assert_eq!((4, 7), (i, j));
+}
