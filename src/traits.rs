@@ -92,9 +92,9 @@ pub trait Actor: std::fmt::Debug {
 
     fn velocity_lerp(&mut self, _delta_time: f32, speed: f32, decay: f32, acceleration: f32) {
         self.set_translation(self.get_translation().clamp_length_max(1.));
-        self.set_velocity(self.get_velocity() * 0.8 + self.get_translation() * acceleration * _delta_time * 5.);
-        if self.get_translation().length() == 0. { self.set_velocity(self.get_velocity() - self.get_velocity() * _delta_time * decay) }
-        if self.get_velocity().length() < 0.01 { self.set_velocity(self.get_velocity().clamp_length_min(0.)); }
+        self.set_velocity(self.get_velocity() + self.get_translation() * acceleration * _delta_time);
+        if self.get_translation().length() == 0. { self.set_velocity(self.get_velocity() / decay.clamp(_delta_time * (1. + 1e-2), f32::INFINITY) * _delta_time) }
+        if self.get_velocity().length() < 0.01 { self.set_velocity(Vec2::ZERO); }
         if self.get_velocity().length() > speed && speed > 0. { self.set_velocity(self.get_velocity().clamp_length_max(speed)); }
     }
 
