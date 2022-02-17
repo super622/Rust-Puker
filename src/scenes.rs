@@ -72,23 +72,23 @@ impl PlayScene {
         }
         if keyboard::is_key_pressed(ctx, KeyCode::Up) {
             self.player.props.forward = Vec2::new(0., -1.);
-            self.player.shoot(&mut room.shots)?;
+            self.player.shoot(&mut room.shots);
         }
         if keyboard::is_key_pressed(ctx, KeyCode::Down) {
             self.player.props.forward = Vec2::new(0., 1.);
-            self.player.shoot(&mut room.shots)?;
+            self.player.shoot(&mut room.shots);
         }
         if keyboard::is_key_pressed(ctx, KeyCode::Left) {
             self.player.props.forward = Vec2::new(-1., 0.);
-            self.player.shoot(&mut room.shots)?;
+            self.player.shoot(&mut room.shots);
         }
         if keyboard::is_key_pressed(ctx, KeyCode::Right) {
             self.player.props.forward = Vec2::new(1., 0.);
-            self.player.shoot(&mut room.shots)?;
+            self.player.shoot(&mut room.shots);
         }
         if mouse::button_pressed(ctx, MouseButton::Left) {
             self.player.props.forward = mouse_relative_forward(self.player.props.pos.0, mouse::position(ctx), &self.config.borrow());
-            self.player.shoot(&mut room.shots)?;
+            self.player.shoot(&mut room.shots);
         }
         if keyboard::is_key_pressed(ctx, KeyCode::Space) {
             self.player.use_item(ctx, &mut self.config.borrow_mut());

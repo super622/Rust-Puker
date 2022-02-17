@@ -12,7 +12,7 @@ use std::{
 };
 use glam::f32::Vec2;
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq)]
 pub enum ShotTag {
     Player,
     Enemy,

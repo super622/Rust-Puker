@@ -151,9 +151,9 @@ impl Actor for Player {
 }
 
 impl Player {
-    pub fn shoot(&mut self, shots: &mut Vec<Shot>) -> GameResult {
+    pub fn shoot(&mut self, shots: &mut Vec<Shot>) {
         if self.shoot_timeout != 0. {
-            return Ok(());
+            return;
         }
 
         if self.state != ActorState::Shoot {
@@ -180,8 +180,6 @@ impl Player {
         };
 
         shots.push(shot);
-
-        Ok(())
     }
 
     pub fn use_item(&mut self, _ctx: &mut Context, _conf: &mut Config) {

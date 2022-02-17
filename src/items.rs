@@ -15,14 +15,13 @@ use std::any::Any;
 
 #[derive(Debug, PartialEq)]
 pub enum CollectableTag {
-    Consumed,
     RedHeart(f32),
     SpeedBoost(f32),
     ShootRateBoost(f32),
     DamageBoost(f32),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CollectableState {
     Base,
     Consumed,
@@ -32,6 +31,7 @@ pub enum CollectableState {
 pub struct Collectable {
     pub props: ActorProps,
     pub tag: CollectableTag,
+    pub state: CollectableState,
 }
 
 impl Actor for Collectable {
@@ -57,7 +57,6 @@ impl Actor for Collectable {
             CollectableTag::SpeedBoost(_) => conf.assets.sprites.get("speed_boost").unwrap(),
             CollectableTag::ShootRateBoost(_) => conf.assets.sprites.get("shoot_rate_boost").unwrap(),
             CollectableTag::DamageBoost(_) => conf.assets.sprites.get("damage_boost").unwrap(),
-            _ => unreachable!(),
         };
 
         let draw_params = DrawParam::default()
@@ -105,37 +104,37 @@ impl Actor for Collectable {
 
 impl Collectable {
     pub fn affect_player(&mut self, ctx: &mut Context, conf: &mut Config, player: &mut Player) -> GameResult<bool> {
-        let result = match self.tag {
+        if self.state == CollectableState::Consumed {
+            return Ok(false);
+        }
+
+        match self.tag {
             CollectableTag::RedHeart(h) => {
                 if player.health < player.max_health {
                     player.health = f32::min(player.health + h, player.max_health);
-                    true
-                } else { false }
+                }
+                else {
+                    return Ok(false);
+                }
             }
             CollectableTag::ShootRateBoost(b) => {
                 player.shoot_rate = f32::min(player.shoot_rate * b, PLAYER_MAX_SHOOT_RATE);
-                true
             }
             CollectableTag::SpeedBoost(b) => {
                 player.speed = f32::min(player.speed * b, PLAYER_MAX_SPEED);
-                true
             }
             CollectableTag::DamageBoost(b) => {
                 player.damage = f32::min(player.damage * b, PLAYER_MAX_DAMAGE);
-                true
             }
-            _ => false,
         };
 
-        if result { 
-            match self.tag {
-                CollectableTag::RedHeart(_) => conf.assets.audio.get_mut("heal_sound").unwrap().play(ctx)?,
-                _ => conf.assets.audio.get_mut("power_up_sound").unwrap().play(ctx)?,
-            }
-            self.tag = CollectableTag::Consumed; 
+        match self.tag {
+            CollectableTag::RedHeart(_) => conf.assets.audio.get_mut("heal_sound").unwrap().play(ctx)?,
+            _ => conf.assets.audio.get_mut("power_up_sound").unwrap().play(ctx)?,
         }
+        self.state = CollectableState::Consumed; 
 
-        Ok(result)
+        Ok(true)
     }
 }
 

@@ -258,10 +258,10 @@ pub trait Chaser: Actor {
     fn find_path(&mut self, grid: &[[i32; ROOM_WIDTH]], sw: f32, sh: f32) -> Vec2 {
         let (mut i, mut j) = pos_to_room_coords(self.get_pos(), sw, sh);
 
-        if      i > 0               && grid[i - 1][j] > grid[i][j] { j += 1; }
-        else if j > 0               && grid[i][j - 1] > grid[i][j] { i += 1; }
-        else if j < ROOM_WIDTH - 1  && grid[i][j + 1] > grid[i][j] { i += 1; j += 2; }
-        else if i < ROOM_HEIGHT - 1 && grid[i + 1][j] > grid[i][j] { i += 2; j += 1; }
+        if      i > 0               && grid[i - 1][j] > grid[i][j] { i -= 1; }
+        else if j > 0               && grid[i][j - 1] > grid[i][j] { j -= 1; }
+        else if j < ROOM_WIDTH - 1  && grid[i][j + 1] > grid[i][j] { j += 1; }
+        else if i < ROOM_HEIGHT - 1 && grid[i + 1][j] > grid[i][j] { i += 1; }
         else { return self.get_pos(); }
 
         room_coords_to_pos(i, j, sw, sh)
@@ -269,7 +269,7 @@ pub trait Chaser: Actor {
 }
 
 pub trait Shooter: Actor {
-    fn shoot(&mut self, sw: f32, sh: f32, obstacles: &Vec<Box<dyn Stationary>>, shots: &mut Vec<Shot>, player: &Player) -> GameResult;
+    fn shoot(&mut self, sw: f32, sh: f32, obstacles: &Vec<Box<dyn Stationary>>, shots: &mut Vec<Shot>, player: &Player);
 
     fn get_range(&self) -> f32;  
 

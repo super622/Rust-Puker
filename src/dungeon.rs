@@ -87,7 +87,7 @@ impl Room {
 
         let dead_drops = self.drops.iter()
             .enumerate()
-            .filter(|d| d.1.tag == CollectableTag::Consumed)
+            .filter(|d| d.1.state == CollectableState::Consumed)
             .map(|d| d.0).collect::<Vec<_>>();
         for (i,d) in dead_drops.iter().enumerate() { self.drops.remove(d - i); }
         
@@ -379,6 +379,7 @@ impl Room {
                     66..=80 => CollectableTag::DamageBoost(1.5),
                     _ => CollectableTag::ShootRateBoost(1.3),
                 },
+                state: CollectableState::Base,
             });
         }
     }

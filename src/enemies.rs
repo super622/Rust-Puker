@@ -122,7 +122,7 @@ impl Actor for EnemyMask {
 
     fn act(&mut self, sw: f32, sh: f32, _grid: &[[i32; ROOM_WIDTH]], _obstacles: &Vec<Box<dyn Stationary>>, _shots: &mut Vec<Shot>, _player: &Player) -> GameResult {
         if self.afterlock_cooldown == 0. {
-            self.shoot(sw, sh, _obstacles, _shots, _player)?;
+            self.shoot(sw, sh, _obstacles, _shots, _player);
         }
         Ok(())
     }
@@ -133,7 +133,7 @@ impl Actor for EnemyMask {
 }
 
 impl Shooter for EnemyMask {
-    fn shoot(&mut self, sw: f32, sh: f32, obstacles: &Vec<Box<dyn Stationary>>, shots: &mut Vec<Shot>, player: &Player) -> GameResult {
+    fn shoot(&mut self, sw: f32, sh: f32, obstacles: &Vec<Box<dyn Stationary>>, shots: &mut Vec<Shot>, player: &Player) {
         let (mut cp, mut cn) = (Vec2::ZERO, Vec2::ZERO);
         let mut ct = 0.;
 
@@ -143,13 +143,13 @@ impl Shooter for EnemyMask {
             || obstacles.iter()
                 .filter(|o| { ray_vs_rect(&self.get_pos(), &(player.get_pos() - self.get_pos()), &o.get_bbox(sw, sh), &mut cp, &mut cn, &mut ct) && ct < 1. })
                 .count() != 0 {
-            return Ok(())
+            return;
         }
 
         self.props.forward = player.get_pos() - self.get_pos();
         self.state = ActorState::Shoot;
         self.shoot_timeout = 1. / self.shoot_rate;
-        self.animation_cooldown = ANIMATION_COOLDOWN;
+        self.animation_cooldown = ANIMATION_COOLDOWN / self.shoot_rate;
 
         let shot_dir = self.props.forward.normalize();
 
@@ -169,8 +169,6 @@ impl Shooter for EnemyMask {
         };
 
         shots.push(shot);
-
-        Ok(())
     }
 
     fn get_range(&self) -> f32 { self.shoot_range }
@@ -551,7 +549,7 @@ impl Actor for BossWeirdBall {
     fn act(&mut self, sw: f32, sh: f32, _grid: &[[i32; ROOM_WIDTH]], _obstacles: &Vec<Box<dyn Stationary>>, _shots: &mut Vec<Shot>, _player: &Player) -> GameResult {
         if self.afterlock_cooldown == 0. {
             self.wander(sw, sh, _grid);
-            self.shoot(sw, sh, _obstacles, _shots, _player)?;
+            self.shoot(sw, sh, _obstacles, _shots, _player);
         }
         Ok(())
     }
@@ -585,10 +583,10 @@ impl BossWeirdBall {
 }
 
 impl Shooter for BossWeirdBall {
-    fn shoot(&mut self, _sw: f32, _sh: f32, _obstacles: &Vec<Box<dyn Stationary>>, shots: &mut Vec<Shot>, _player: &Player) -> GameResult {
+    fn shoot(&mut self, _sw: f32, _sh: f32, _obstacles: &Vec<Box<dyn Stationary>>, shots: &mut Vec<Shot>, _player: &Player) {
         if self.shoot_timeout != 0. 
             || self.afterlock_cooldown != 0. {
-            return Ok(())
+            return;
         }
 
         self.props.forward = match thread_rng().gen_bool(0.5) {
@@ -597,7 +595,7 @@ impl Shooter for BossWeirdBall {
         };
         self.state = ActorState::Shoot;
         self.shoot_timeout = 1. / self.shoot_rate;
-        self.animation_cooldown = ANIMATION_COOLDOWN;
+        self.animation_cooldown = ANIMATION_COOLDOWN / self.shoot_rate;
 
         let mut shot_dir = match self.props.forward.x as i32 {
             1 => Vec2::X,
@@ -623,8 +621,6 @@ impl Shooter for BossWeirdBall {
             shots.push(shot);
             shot_dir = shot_dir.perp();
         }
-
-        Ok(())
     }
 
     fn get_range(&self) -> f32 { self.shoot_range }
