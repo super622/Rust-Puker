@@ -40,7 +40,7 @@ impl PlayScene {
 
         let config = Rc::clone(config);
         let player = Player::default();
-        let dungeon = Dungeon::generate_dungeon((sw, sh), 1);
+        let dungeon = Dungeon::generate_dungeon((sw, sh), config.borrow().level);
         let cur_room = Dungeon::get_start_room_coords();
         let overlay = Overlay::new(&player, &dungeon, cur_room);
 
@@ -184,10 +184,16 @@ impl PlayScene {
         }
 
         if next_level {
-            self.dungeon = Dungeon::generate_dungeon((sw, sh), self.dungeon.get_level() + 1);
+            if self.config.borrow().level > MAX_LEVEL {
+                self.config.borrow_mut().current_state = State::Victory;
+                self.config.borrow_mut().assets.audio.get_mut("victory_sound").unwrap().play(ctx)?;
+                return Ok(());
+            }
+            self.dungeon = Dungeon::generate_dungeon((sw, sh), self.config.borrow().level);
             self.cur_room = Dungeon::get_start_room_coords();
             self.player.props.pos = Vec2::new(sw / 2., sh / 2.).into();
         }
+            
 
         Ok(())
     }
@@ -921,7 +927,7 @@ pub struct LevelTransitionScene {
     config: Rc<RefCell<Config>>,
     ui_elements: Vec<Box<dyn UIElement>>,
     cooldown: f32,
-    level: usize,
+    level: u32,
 }
 
 impl LevelTransitionScene {
@@ -1003,4 +1009,112 @@ impl Scene for LevelTransitionScene {
     fn as_any(&self) -> &dyn Any { self }
 
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
+}
+
+pub struct VictoryScene {
+    config: Rc<RefCell<Config>>,
+    ui_elements: Vec<Box<dyn UIElement>>,
+}
+
+impl VictoryScene {
+    pub fn new(config: &Rc<RefCell<Config>>) -> Self {
+        let config = Rc::clone(config);
+        let ui_elements: Vec<Box<dyn UIElement>> = vec![
+            Box::new(TextSprite {
+                pos: Point2 { x: 0.5, y: 0.3},
+                text: String::from("YOU SURVIVED!"),
+                font_size: BUTTON_TEXT_FONT_SIZE * 2.,
+                color: Color::GREEN,
+                ..Default::default()
+            }),
+            Box::new(Button {
+                pos: Point2 { x: 0.5, y: 0.5},
+                action: ButtonAction::ChangeState(Some(State::New)),
+                tag: UIElementTag::State,
+                text: Some(TextSprite {
+                    text: String::from("Play Again"),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            Box::new(Button {
+                pos: Point2 { x: 0.5, y: 0.7},
+                action: ButtonAction::ChangeState(Some(State::Quit)),
+                tag: UIElementTag::State,
+                text: Some(TextSprite {
+                    text: String::from("Quit"),
+                    font: *config.borrow().assets.fonts.get("enigma").unwrap(),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+        ];
+
+        Self {
+            config,
+            ui_elements,
+        }
+    }
+}
+
+impl Scene for VictoryScene {
+    fn update(&mut self, ctx: &mut Context, _delta_time: f32) -> GameResult {
+        for e in self.ui_elements.iter_mut() {
+            e.update(ctx, &mut self.config.borrow_mut())?;
+        }
+
+        self.update_ui_vars(ctx)?;
+
+        Ok(())
+    }
+
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+
+        let curtain = Mesh::new_rectangle(
+            ctx,
+            DrawMode::fill(),
+            Rect::new(0., 0., sw, sh),
+            [0.1, 0.2, 0.3, 0.3].into()
+        )?;
+
+        graphics::draw(ctx, &curtain, DrawParam::default())?;
+
+        for e in self.ui_elements.iter_mut() {
+            e.draw(ctx, &mut self.config.borrow_mut())?;
+        }
+
+        Ok(())
+    }
+
+    fn get_conf(&self) -> Option<Ref<Config>> { Some(self.config.borrow()) }
+
+    fn get_conf_mut(&mut self) -> Option<RefMut<Config>> { Some(self.config.borrow_mut()) }
+
+    fn get_ui_elements(&self) -> Option<&Vec<Box<dyn UIElement>>> { Some(&self.ui_elements) }
+
+    fn get_ui_elements_mut(&mut self) -> Option<&mut Vec<Box<dyn UIElement>>> { Some(&mut self.ui_elements) }  
+
+    fn as_any(&self) -> &dyn Any { self }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
+
+    fn mouse_button_down_event(&mut self, ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+        let (sw, sh) = (self.config.borrow().screen_width, self.config.borrow().screen_height);
+        let (ww, wh) = (self.config.borrow().window_width, self.config.borrow().window_height);
+
+        if _button == MouseButton::Left {
+            for e in self.ui_elements.iter() {
+                if e.mouse_overlap(ctx, _x, _y, sw, sh, ww, wh) {
+                    if let Some(b) = e.as_any().downcast_ref::<Button>() {
+                        match b.action.clone() {
+                            ButtonAction::ChangeState(s) => change_scene(&mut self.config.borrow_mut(), s), 
+                            _ => (),
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

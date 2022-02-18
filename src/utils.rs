@@ -28,7 +28,7 @@ pub struct Config {
     pub draw_bbox_stationary: bool,
     pub current_state: State,
     pub previous_state: State,
-    pub level: usize,
+    pub level: u32,
 }
 
 #[derive(Clone, Copy, Hash, Debug)]
@@ -41,6 +41,7 @@ pub enum State {
     Quit,
     Dead,
     Transition,
+    Victory,
 }
 
 impl Display for State {
@@ -62,6 +63,7 @@ impl FromStr for State {
             "Quit" => State::Quit,
             "Dead" => State::Dead,
             "Transition" => State::Transition,
+            "Victory" => State::Victory,
             _ => return Err(Errors::StateParse(input.to_string())),
         };
         Ok(state)

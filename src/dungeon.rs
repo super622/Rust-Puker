@@ -169,7 +169,7 @@ impl Room {
         coords + dims / 2.
     }
 
-    fn parse_layout(sw: f32, sh: f32, rw: f32, rh: f32, layout: &str, door_connects: &[Option<((usize, usize), Direction)>; 4], level: usize) -> (Vec<Box<dyn Stationary>>, Vec<Box<dyn Actor>>, Vec<usize>, [[i32; ROOM_WIDTH]; ROOM_HEIGHT]) {
+    fn parse_layout(sw: f32, sh: f32, rw: f32, rh: f32, layout: &str, door_connects: &[Option<((usize, usize), Direction)>; 4], level: u32) -> (Vec<Box<dyn Stationary>>, Vec<Box<dyn Actor>>, Vec<usize>, [[i32; ROOM_WIDTH]; ROOM_HEIGHT]) {
         let mut doors: Vec<usize> = Vec::new();
         let mut obstacles: Vec<Box<dyn Stationary>> = Vec::new(); 
         let mut enemies: Vec<Box<dyn Actor>> = Vec::new();
@@ -263,7 +263,7 @@ impl Room {
         (obstacles, enemies, doors, grid)
     }
 
-    fn generate_room(screen: (f32, f32), dungeon_coords: (usize, usize), door_connects: [Option<((usize, usize), Direction)>; 4], tag: RoomTag, level: usize) -> Room {
+    fn generate_room(screen: (f32, f32), dungeon_coords: (usize, usize), door_connects: [Option<((usize, usize), Direction)>; 4], tag: RoomTag, level: u32) -> Room {
         let (sw, sh) = screen;
         
         let state = RoomState::Undiscovered;
@@ -398,11 +398,11 @@ impl Room {
 #[derive(Debug)]
 pub struct Dungeon {
     grid: [[Option<Room>; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS],
-    level: usize,
+    level: u32,
 }
 
 impl Dungeon {
-    pub fn generate_dungeon(screen: (f32, f32), level: usize) -> Self {
+    pub fn generate_dungeon(screen: (f32, f32), level: u32) -> Self {
         const INIT: Option<Room> = None;
         const INIT_ROW: [Option<Room>; DUNGEON_GRID_COLS] = [INIT; DUNGEON_GRID_COLS];
         let mut grid_rooms: [[Option<Room>; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS] = [INIT_ROW; DUNGEON_GRID_ROWS];
@@ -410,7 +410,7 @@ impl Dungeon {
         let mut room_dungeon_coords;
 
         loop {
-            let room_count = thread_rng().gen_range(0..2) + 5 + level * 2;
+            let room_count = (thread_rng().gen_range(0..2) + 5 + level * 2) as usize;
             grid = [[0_usize; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS];
             room_dungeon_coords = Vec::new();
             let start_room = Dungeon::get_start_room_coords();
@@ -498,7 +498,7 @@ impl Dungeon {
 
     pub fn get_grid(&self) -> &[[Option<Room>; DUNGEON_GRID_COLS]; DUNGEON_GRID_ROWS] { &self.grid }
 
-    pub fn get_level(&self) -> usize { self.level }
+    pub fn get_level(&self) -> u32 { self.level }
 
     pub const fn get_start_room_coords() -> (usize, usize) { (3, 5) }
 

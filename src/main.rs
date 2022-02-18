@@ -49,6 +49,7 @@ impl MainState {
         scenes.insert(State::Dead, Box::new(DeadScene::new(&config)));
         scenes.insert(State::Options, Box::new(OptionsScene::new(&config)));
         scenes.insert(State::Transition, Box::new(LevelTransitionScene::new(&config)));
+        scenes.insert(State::Victory, Box::new(VictoryScene::new(&config)));
 
         change_volume(&mut config.borrow_mut(), 0.);
 
@@ -88,7 +89,7 @@ impl EventHandler for MainState {
         let scene = self.config.borrow().current_state;
 
         match scene {
-            State::PauseMenu | State::Dead | State::Options | State::Transition => {
+            State::PauseMenu | State::Dead | State::Options | State::Transition | State::Victory => {
                 match self.scenes.get_mut(&State::Play) {
                     Some(s) => s.draw(ctx)?,
                     None => (),
