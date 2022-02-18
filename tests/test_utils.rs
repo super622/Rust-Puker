@@ -49,14 +49,13 @@ fn test_dynamic_rect_vs_rect() {
 #[test]
 fn test_dynamic_circle_vs_rect() {
     let mut d_c = (Vec2::ZERO.into(), 2.);
-    let d_vel = Vec2::X;
     let s_rect = Rect::new(1., 1., 2., 2.);
     let (mut cp, mut cn, mut t) = (Vec2::ZERO, Vec2::ZERO, 0.);
 
-    assert!(dynamic_circle_vs_rect(&d_c, &d_vel, &s_rect, &mut cp, &mut cn, &mut t, DELTA_TIME));
+    assert!(dynamic_circle_vs_rect(&d_c, &s_rect, &mut cp, &mut cn, &mut t, DELTA_TIME));
 
     d_c = ((d_c.0.0 - cn * t).into(), d_c.1);
-    assert!(!dynamic_circle_vs_rect(&d_c, &d_vel, &s_rect, &mut cp, &mut cn, &mut t, DELTA_TIME));
+    assert!(!dynamic_circle_vs_rect(&d_c, &s_rect, &mut cp, &mut cn, &mut t, DELTA_TIME));
 }
 
 #[test]

@@ -248,7 +248,7 @@ pub fn dynamic_rect_vs_rect(source: &Rect, source_vel: &Vec2, target: &Rect, con
 /// Detects intersection between moving circle and stationary rectangle.
 /// Long live OneLoneCoder and his tutorials.
 ///
-pub fn dynamic_circle_vs_rect(source: &(Vec2Wrap, f32), _source_vel: &Vec2, target: &Rect, contact_point: &mut Vec2, contact_normal: &mut Vec2, contact_time: &mut f32, _elapsed_time: f32) -> bool { 
+pub fn dynamic_circle_vs_rect(source: &(Vec2Wrap, f32), target: &Rect, contact_point: &mut Vec2, contact_normal: &mut Vec2, contact_time: &mut f32, _elapsed_time: f32) -> bool { 
     let source_pos = source.0.0;
     let source_r = source.1;
 
