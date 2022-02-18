@@ -31,6 +31,7 @@ pub struct Player {
     pub animation_cooldown: f32,
     pub afterlock_cooldown: f32,
     pub item: Option<Item>,
+    pub item_pick_cooldown: f32,
 }
 
 impl Default for Player {
@@ -55,6 +56,7 @@ impl Default for Player {
             animation_cooldown: 0.,
             afterlock_cooldown: PLAYER_AFTERLOCK_COOLDOWN,
             item: None,
+            item_pick_cooldown: 0.,
         }
     }
 }
@@ -62,6 +64,7 @@ impl Default for Player {
 impl Actor for Player {
     fn update(&mut self, ctx: &mut Context, conf: &mut Config, _delta_time: f32) -> GameResult {
         self.afterlock_cooldown = f32::max(0., self.afterlock_cooldown - _delta_time);
+        self.item_pick_cooldown = f32::max(0., self.item_pick_cooldown - _delta_time);
 
         if self.afterlock_cooldown == 0. {
             self.velocity_lerp(_delta_time, self.speed, _delta_time * 2., 400.);
@@ -185,9 +188,9 @@ impl Player {
     pub fn use_item(&mut self) -> bool {
         match self.item.take() {
             Some(mut i) => {
-                i.activate(self);
+                let result = i.activate(self);
                 self.item = Some(i);
-                true
+                result
             },
             None => false,
         }

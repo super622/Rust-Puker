@@ -165,8 +165,8 @@ impl Item {
         }
     }
     
-    pub fn activate(&mut self, player: &mut Player) {
-        if self.cooldown > 0. { return; } 
+    pub fn activate(&mut self, player: &mut Player) -> bool {
+        if self.cooldown > 0. { return false; } 
         self.cooldown = ITEM_COOLDOWN;
 
         match self.tag {
@@ -175,5 +175,7 @@ impl Item {
             },
             _ => (),
         }
+
+        true
     }
 }

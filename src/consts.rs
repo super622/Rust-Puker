@@ -28,6 +28,7 @@ pub const PLAYER_DAMAGE: f32 = 1.;
 pub const PLAYER_MAX_DAMAGE: f32 = 3.;
 pub const PLAYER_DAMAGED_COOLDOWN: f32 = 1.;
 pub const PLAYER_AFTERLOCK_COOLDOWN: f32 = 0.5;
+pub const PLAYER_ITEM_PICK_COOLDOWN: f32 = 1.;
 
 pub const ENEMY_SCALE: f32 = 0.8;
 pub const ENEMY_SHOOT_RATE: f32 = 0.5;

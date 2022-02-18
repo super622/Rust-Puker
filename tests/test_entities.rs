@@ -86,10 +86,3 @@ fn test_velocity_lerp() {
 
     assert_eq!(player.get_velocity().length(), 0.);
 }
-
-// #[test]
-// fn test_player_pick_up_passive() {
-//     let player = Player::default();
-//     let passive = Item {
-//     }
-// }

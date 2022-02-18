@@ -150,9 +150,12 @@ impl PlayScene {
                                 obst.tag = BlockTag::Pedestal(None);
                             },
                             ItemTag::Active(_) => {
-                                let temp = Some(item); 
-                                obst.tag = BlockTag::Pedestal(self.player.item);
-                                self.player.item = temp;
+                                if self.player.item_pick_cooldown == 0. {
+                                    let temp = Some(item); 
+                                    obst.tag = BlockTag::Pedestal(self.player.item);
+                                    self.player.item = temp;
+                                    self.player.item_pick_cooldown = PLAYER_ITEM_PICK_COOLDOWN;
+                                }
                             }
                         }
 
