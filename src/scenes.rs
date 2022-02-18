@@ -91,7 +91,13 @@ impl PlayScene {
             self.player.shoot(&mut room.shots);
         }
         if keyboard::is_key_pressed(ctx, KeyCode::Space) {
-            self.player.use_item(ctx, &mut self.config.borrow_mut());
+            if self.player.use_item() {
+                if let ItemTag::Active(act) = &self.player.item.unwrap().tag {
+                    match act {
+                        ItemActive::Heal(_) => self.config.borrow_mut().assets.audio.get_mut("heal_sound").unwrap().play(ctx)?,
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -140,7 +146,7 @@ impl PlayScene {
                         self.config.borrow_mut().assets.audio.get_mut("wow_sound").unwrap().play(ctx)?;
                         match item.tag {
                             ItemTag::Passive(_) => {
-                                item.affect_player(ctx, &mut self.config.borrow_mut(), &mut self.player);
+                                item.affect_player(&mut self.player);
                                 obst.tag = BlockTag::Pedestal(None);
                             },
                             ItemTag::Active(_) => {
@@ -239,8 +245,14 @@ impl PlayScene {
 
         for d in room.drops.iter_mut() {
             if circle_vs_circle(&d.get_bcircle(sw, sh), &self.player.get_bcircle(sw, sh)) {
-                if !d.affect_player(ctx, &mut self.config.borrow_mut(), &mut self.player)? {
+                if !d.affect_player(&mut self.player) {
                     resolve_environment_collision(d, &mut self.player, sw, sh, _delta_time);
+                }
+                else {
+                    match d.tag {
+                        CollectableTag::RedHeart(_) => self.config.borrow_mut().assets.audio.get_mut("heal_sound").unwrap().play(ctx)?,
+                        _ => self.config.borrow_mut().assets.audio.get_mut("power_up_sound").unwrap().play(ctx)?,
+                    }
                 }
             }
         }

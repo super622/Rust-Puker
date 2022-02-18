@@ -10,6 +10,7 @@ use puker::{
 use glam::f32::Vec2;
 
 const SCREEN: (f32, f32) = (DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT);
+const DELTA_TIME: f32 = 1. / 60.;
 
 #[test]
 fn test_player_shoot() {
@@ -65,3 +66,30 @@ fn test_enemy_shooter() {
 
     assert_eq!(shots.len(), 1);
 }
+
+#[test]
+fn test_velocity_lerp() {
+    let mut player = Player::default();
+    player.set_translation(Vec2::X);
+
+    while player.get_velocity().length() < player.speed {
+        player.velocity_lerp(DELTA_TIME, player.speed, DELTA_TIME * 2., 400.);
+    }
+
+    assert_eq!(player.get_velocity().length(), player.speed);
+
+    player.set_translation(Vec2::ZERO);
+
+    while player.get_velocity().length() > 0. {
+        player.velocity_lerp(DELTA_TIME, player.speed, DELTA_TIME * 2., 400.);
+    }
+
+    assert_eq!(player.get_velocity().length(), 0.);
+}
+
+// #[test]
+// fn test_player_pick_up_passive() {
+//     let player = Player::default();
+//     let passive = Item {
+//     }
+// }

@@ -8,7 +8,6 @@ use ggez::{
     graphics::{self, DrawParam},
     Context,
     GameResult,
-    audio::SoundSource,
 };
 use glam::f32::Vec2;
 use std::any::Any;
@@ -103,9 +102,9 @@ impl Actor for Collectable {
 }
 
 impl Collectable {
-    pub fn affect_player(&mut self, ctx: &mut Context, conf: &mut Config, player: &mut Player) -> GameResult<bool> {
+    pub fn affect_player(&mut self, player: &mut Player) -> bool {
         if self.state == CollectableState::Consumed {
-            return Ok(false);
+            return false;
         }
 
         match self.tag {
@@ -114,7 +113,7 @@ impl Collectable {
                     player.health = f32::min(player.health + h, player.max_health);
                 }
                 else {
-                    return Ok(false);
+                    return false;
                 }
             }
             CollectableTag::ShootRateBoost(b) => {
@@ -128,13 +127,9 @@ impl Collectable {
             }
         };
 
-        match self.tag {
-            CollectableTag::RedHeart(_) => conf.assets.audio.get_mut("heal_sound").unwrap().play(ctx)?,
-            _ => conf.assets.audio.get_mut("power_up_sound").unwrap().play(ctx)?,
-        }
         self.state = CollectableState::Consumed; 
 
-        Ok(true)
+        true
     }
 }
 
@@ -161,7 +156,7 @@ pub struct Item {
 }
 
 impl Item {
-    pub fn affect_player(&mut self, _ctx: &mut Context, _conf: &mut Config, player: &mut Player) {
+    pub fn affect_player(&mut self, player: &mut Player) {
         match self.tag {
             ItemTag::Passive(p) => match p {
                 ItemPassive::IncreaseMaxHealth(x) => player.max_health += x,
@@ -170,7 +165,7 @@ impl Item {
         }
     }
     
-    pub fn activate(&mut self, _ctx: &mut Context, _conf: &mut Config, player: &mut Player) {
+    pub fn activate(&mut self, player: &mut Player) {
         if self.cooldown > 0. { return; } 
         self.cooldown = ITEM_COOLDOWN;
 

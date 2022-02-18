@@ -182,13 +182,14 @@ impl Player {
         shots.push(shot);
     }
 
-    pub fn use_item(&mut self, _ctx: &mut Context, _conf: &mut Config) {
+    pub fn use_item(&mut self) -> bool {
         match self.item.take() {
             Some(mut i) => {
-                i.activate(_ctx, _conf, self);
+                i.activate(self);
                 self.item = Some(i);
+                true
             },
-            None => ()
+            None => false,
         }
     }
 }
