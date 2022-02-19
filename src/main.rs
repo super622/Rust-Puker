@@ -154,11 +154,10 @@ impl EventHandler for MainState {
 
         match scene {
             State::New => {
+                self.config.borrow_mut().current_state = State::Transition;
+                self.config.borrow_mut().level = 1;
                 self.scenes.insert(State::Play, Box::new(PlayScene::new(&self.config)));
                 self.scenes.insert(State::Transition, Box::new(LevelTransitionScene::new(&self.config)));
-                let mut conf = self.config.borrow_mut();
-                conf.current_state = State::Transition;
-                conf.level = 1;
             }
             State::Quit => ggez::event::quit(_ctx),
             State::MainMenu => { self.scenes.remove(&State::Play); },

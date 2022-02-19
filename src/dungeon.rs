@@ -450,7 +450,7 @@ impl Dungeon {
             if Dungeon::check_dungeon_consistency(&grid, room_count) { break }
         }
 
-        room_dungeon_coords.sort_by_key(|k| (Dungeon::check_room_cardinals(&grid, k.0), k.1));
+        room_dungeon_coords.sort_by_key(|k| (k.1, Dungeon::check_room_cardinals(&grid, k.0)));
 
         let mut special_rooms = vec![
             RoomTag::Item,
